@@ -1,0 +1,54 @@
+#-------------------------
+# Netbeans
+#-------------------------
+nbproject/
+build/
+nbbuild/
+dist/
+nbdist/
+nbactions.xml
+nb-configuration.xml
+.nb-gradle/
+
+
+#-------------------------
+# Composer
+#-------------------------
+vendor/
+composer.lock
+
+
+#-------------------------
+# Environment Files
+#-------------------------
+# These should never be under version control,
+# as it poses a security risk.
+.env
+.vagrant
+Vagrantfile
+
+
+#-------------------------
+# Temporary Files
+#-------------------------
+writable/cache/*
+!writable/cache/index.html
+
+writable/logs/*
+!writable/logs/index.html
+
+writable/session/*
+!writable/session/index.html
+
+writable/uploads/*
+!writable/uploads/index.html
+
+# Disco real: writable/uploads. En el servidor public/uploads es symlink a eso.
+# Si se versiona, git pull pisa el enlace y aborta el merge.
+public/uploads
+
+writable/debugbar/*
+!writable/debugbar/index.html
+
+writable/whatsapp/multimedia/*
+!writable/whatsapp/multimedia/index.html

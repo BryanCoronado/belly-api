@@ -142,8 +142,6 @@ class MensajeController extends BaseController
             return $this->response->setJSON($resultado);
         } catch (\Throwable $e) {
             log_message('error', "MensajeController::enviar [{$requestId}] - " . $e->getMessage());
-            // Si ves el error "Failed to parse JSON string..." en el front,
-            // mira el Network tab para ver EXACTAMENTE qué devuelve aquí.
             return $this->response->setJSON([
                 'success' => false,
                 'message' => 'Error interno al enviar mensaje.',
@@ -163,8 +161,6 @@ class MensajeController extends BaseController
             return $this->response->setJSON([
                 'success' => true,
                 'mensajes' => $mensajes,
-                'historial_canal_origen' => null,
-                'historial_messenger' => null,
                 'contexto_apoyo_recurrente' => $contextoApoyoRecurrente,
             ]);
         } catch (\Exception $e) {

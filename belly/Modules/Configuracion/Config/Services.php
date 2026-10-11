@@ -2,6 +2,7 @@
 
 namespace Belly\Configuracion\Config;
 use Belly\Configuracion\UseCases\AppUseCase;
+use Belly\Configuracion\UseCases\EmpresaUseCase;
 use Belly\Configuracion\UseCases\PortafolioUseCase ;
 
 
@@ -29,5 +30,15 @@ class Services extends BaseService
         // Asegúrate de pasar el argumento necesario al constructor
         $config = $config ?? config('ConfiguracionConfig');
         return new PortafolioUseCase($config);
+    }
+
+    public static function EmpresaUseCase($config = null, bool $getShared = true): EmpresaUseCase
+    {
+        if ($getShared) {
+            return self::getSharedInstance('EmpresaUseCase', $config);
+        }
+
+        $config = $config ?? config('ConfiguracionConfig');
+        return new EmpresaUseCase($config);
     }
 }

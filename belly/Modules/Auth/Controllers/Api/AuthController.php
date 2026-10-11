@@ -14,8 +14,22 @@ class AuthController extends BaseController
     public function login()
     {
         $datos = $this->request->getJSON(true);
+        if (! is_array($datos)) {
+            return $this->failUnauthorized('Datos de acceso inválidos.', 'Auth');
+        }
 
-        $usuario = auth()->validarUsuarioRegistrado($datos['username']);
+        $slug = trim((string) ($datos['empresa'] ?? ''));
+        $username = trim((string) ($datos['username'] ?? ''));
+        if ($slug === '' || $username === '') {
+            return $this->failUnauthorized('La empresa y el usuario son obligatorios.', 'Auth');
+        }
+
+        $empresa = empresa()->buscarActivaPorSlug($slug);
+        if ($empresa === null) {
+            return $this->failUnauthorized('Empresa no encontrada o inactiva.', 'Auth');
+        }
+
+        $usuario = auth()->validarUsuarioRegistrado($username, (int) $empresa->id);
 
         if (empty($usuario)) {
             return $this->failUnauthorized(lang('Auth.noRegistrado', [$datos['username']]), 'Auth');
@@ -44,12 +58,34 @@ class AuthController extends BaseController
         $usuarioModel->update($usuario->id, ['id_estado_usuario' => 1]);
 
         try {
+            $perfil = $usuario->perfil;
             $response = [
                 'success' => true,
                 'messages' => 'Inicio de sesión exitoso.',
-                'token' => auth()->generarToken()
+                'token' => auth()->generarToken(),
+                'usuario' => [
+                    'id' => (int) $usuario->id,
+                    'id_empresa' => (int) ($usuario->id_empresa ?? 0),
+                    'empresa' => $empresa->slug,
+                    'usuario' => $usuario->usuario,
+                    'nombres' => $perfil->nombres ?? null,
+                    'apellidos' => $perfil->apellidos ?? null,
+                ],
             ];
             return $this->respond($response, 200);
+        } catch (\Exception $exc) {
+            return $this->failUnauthorized($exc->getMessage(), 'Auth');
+        }
+    }
+
+    public function tokenDescarga()
+    {
+        try {
+            return $this->respond([
+                'success' => true,
+                'token' => auth()->generarTokenDescarga(),
+                'expira_en' => config('AuthConfig')->vigencia_token_descarga * 60,
+            ], 200);
         } catch (\Exception $exc) {
             return $this->failUnauthorized($exc->getMessage(), 'Auth');
         }

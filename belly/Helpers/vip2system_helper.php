@@ -21,6 +21,7 @@ use Belly\Conversacion\UseCases\ConversacionReporteUseCase;
 use Belly\Conversacion\UseCases\EtiquetaUseCase;
 use Belly\Webhooks\UseCases\WebhookUseCase;
 use Belly\Configuracion\UseCases\AppUseCase;
+use Belly\Configuracion\UseCases\EmpresaUseCase;
 use Belly\Configuracion\UseCases\PortafolioUseCase;
 use Belly\Media\UseCases\MediaUseCase;
 use Belly\Auth\UseCases\AuthUseCase;
@@ -46,6 +47,32 @@ if (!function_exists('auth')) {
     function auth(): AuthUseCase
     {
         return service('AuthUseCase');
+    }
+}
+
+if (!function_exists('id_empresa_sesion')) {
+    function id_empresa_sesion(): ?int
+    {
+        static $enCurso = false;
+        if ($enCurso) {
+            return null;
+        }
+
+        $enCurso = true;
+        try {
+            $usuario = auth()->getUsuario();
+            if ($usuario === null) {
+                return null;
+            }
+
+            $id = (int) ($usuario->id_empresa ?? 0);
+
+            return $id > 0 ? $id : null;
+        } catch (\Throwable $e) {
+            return null;
+        } finally {
+            $enCurso = false;
+        }
     }
 }
 
@@ -252,6 +279,13 @@ if (!function_exists('webhook')) {
     function webhook(): WebhookUseCase
     {
         return service('WebhookUseCase');
+    }
+}
+
+if (!function_exists('empresa')) {
+    function empresa(): EmpresaUseCase
+    {
+        return service('EmpresaUseCase');
     }
 }
 

@@ -33,11 +33,14 @@ class AuthUseCase
     }
 
 
-    public function validarUsuarioRegistrado(string $username): array {
+    public function validarUsuarioRegistrado(string $username, ?int $idEmpresa = null): array {
         $usuario_model = $this->getUsuarioProvider();
         $usuario_model->where([
             'usuario' => $username
         ]);
+        if ($idEmpresa !== null && $idEmpresa > 0) {
+            $usuario_model->where('id_empresa', $idEmpresa);
+        }
 
         $this->usuario = $usuario_model->first();
 
@@ -84,13 +87,28 @@ class AuthUseCase
         return password_hash($hash, PASSWORD_BCRYPT, ['cost' => 12]);
     }
 
-    public function generarToken() {
-        $key = $this->generarJWTKey($this->usuario->password);
-        $payload = $this->generarPayload($key);
+    public function generarToken(): string
+    {
+        return $this->emitirToken('sesion', $this->config->vigencia_token, 'hours');
+    }
 
-        $jwt = JWT::encode($payload, $key, 'HS256');
+    public function generarTokenDescarga(): string
+    {
+        if ($this->usuario === null) {
+            throw new \Exception('No autenticado.');
+        }
 
-        return $jwt;
+        return $this->emitirToken('descarga', $this->config->vigencia_token_descarga, 'minutes');
+    }
+
+    public function cerrarSesionesUsuario(int $idUsuario): void
+    {
+        if ($idUsuario <= 0) {
+            return;
+        }
+
+        $modelo = new ($this->config->login_provider)();
+        $modelo->where('id_usuario', $idUsuario)->delete();
     }
 
     /**
@@ -120,79 +138,37 @@ class AuthUseCase
         $usuarioOriginal = $this->usuario;
         $this->usuario   = $asesor;
 
-        $key     = $this->generarJWTKey($asesor->password);
+        $key = $this->generarJWTKey($asesor->password);
         $payload = $this->generarPayloadImpersonacion($key, $idSupervisor);
-        $jwt     = JWT::encode($payload, $key, 'HS256');
+        $jwt = JWT::encode($payload, $key, 'HS256');
 
         $this->usuario = $usuarioOriginal;
 
         return $jwt;
     }
 
-    /**
-     * Payload idéntico al normal pero con claim extra imp/imp_by para auditoría.
-     */
-    private function generarPayloadImpersonacion(string $token_key, int $idSupervisor): array
+    private function generarPayloadImpersonacion(string $tokenKey, int $idSupervisor): array
     {
-        $login_model = $this->getLoginProvider();
-        $request     = service('request');
-        $ahora       = new Time();
-        $ahora       = $ahora->subMinutes(3);
-        // Token corto: 8 horas para impersonación
-        $vigencia    = $ahora->addHours(8);
+        $emision = (new Time())->subMinutes(3);
+        $expira = (clone $emision)->addHours(8);
+        $jti = $this->registrarSesion($tokenKey);
 
-        $info = [
-            'id'           => $this->usuario->id,
-            'id_entidad'   => $this->usuario->id_empresa,
-            'usuario'      => $this->usuario->usuario,
-            'activo'       => $this->usuario->activo,
-            'maestro'      => $this->usuario->sudo,
-            'cambio_passw' => $this->usuario->forzar_cambio_pw,
-            'nombres'      => $this->usuario->perfil->nombres,
-            'apellidos'    => $this->usuario->perfil->apellidos,
-            'nro_documento'=> $this->usuario->perfil->nro_documento,
-            'correo'       => $this->usuario->perfil->correo,
-            'celular'      => $this->usuario->perfil->celular,
-        ];
-
-        $jti = new UsuarioLoginEntity();
-        $jti->fill([
-            'id_usuario'  => $this->usuario->id,
-            'token_key'   => addslashes($token_key),
-            'ip_address'  => $request->getIPAddress(),
-        ]);
-
-        if ($login_model->save($jti)) {
-            $jti->id = $login_model->insertID;
-        } else {
-            throw new \Exception(lang('Auth.errorTokenKey'));
-        }
-
-        // Log de auditoría
         $db = \Config\Database::connect();
         $db->table('impersonacion_log')->insert([
             'id_supervisor' => $idSupervisor,
-            'id_asesor'     => $this->usuario->id,
-            'id_login'      => $jti->id,
-            'ip_address'    => $request->getIPAddress(),
-            'created_at'    => date('Y-m-d H:i:s'),
+            'id_asesor' => $this->usuario->id,
+            'id_login' => $jti,
+            'ip_address' => service('request')->getIPAddress(),
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        return [
-            'iss' => base_url(),
-            'aud' => base_url(),
-            'iat' => $ahora->getTimestamp(),
-            'nbf' => $ahora->getTimestamp(),
-            'exp' => $vigencia->getTimestamp(),
-            'jti' => $jti->id,
-            'sub' => $this->usuario->id,
-            'inf' => $info,
+        return $this->armarPayload($jti, $emision, $expira, 'sesion', [
             'imp' => true,
             'imp_by' => $idSupervisor,
-        ];
+        ]);
     }
 
-    public function isValid(string $header_token): bool {
+    public function isValid(string $header_token, string $usoEsperado = 'sesion'): bool {
         $payload = $this->getPayloadFromHeader($header_token);
         $this->login_sesion = null;
 
@@ -216,12 +192,20 @@ class AuthUseCase
         }
 
         $decode = JWT::decode($header_token, new Key($token->token_key, 'HS256'));
+        $uso = (string) ($decode->uso ?? 'sesion');
+        if ($uso !== $usoEsperado) {
+            return false;
+        }
 
         $usuario_model = $this->getUsuarioProvider();
         $usuario_model->where([
             'id' => $decode->inf->id,
             'usuario' => $decode->inf->usuario,
         ]);
+        $idEmpresaToken = (int) ($decode->inf->id_empresa ?? $decode->inf->id_entidad ?? 0);
+        if ($idEmpresaToken > 0) {
+            $usuario_model->where('id_empresa', $idEmpresaToken);
+        }
 
         $usuario = $usuario_model->first();
 
@@ -275,49 +259,67 @@ class AuthUseCase
         return $payload;
     }
 
-    private function generarPayload(string $token_key) {
-        $login_model = $this->getLoginProvider();
-        $request = service('request');
-        $ahora = new Time();
-        $ahora = $ahora->subMinutes(3);
-        $vigencia = $ahora->addHours($this->config->vigencia_token);
-        $info = [
-            'id' => $this->usuario->id,
-            'id_entidad' => $this->usuario->id_empresa,
-            'usuario' => $this->usuario->usuario,
-            'activo' => $this->usuario->activo,
-            'maestro' => $this->usuario->sudo,
-            'cambio_passw' => $this->usuario->forzar_cambio_pw,
-            'nombres' => $this->usuario->perfil->nombres,
-            'apellidos' => $this->usuario->perfil->apellidos,
-            'nro_documento' => $this->usuario->perfil->nro_documento,
-            'correo' => $this->usuario->perfil->correo,
-            'celular' => $this->usuario->perfil->celular,
-        ];
+    private function emitirToken(string $uso, int $vigencia, string $unidad): string
+    {
+        $key = $this->generarJWTKey($this->usuario->password);
+        $emision = (new Time())->subMinutes(3);
+        $expira = clone $emision;
+        if ($unidad === 'minutes') {
+            $expira = $expira->addMinutes($vigencia);
+        } else {
+            $expira = $expira->addHours($vigencia);
+        }
 
-        $jti = new UsuarioLoginEntity();
-        $jti->fill([
+        $payload = $this->armarPayload($this->registrarSesion($key), $emision, $expira, $uso);
+
+        return JWT::encode($payload, $key, 'HS256');
+    }
+
+    private function registrarSesion(string $tokenKey): int
+    {
+        $login = new UsuarioLoginEntity();
+        $login->fill([
             'id_usuario' => $this->usuario->id,
-            'token_key' => addslashes($token_key),
-            'ip_address' => $request->getIPAddress(),
+            'token_key' => $tokenKey,
+            'ip_address' => service('request')->getIPAddress(),
         ]);
 
-        if ($login_model->save($jti)) {
-            $jti->id = $login_model->insertID;
-        } else {
+        $loginModel = $this->getLoginProvider();
+        if (! $loginModel->save($login)) {
             throw new \Exception(lang('Auth.errorTokenKey'));
         }
 
+        return (int) $loginModel->insertID;
+    }
+
+    private function datosIdentidad(): array
+    {
+        $idEmpresa = (int) ($this->usuario->id_empresa ?? 0);
+
         return [
+            'id' => (int) $this->usuario->id,
+            'id_empresa' => $idEmpresa,
+            'id_entidad' => $idEmpresa,
+            'usuario' => $this->usuario->usuario,
+            'activo' => (int) $this->usuario->activo,
+            'maestro' => (int) $this->usuario->sudo,
+            'cambio_passw' => (int) $this->usuario->forzar_cambio_pw,
+        ];
+    }
+
+    private function armarPayload(int $jti, Time $emision, Time $expira, string $uso, array $extra = []): array
+    {
+        return array_merge([
             'iss' => base_url(),
             'aud' => base_url(),
-            'iat' => $ahora->getTimestamp(), //fecha de emision del token
-            'nbf' => $ahora->getTimestamp(), //evitar que el token no se use antes de la fecha de emision
-            'exp' => $vigencia->getTimestamp(), //asignar el tiempo de vigencia del token
-            'jti' => $jti->id, //identificador unico del token, para evitar que se asigne a otro token
-            'sub' => $this->usuario->id, //ID del usuario logeado
-            'inf' => $info,
-        ];
+            'iat' => $emision->getTimestamp(),
+            'nbf' => $emision->getTimestamp(),
+            'exp' => $expira->getTimestamp(),
+            'jti' => $jti,
+            'sub' => (int) $this->usuario->id,
+            'uso' => $uso,
+            'inf' => $this->datosIdentidad(),
+        ], $extra);
     }
 
     /*

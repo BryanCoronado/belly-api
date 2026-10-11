@@ -60,17 +60,6 @@ class CreateUsuarioPerfilTable extends Migration
                 'constraint' => '15',
                 'null'       => true,
             ],
-            'extension' => [
-                'type'       => 'INT',
-                'constraint' => 11,
-                'unsigned'   => true,
-                'null'       => true,
-            ],
-            'sip_password' => [
-                'type'       => 'VARCHAR',
-                'constraint' => '100',
-                'null'       => true,
-            ],
             'created_at' => [
                 'type' => 'DATETIME',
                 'default' => new RawSql('CURRENT_TIMESTAMP'),

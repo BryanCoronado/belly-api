@@ -2,10 +2,12 @@
 
 namespace Belly\Clientes\Models;
 use Belly\Clientes\Entities\ListaNegraEntity;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 
 use CodeIgniter\Model;
 
 class ListaNegraModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'lista_negra';
     protected $primaryKey = 'id';
@@ -14,6 +16,7 @@ class ListaNegraModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'telefono',
         'motivo'
     ];
@@ -21,6 +24,7 @@ class ListaNegraModel extends Model {
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
     ];
     protected array $castHandlers = [];
     // Dates
@@ -30,7 +34,7 @@ class ListaNegraModel extends Model {
     protected $updatedField = 'updated_at';
     protected $deletedField = 'deleted_at';
     protected $validationRules = [
-        'telefono'     => 'required|max_length[11]|min_length[11]|is_unique[lista_negra.telefono,id,{id}]',
+        'telefono'     => 'required|max_length[11]|min_length[11]',
         'motivo'     => 'permit_empty|max_length[255]',
         'id'           => 'permit_empty|integer',
     ];

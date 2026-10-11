@@ -9,6 +9,7 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
         $routes->get('permisos', 'AuthController::getProcedure', ['as' => 'apiv1_auth_procedure']);
         $routes->get('roles', 'AuthController::getRoles', ['as' => 'apiv1_auth_roles']);
         $routes->get('logout', 'AuthController::logout', ['as' => 'apiv1_auth_logout']);
+        $routes->post('token-descarga', 'AuthController::tokenDescarga', ['as' => 'apiv1_auth_token_descarga']);
         $routes->post('impersonar/(:num)', 'AuthController::impersonar/$1', ['as' => 'apiv1_auth_impersonar']);
     });
 });

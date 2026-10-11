@@ -2,10 +2,12 @@
 
 namespace Belly\Mensajes\Models;
 use Belly\Mensajes\Entities\MensajeEntity;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 
 use CodeIgniter\Model;
 
 class MensajeModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'mensaje';
     protected $primaryKey = 'id';
@@ -14,6 +16,7 @@ class MensajeModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'id_conversacion',
         'id_estado',
         'mensaje',
@@ -30,6 +33,7 @@ class MensajeModel extends Model {
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
         'id_conversacion' => 'int',
         'id_estado' => 'int',
     ];

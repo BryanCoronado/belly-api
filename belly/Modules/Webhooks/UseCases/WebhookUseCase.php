@@ -42,7 +42,7 @@ class WebhookUseCase
                     }
 
                     try {
-                        $this->procesarEstadoMensajeWhatsapp($status);
+                        $this->procesarEstadoMensajeWhatsapp($status, $value);
                     } catch (\Throwable $e) {
                         log_message('error', '[WEBHOOK WA] Estado: ' . $e->getMessage());
                     }
@@ -92,6 +92,13 @@ class WebhookUseCase
         }
 
         $idApp = (int) $app->id;
+        $idEmpresa = (int) ($app->id_empresa ?? 0);
+        if ($idEmpresa <= 0) {
+            log_message('error', '[WEBHOOK WA] App sin empresa. app=' . $idApp);
+
+            return;
+        }
+
         if ($wamid !== '' && $this->mensajeYaExiste($wamid)) {
             log_message('debug', '[WEBHOOK WA] Duplicado wamid=' . $wamid);
 
@@ -100,6 +107,7 @@ class WebhookUseCase
 
         try {
             $cliente = clientes()->crearOActualizarClienteWhatsapp([
+                'id_empresa' => $idEmpresa,
                 'telefono' => $telefono,
                 'wa_user_id' => $waUserId,
                 'wa_parent_user_id' => $identidad['wa_parent_user_id'] ?? null,
@@ -139,6 +147,7 @@ class WebhookUseCase
 
                 $referral = $this->referralDelMensaje($message);
                 $creada = conversaciones()->crearConversacion([
+                    'id_empresa' => $idEmpresa,
                     'id_cliente' => $idCliente,
                     'id_usuario' => $idUsuario,
                     'origen' => 'api-crm',
@@ -188,7 +197,7 @@ class WebhookUseCase
     /**
      * @param array<string, mixed> $status
      */
-    public function procesarEstadoMensajeWhatsapp(array $status): void
+    public function procesarEstadoMensajeWhatsapp(array $status, array $value = []): void
     {
         $wamid = trim((string) ($status['id'] ?? ''));
         if ($wamid === '') {
@@ -216,7 +225,7 @@ class WebhookUseCase
 
         try {
             if (function_exists('clientes')) {
-                clientes()->backfillIdentidadWhatsappDesdeStatus($status);
+                clientes()->backfillIdentidadWhatsappDesdeStatus($status, $value);
             }
         } catch (\Throwable $e) {
             log_message('debug', '[WEBHOOK WA] Identidad en status omitida: ' . $e->getMessage());

@@ -46,6 +46,7 @@ class MensajeUseCase {
         }
 
         $mensaje_entity = new MensajeEntity();
+        $mensaje_entity->id_empresa = $this->resolverIdEmpresaMensaje($datos);
         $mensaje_entity->id_conversacion = $datos['id_conversacion'] ?? null;
         $mensaje_entity->id_estado = $datos['id_estado'] ?? null;
         $mensaje_entity->mensaje = $datos['mensaje'] ?? null;
@@ -1286,5 +1287,29 @@ class MensajeUseCase {
         }
 
         return 'EXISTS (SELECT 1 FROM mensaje m WHERE ' . implode(' AND ', $condiciones) . ')';
+    }
+
+    private function resolverIdEmpresaMensaje(array $datos): int
+    {
+        $id = (int) ($datos['id_empresa'] ?? 0);
+        if ($id > 0) {
+            return $id;
+        }
+
+        if (! empty($datos['id_conversacion'])) {
+            $conversacion = model('ConversacionModel')->find((int) $datos['id_conversacion']);
+            $id = (int) ($conversacion->id_empresa ?? 0);
+            if ($id > 0) {
+                return $id;
+            }
+        }
+
+        helper('vip2system');
+        $id = (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0) {
+            throw new \Exception('id_empresa es obligatorio para el mensaje.');
+        }
+
+        return $id;
     }
 }

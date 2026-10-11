@@ -33,16 +33,6 @@ class CreateGruposModulosSeeder extends Seeder
                 'grupo' => 'Integraciones',
                 'created_at' => date('Y-m-d H:i:s'),
             ],
-            [
-                'id' => 5,
-                'grupo' => 'Efectividad',
-                'created_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'id' => 6,
-                'grupo' => 'Web',
-                'created_at' => date('Y-m-d H:i:s'),
-            ],
         ];
 
         $this->db->table('modulo_grupo')->insertBatch($data);

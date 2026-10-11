@@ -14,8 +14,8 @@ class CreateUsuariosPerfilSeeder extends Seeder
 
     {
         $data = [
-            ['id_usuario' => 1, 'nombres' => 'Developer', 'apellidos' => 'Vip2Cars', 'id_tipo_documento' => 1, 'nro_documento' => '00000000', 'correo' => NULL, 'celular' => NULL, 'celular_secundario' => NULL, 'created_at' => date('Y-m-d H:i:s')],
-            ['id_usuario' => 2, 'nombres' => 'Administrador', 'apellidos' => 'Vip2Cars', 'id_tipo_documento' => 1, 'nro_documento' => '00000001', 'correo' => NULL, 'celular' => NULL, 'celular_secundario' => NULL, 'created_at' => date('Y-m-d H:i:s')],
+            ['id_usuario' => 1, 'nombres' => 'Developer', 'apellidos' => 'Belly', 'id_tipo_documento' => 1, 'nro_documento' => '00000000', 'correo' => NULL, 'celular' => NULL, 'celular_secundario' => NULL, 'created_at' => date('Y-m-d H:i:s')],
+            ['id_usuario' => 2, 'nombres' => 'Administrador', 'apellidos' => 'Belly', 'id_tipo_documento' => 1, 'nro_documento' => '00000001', 'correo' => NULL, 'celular' => NULL, 'celular_secundario' => NULL, 'created_at' => date('Y-m-d H:i:s')],
 
 
 

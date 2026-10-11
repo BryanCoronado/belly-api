@@ -6,6 +6,7 @@ use Belly\Configuracion\Entities\AppEntity;
 use CodeIgniter\Model;
 
 class AppModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'app';
     protected $primaryKey = 'id';
@@ -14,15 +15,14 @@ class AppModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'id_portafolio',
         'nombre',
         'telefono',
         'phone_number_id',
-        'page_id',
         'canal',
         'whatsapp_business_account_id',
         'access_token',
-        'page_access_token',
         'modo',	
         'tipo',
         'max_usuarios',
@@ -32,6 +32,7 @@ class AppModel extends Model {
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
         'id_portafolio' => 'int',
     ];
     protected array $castHandlers = [];
@@ -49,11 +50,9 @@ class AppModel extends Model {
         'max_usuarios' => 'permit_empty|integer|greater_than[0]',
         'id_portafolio' => 'permit_empty|integer',
         'phone_number_id' => 'permit_empty|max_length[255]',
-        'page_id' => 'permit_empty|max_length[255]',
         'canal' => 'permit_empty|in_list[whatsapp]',
         'whatsapp_business_account_id' => 'permit_empty|max_length[255]',
         'access_token' => 'permit_empty',
-        'page_access_token' => 'permit_empty',
         'estado' => 'permit_empty|in_list[0,1]',
     ];
     

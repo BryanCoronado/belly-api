@@ -57,15 +57,14 @@ class AppUseCase {
         }
 
         $app_entity = new AppEntity();
+        $app_entity->id_empresa = $this->resolverIdEmpresaApp($datos);
         $app_entity->id_portafolio = $datos['id_portafolio'] ?? null;
         $app_entity->nombre = $datos['nombre'];
         $app_entity->telefono = $datos['telefono'];
         $app_entity->phone_number_id = $datos['phone_number_id'] ?? null;
-        $app_entity->page_id = $datos['page_id'] ?? null;
         $app_entity->canal = $datos['canal'] ?? 'whatsapp';
         $app_entity->whatsapp_business_account_id = $datos['whatsapp_business_account_id'] ?? null;
         $app_entity->access_token = $datos['access_token'] ?? null;
-        $app_entity->page_access_token = $datos['page_access_token'] ?? null;
         $app_entity->modo = $datos['modo'] ?? 'individual';
         $app_entity->tipo = $datos['tipo'] ?? 'NORMAL';
         $app_entity->max_usuarios = $datos['max_usuarios'] ?? null;
@@ -553,5 +552,29 @@ class AppUseCase {
             ->where('app.deleted_at', null)
             ->orderBy('app.nombre', 'ASC')
             ->findAll();
+    }
+
+    private function resolverIdEmpresaApp(array $datos): int
+    {
+        $id = (int) ($datos['id_empresa'] ?? 0);
+        if ($id > 0) {
+            return $id;
+        }
+
+        if (! empty($datos['id_portafolio'])) {
+            $portafolio = model('PortafolioModel')->find((int) $datos['id_portafolio']);
+            $id = (int) ($portafolio->id_empresa ?? 0);
+            if ($id > 0) {
+                return $id;
+            }
+        }
+
+        helper('vip2system');
+        $id = (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0) {
+            throw new \Exception('id_empresa es obligatorio para la app.');
+        }
+
+        return $id;
     }
 }

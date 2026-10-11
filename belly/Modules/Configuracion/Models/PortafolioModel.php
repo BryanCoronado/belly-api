@@ -6,6 +6,7 @@ use Belly\Configuracion\Entities\PortafolioEntity;
 use CodeIgniter\Model;
 
 class PortafolioModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'portafolio';
     protected $primaryKey = 'id';
@@ -14,7 +15,8 @@ class PortafolioModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
-        'nomnbre',
+        'id_empresa',
+        'nombre',
         'business_id',
         'estado',
     ];

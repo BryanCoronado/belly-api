@@ -2,11 +2,13 @@
 
 namespace Belly\Usuarios\Models;
 use Belly\Usuarios\Entities\UsuarioEntity;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 
 use CodeIgniter\Model;
 
 class UsuarioModel extends Model
 {
+    use FiltraPorEmpresa;
 
     protected $table = 'usuario';
     protected $primaryKey = 'id';
@@ -15,6 +17,7 @@ class UsuarioModel extends Model
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'usuario',
         'password',
         'codigo_recuperacion',
@@ -32,6 +35,7 @@ class UsuarioModel extends Model
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
         'fecha_recuperacion' => '?datetime',
         'login_fallidos' => 'int',
         'id_estado_usuario' => 'int',

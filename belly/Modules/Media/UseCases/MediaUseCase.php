@@ -98,7 +98,7 @@ class MediaUseCase {
                     . ( $detalleGraph !== [] ? ' | Graph: ' . implode(' - ', $detalleGraph) : '' )
                     . ' | Descarga: ' . implode(' | ', $erroresDescarga)
                     . ' | Token app ' . $app_id . ': ' . $tokenDiag
-                    . ' | Acción: renueve access_token de la app en Meta (WABA 978774918039409, permiso whatsapp_business_messaging).',
+                    . ' | Acción: renueve el access_token de la app en Meta (permiso whatsapp_business_messaging).',
                 );
             }
             $this->guardarEnDownloads($contenido, $filename);

@@ -2,10 +2,12 @@
 
 namespace Belly\Clientes\Models;
 use Belly\Clientes\Entities\ClienteEntity;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 
 use CodeIgniter\Model;
 
 class ClienteModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'cliente';
     protected $primaryKey = 'id';
@@ -14,6 +16,7 @@ class ClienteModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'telefono',
         'psid',
         'wa_user_id',
@@ -24,6 +27,7 @@ class ClienteModel extends Model {
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
     ];
     protected array $castHandlers = [];
     // Dates
@@ -33,9 +37,10 @@ class ClienteModel extends Model {
     protected $updatedField = 'updated_at';
     protected $deletedField = 'deleted_at';
     protected $validationRules = [
-        'telefono'          => 'permit_empty|max_length[15]|is_unique[cliente.telefono,id,{id}]',
-        'psid'              => 'permit_empty|max_length[50]|is_unique[cliente.psid,id,{id}]',
-        'wa_user_id'        => 'permit_empty|max_length[128]|is_unique[cliente.wa_user_id,id,{id}]',
+        'id_empresa'        => 'required|integer',
+        'telefono'          => 'permit_empty|max_length[15]',
+        'psid'              => 'permit_empty|max_length[50]',
+        'wa_user_id'        => 'permit_empty|max_length[128]',
         'wa_parent_user_id' => 'permit_empty|max_length[128]',
         'id'                => 'permit_empty|integer',
     ];

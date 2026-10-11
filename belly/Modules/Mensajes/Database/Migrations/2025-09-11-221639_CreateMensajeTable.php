@@ -29,6 +29,11 @@ class CreateMensajeTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'id_conversacion' => [
                 'type'       => 'INT',
                 'constraint' => 11,
@@ -95,6 +100,7 @@ class CreateMensajeTable extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_mensaje_empresa');
         $this->forge->addForeignKey('id_conversacion','conversacion','id','CASCADE','CASCADE');
         $this->forge->addForeignKey('id_estado','estado_mensaje','id','CASCADE','CASCADE'); 
         $this->forge->addKey('deleted_at');

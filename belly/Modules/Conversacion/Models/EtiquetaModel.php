@@ -2,11 +2,13 @@
 
 namespace Belly\Conversacion\Models;
 
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 use CodeIgniter\Model;
 use Belly\Conversacion\Entities\EtiquetaEntity;
 
 class EtiquetaModel extends Model
 {
+    use FiltraPorEmpresa;
     protected $table = 'etiqueta';
     protected $primaryKey = 'id';
     protected $useAutoIncrement = true;
@@ -14,6 +16,7 @@ class EtiquetaModel extends Model
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'nombre',
         'descripcion',
         'color',
@@ -22,6 +25,7 @@ class EtiquetaModel extends Model
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
     ];
     protected $useTimestamps = true;
     protected $dateFormat = 'datetime';

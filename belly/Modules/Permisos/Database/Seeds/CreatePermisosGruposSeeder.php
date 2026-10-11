@@ -43,18 +43,6 @@ class CreatePermisosGruposSeeder extends Seeder
                 'descripcion' => 'permisos especiales para mod. integracion',
                 'created_at' => date('Y-m-d H:i:s'),
             ],
-            [
-                'id' => 6,
-                'grupo' => 'Efectividad',
-                'descripcion' => 'permisos especiales para mod. integracion',
-                'created_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'id' => 7,
-                'grupo' => 'Web',
-                'descripcion' => 'Grupo de Permisos para el area de Pagina Web.',
-                'created_at' => date('Y-m-d H:i:s'),
-            ],
         ];
 
         $this->db->table('grupo_permiso')->insertBatch($data);

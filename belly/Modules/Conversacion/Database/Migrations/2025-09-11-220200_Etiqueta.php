@@ -1,28 +1,27 @@
 <?php
 
-namespace Belly\Integraciones\Database\Migrations;
+namespace Belly\Conversacion\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 use CodeIgniter\Database\RawSql;
 
-class CreateVehiculoMarcaTable extends Migration
+class CreateEtiquetaTable extends Migration
 {
     public function up()
     {
-        $this->createTableVehiculoMarca();
+        $this->createTableEtiqueta();
     }
 
     public function down()
     {
         $this->db->query('SET FOREIGN_KEY_CHECKS=0;');
 
-        $this->forge->dropTable('vehiculo_marca');
+        $this->forge->dropTable('etiqueta');
 
         $this->db->query('SET FOREIGN_KEY_CHECKS=1;');
     }
 
-    private function createTableVehiculoMarca()
-    {
+    private function createTableEtiqueta(){
         $this->forge->addField([
             'id' => [
                 'type'           => 'INT',
@@ -30,10 +29,26 @@ class CreateVehiculoMarcaTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
-            'marca' => [
-                'type'       => 'VARCHAR',
-                'constraint' => '100',
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
             ],
+            'nombre' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 100,
+            ],
+            'descripcion' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 100,
+                'null'       => true,
+            ],
+            'color' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 100,
+                'null'       => true,
+            ],
+            
             'created_at' => [
                 'type' => 'DATETIME',
                 'default' => new RawSql('CURRENT_TIMESTAMP'),
@@ -49,8 +64,12 @@ class CreateVehiculoMarcaTable extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_etiqueta_empresa');
+        $this->forge->addUniqueKey(['id_empresa', 'nombre'], 'uk_etiqueta_empresa_nombre');
         $this->forge->addKey('deleted_at');
 
-        $this->forge->createTable('vehiculo_marca');
+        $this->forge->createTable('etiqueta');
     }
 }
+
+

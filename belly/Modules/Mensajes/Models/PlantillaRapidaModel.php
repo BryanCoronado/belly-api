@@ -2,10 +2,12 @@
 
 namespace Belly\Mensajes\Models;
 use Belly\Mensajes\Entities\PlantillaRapidaEntity;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 
 use CodeIgniter\Model;
 
 class PlantillaRapidaModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'plantilla_rapida';
     protected $primaryKey = 'id';
@@ -14,6 +16,7 @@ class PlantillaRapidaModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'contenido',
         'id_usuario',
         'nombre',
@@ -24,6 +27,7 @@ class PlantillaRapidaModel extends Model {
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
         'id_usuario' => 'int',
     ];
     protected array $castHandlers = [];

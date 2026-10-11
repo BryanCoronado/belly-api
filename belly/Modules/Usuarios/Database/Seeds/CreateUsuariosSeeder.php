@@ -13,8 +13,6 @@ use Belly\Permisos\Database\Seeds\CreatePermisosGruposSeeder;
 use Belly\Permisos\Database\Seeds\CreatePermisosSeeder;
 use Belly\Usuarios\Database\Seeds\ConcederAccesoSeeder;
 use Belly\Modulos\Database\Seeds\CreateGruposModulosSeeder;
-use Belly\Database\Seeds\ModuloEmpresaSeeder;
-
 class CreateUsuariosSeeder extends Seeder
 {
     /*
@@ -28,6 +26,8 @@ class CreateUsuariosSeeder extends Seeder
 
     public function run()
     {
+        $this->asegurarEmpresaPrincipal();
+
         $data = [
             ['usuario' => 'developer', 'password' => password_hash('Dev.123', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 1, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
             ['usuario' => 'administrador', 'password' => password_hash('Admin.123', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 1, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
@@ -60,6 +60,11 @@ class CreateUsuariosSeeder extends Seeder
             ['usuario' => 'pvazquez', 'password' => password_hash('74826045', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
         ];
 
+        foreach ($data as &$fila) {
+            $fila['id_empresa'] = 1;
+        }
+        unset($fila);
+
         $this->db->table('usuario')->insertBatch($data);
 
         $this->call(TiposDocumentosSeeder::class);
@@ -72,5 +77,22 @@ class CreateUsuariosSeeder extends Seeder
         $this->call(CreatePermisosSeeder::class);
         $this->call(CreateModulosSeeder::class);
         $this->call(ConcederAccesoSeeder::class);
+    }
+
+    private function asegurarEmpresaPrincipal(): void
+    {
+        $existe = $this->db->table('empresa')->where('id', 1)->countAllResults();
+        if ($existe > 0) {
+            return;
+        }
+
+        $this->db->table('empresa')->insert([
+            'id' => 1,
+            'nombre' => 'Empresa principal',
+            'slug' => 'principal',
+            'plan' => 'base',
+            'estado' => 1,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
     }
 }

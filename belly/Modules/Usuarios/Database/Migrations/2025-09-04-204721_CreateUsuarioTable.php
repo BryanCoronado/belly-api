@@ -29,6 +29,11 @@ class CreateUsuarioTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'usuario' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '50',
@@ -101,6 +106,8 @@ class CreateUsuarioTable extends Migration
 
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey('usuario');
+        $this->forge->addUniqueKey(['id_empresa', 'usuario'], 'uk_usuario_empresa_usuario');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_usuario_empresa');
         $this->forge->addForeignKey('id_estado_usuario', 'estado_usuario', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addKey('deleted_at');
 

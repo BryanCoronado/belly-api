@@ -46,7 +46,7 @@ class UsuarioUseCase {
     public function getById($id=0)
     {
         $usuario_model = $this->getUsuarioProvider();
-        $usuario_model->select(['usuario.id as id_usuario','usuario.id_estado_usuario', 'es.nombre as nombre_estado_usuario', 'usuario.created_at', 'usuario.usuario', 'usuario.activo', 'up.nombres', 'up.apellidos', 'up.id_tipo_documento', 'up.nro_documento','doc.tipo as nombre_documento', 'up.correo', 'up.celular', 'up.celular_secundario', 'up.extension', 'up.sip_password', 'usuario.cuenta_bloqueada']);
+        $usuario_model->select(['usuario.id as id_usuario','usuario.id_estado_usuario', 'es.nombre as nombre_estado_usuario', 'usuario.created_at', 'usuario.usuario', 'usuario.activo', 'up.nombres', 'up.apellidos', 'up.id_tipo_documento', 'up.nro_documento','doc.tipo as nombre_documento', 'up.correo', 'up.celular', 'up.celular_secundario', 'usuario.cuenta_bloqueada']);
         $usuario_model->join('usuario_perfil as up', 'up.id_usuario = usuario.id');
         $usuario_model->join('estado_usuario as es','es.id = usuario.id_estado_usuario');
         $usuario_model->join('tipo_documento as doc', 'doc.id = up.id_tipo_documento');
@@ -66,6 +66,7 @@ class UsuarioUseCase {
         $password = $this->encriptarContrasenia($datos);
 
         $usuario_entity = new UsuarioEntity();
+        $usuario_entity->id_empresa = $this->resolverIdEmpresaUsuario($datos);
         $usuario_entity->usuario = $datos['usuario'];
         $usuario_entity->password = $password;
         $usuario_entity->login_fallidos = 0;
@@ -84,8 +85,6 @@ class UsuarioUseCase {
                     'usuario' => $usuario_entity->usuario,
                     'nombres' => $perfil->nombres,
                     'nro_documento' => $perfil->nro_documento,
-                    'extension' => $perfil->extension,
-                    'sip_password' => $perfil->sip_password,
                 ];
             } else {
                 throw new \Exception(json_encode($usuario_model->errors()));
@@ -110,12 +109,6 @@ class UsuarioUseCase {
         $perfil_entity->correo = $datos['correo'];
         $perfil_entity->celular = $datos['celular'] ?? null;
         $perfil_entity->celular_secundario = $datos['celular_secundario'] ?? null;
-        $perfil_entity->extension = isset($datos['extension']) && $datos['extension'] !== ''
-            ? (int) $datos['extension']
-            : null;
-        $perfil_entity->sip_password = isset($datos['sip_password']) && $datos['sip_password'] !== ''
-            ? (string) $datos['sip_password']
-            : null;
 
         if ($model_perfil->save($perfil_entity)) {
             $perfil_entity->id = $model_perfil->insertID;
@@ -165,8 +158,6 @@ class UsuarioUseCase {
             'up.nro_documento',
             'up.celular',
             'up.celular_secundario',
-            'up.extension',
-            'up.sip_password',
             'doc.tipo as nombre_documento',
             'up.correo',
             'usuario.cuenta_bloqueada'
@@ -242,9 +233,9 @@ class UsuarioUseCase {
             $usuario_entity = new UsuarioEntity();
             $usuario_entity->id = $id;
             $usuario_entity->usuario = $datos['usuario'];
-            
-            // Solo actualizar password si se proporciona una nueva
-            if (isset($datos['password']) && !empty($datos['password'])) {
+            $cambiaClave = isset($datos['password']) && $datos['password'] !== '';
+
+            if ($cambiaClave) {
                 $usuario_entity->password = $this->encriptarContrasenia($datos);
             }
             
@@ -255,14 +246,15 @@ class UsuarioUseCase {
 
 
             if ($usuario_model->save($usuario_entity)) {
+                if ($cambiaClave) {
+                    auth()->cerrarSesionesUsuario($id);
+                }
                 $perfil = $this->editarPerfil($datos, $id);
                 return [
                     'id_usuario' => $usuario_entity->id,
                     'usuario' => $usuario_entity->usuario,
                     'nombres' => $perfil->nombres,
                     'nro_documento' => $perfil->nro_documento,
-                    'extension' => $perfil->extension,
-                    'sip_password' => $perfil->sip_password,
                     'sudo' => $usuario_entity->sudo,
                     'activo' => $usuario_entity->activo
                 ];
@@ -284,17 +276,11 @@ class UsuarioUseCase {
             $perfil_entity->id_usuario = $id_usuario_perfil;
             $perfil_entity->nombres = !isset($datos['nombres']) ? $existe_perfil_model->nombres : $datos['nombres'];
             $perfil_entity->apellidos = !isset($datos['apellidos']) ? $existe_perfil_model->apellidos : $datos['apellidos'];
-            $perfil_entity->extension = ! array_key_exists('extension', $datos)
-                ? $existe_perfil_model->extension
-                : ($datos['extension'] === '' || $datos['extension'] === null ? null : (int) $datos['extension']);
             $perfil_entity->id_tipo_documento = $this->resolverIdTipoDocumento($datos, (int) $existe_perfil_model->id_tipo_documento);
             $perfil_entity->nro_documento = !isset($datos['nro_documento']) ? $existe_perfil_model->nro_documento : $datos['nro_documento'];
             $perfil_entity->correo = !isset($datos['correo']) ? $existe_perfil_model->correo : $datos['correo'];
             $perfil_entity->celular = !isset($datos['celular']) ? $existe_perfil_model->celular : $datos['celular'];
             $perfil_entity->celular_secundario = !isset($datos['celular_secundario']) ? $existe_perfil_model->celular_secundario : $datos['celular_secundario'];
-            $perfil_entity->sip_password = ! array_key_exists('sip_password', $datos)
-                ? $existe_perfil_model->sip_password
-                : ($datos['sip_password'] === '' || $datos['sip_password'] === null ? null : (string) $datos['sip_password']);
 
             if ($perfil_model->save($perfil_entity)) {
                 return $perfil_entity;
@@ -431,8 +417,6 @@ class UsuarioUseCase {
                 'usuario.es_bot',
                 'usuario.created_at',
                 'usuario_perfil.nombres',
-                'usuario_perfil.extension',
-                'usuario_perfil.sip_password',
                 'usuario_perfil.apellidos',
                 'usuario_perfil.correo',
                 'usuario_perfil.celular',
@@ -468,7 +452,6 @@ class UsuarioUseCase {
             $usuario_model->orLike('usuario_perfil.nro_documento', $search);
             $usuario_model->orLike('usuario_perfil.celular', $search);
             $usuario_model->orLike('usuario_perfil.celular_secundario', $search);
-            $usuario_model->orLike('usuario_perfil.extension', $search);
             $usuario_model->groupEnd();
         }
 
@@ -564,13 +547,74 @@ class UsuarioUseCase {
         ];
     }
 
-
-
-    //Este método verifica si un usuario es un bot o IA y devuelve true o false
-
-    public function esUsuarioIA(int $id_usuario): bool
+    public function crearAdministradorEmpresa(int $idEmpresa, array $datos): array
     {
-        $usuario = $this->getUsuarioProvider()->find($id_usuario);
-        return $usuario && (int) ($usuario->es_bot ?? 0) === 1;
+        if ($idEmpresa <= 0) {
+            throw new \Exception('id_empresa es obligatorio para el administrador.');
+        }
+
+        foreach (['usuario', 'password', 'nombres', 'apellidos', 'nro_documento', 'correo', 'id_tipo_documento'] as $campo) {
+            if (! isset($datos[$campo]) || trim((string) $datos[$campo]) === '') {
+                throw new \Exception('El administrador requiere ' . $campo . '.');
+            }
+        }
+
+        if (strlen((string) $datos['password']) < 8) {
+            throw new \Exception('La contraseña del administrador debe tener al menos 8 caracteres.');
+        }
+
+        $usuario = strtolower(trim((string) $datos['usuario']));
+        $ocupado = db_connect()->table('usuario')
+            ->where('id_empresa', $idEmpresa)
+            ->where('usuario', $usuario)
+            ->where('deleted_at', null)
+            ->countAllResults();
+        if ($ocupado > 0) {
+            throw new \Exception('Ese usuario ya existe en la empresa.');
+        }
+
+        $datos['usuario'] = $usuario;
+        $datos['id_empresa'] = $idEmpresa;
+
+        $usuario_entity = new UsuarioEntity();
+        $usuario_entity->id_empresa = $idEmpresa;
+        $usuario_entity->usuario = $usuario;
+        $usuario_entity->password = $this->encriptarContrasenia($datos);
+        $usuario_entity->login_fallidos = 0;
+        $usuario_entity->cuenta_bloqueada = 0;
+        $usuario_entity->id_estado_usuario = 6;
+        $usuario_entity->activo = 1;
+        $usuario_entity->sudo = 1;
+
+        $usuario_model = new UsuarioModel();
+        if (! $usuario_model->save($usuario_entity)) {
+            throw new \Exception(json_encode($usuario_model->errors()));
+        }
+
+        $usuario_entity->id = (int) $usuario_model->insertID;
+        $perfil = $this->crearPerfilUsuario($datos, $usuario_entity->id);
+
+        return [
+            'id_usuario' => $usuario_entity->id,
+            'usuario' => $usuario_entity->usuario,
+            'nombres' => $perfil->nombres,
+            'apellidos' => $perfil->apellidos,
+        ];
+    }
+
+    private function resolverIdEmpresaUsuario(array $datos): int
+    {
+        $id = (int) ($datos['id_empresa'] ?? 0);
+        if ($id > 0) {
+            return $id;
+        }
+
+        helper('vip2system');
+        $id = (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0) {
+            throw new \Exception('id_empresa es obligatorio para el usuario.');
+        }
+
+        return $id;
     }
 }

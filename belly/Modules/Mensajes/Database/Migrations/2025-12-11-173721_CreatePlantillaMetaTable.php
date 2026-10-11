@@ -28,6 +28,11 @@ class CreatePlantillaMetaTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'template_id' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '255',
@@ -61,7 +66,8 @@ class CreatePlantillaMetaTable extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
-        $this->forge->addUniqueKey('template_id', 'unique_template_id');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_plantilla_meta_empresa');
+        $this->forge->addUniqueKey(['id_empresa', 'template_id'], 'uk_plantilla_meta_empresa_template');
         $this->forge->addForeignKey('id_estado','estado_plantilla_meta','id','CASCADE','CASCADE'); 
         $this->forge->addForeignKey('id_app','app','id','CASCADE','CASCADE');
 

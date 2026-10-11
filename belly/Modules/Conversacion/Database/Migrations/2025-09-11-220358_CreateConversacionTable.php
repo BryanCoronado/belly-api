@@ -29,6 +29,11 @@ class CreateConversacionTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'id_cliente' => [
                 'type'       => 'INT',
                 'constraint' => 11,
@@ -123,6 +128,8 @@ class CreateConversacionTable extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_conversacion_empresa');
+        $this->forge->addKey(['id_empresa', 'id_estado', 'deleted_at'], false, false, 'idx_conv_empresa_estado');
         $this->forge->addForeignKey('id_cliente','cliente','id','CASCADE','CASCADE');
         $this->forge->addForeignKey('id_usuario','usuario','id','CASCADE','CASCADE');
         $this->forge->addForeignKey('id_app','app','id','CASCADE','CASCADE');

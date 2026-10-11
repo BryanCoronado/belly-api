@@ -447,12 +447,15 @@ class PlantillaMensajeUseCase {
                         $plantilla_meta_model = $this->getPlantillaMetaProvider();
                         
                         // Verificar si ya existe una plantilla con ese template_id
+                        $idEmpresa = (int) ($app->id_empresa ?? 0);
                         $plantilla_existente = $plantilla_meta_model
+                            ->where('id_empresa', $idEmpresa)
                             ->where('template_id', $template_id)
                             ->first();
                         
                         if (!$plantilla_existente) {
                             $plantilla_meta_model->insert([
+                                'id_empresa' => $idEmpresa,
                                 'template_id' => $template_id,
                                 'id_app' => $id_app,
                                 'nombre' => $name,
@@ -771,12 +774,15 @@ class PlantillaMensajeUseCase {
         }
 
         $model = $this->getPlantillaMetaProvider();
-        $plantilla = $model->where('template_id', $template_id)->first();
+        $app = app()->getAppProvider()->find($id_app);
+        $idEmpresa = (int) ($app->id_empresa ?? 0);
+        $plantilla = $model->where('id_empresa', $idEmpresa)->where('template_id', $template_id)->first();
         
         if ($plantilla) {
             $model->update($plantilla->id, ['id_estado' => $id_estado]);
         } else {
             $model->insert([
+                'id_empresa' => $idEmpresa,
                 'template_id' => $template_id,
                 'id_app' => $id_app,
                 'nombre' => $nombre,

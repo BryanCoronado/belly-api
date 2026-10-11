@@ -4,8 +4,6 @@ namespace Belly\Config;
 
 use CodeIgniter\Router\RouteCollection;
 
-//$routes->cli('run/cronjobs', 'Controllers\CronJobsController::index', ['namespace' => 'Vip2Crm']);
-
 $routes->options('v1/(:any)', static function () {
     $response = response();
     $response->setStatusCode(204);

@@ -44,16 +44,6 @@ class UsuarioLoginController extends BaseController
             array_slice($data, array_search('id_estado_usuario', array_keys($data)) + 1)
         );
 
-        if (is_array($data['perfil'] ?? null)) {
-            unset(
-                $data['perfil']['sip_password'],
-                $data['perfil']['sip_en_uso'],
-                $data['perfil']['sip_lock_token'],
-                $data['perfil']['sip_lock_at'],
-                $data['perfil']['sip_lock_user_agent'],
-            );
-        }
-
         if ($usuario instanceof \Belly\Usuarios\Entities\UsuarioEntity) {
             $response = [
                 'success' => TRUE,

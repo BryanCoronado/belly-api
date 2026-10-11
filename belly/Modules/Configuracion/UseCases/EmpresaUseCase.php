@@ -1,0 +1,173 @@
+<?php
+
+namespace Belly\Configuracion\UseCases;
+
+use Belly\Configuracion\Config\ConfiguracionConfig;
+use Belly\Configuracion\Entities\EmpresaEntity;
+use Belly\Configuracion\Entities\PortafolioEntity;
+use Belly\Configuracion\Models\EmpresaModel;
+use Belly\Configuracion\Models\PortafolioModel;
+
+class EmpresaUseCase
+{
+    protected ConfiguracionConfig $config;
+
+    public function __construct(ConfiguracionConfig $config)
+    {
+        $this->config = $config;
+    }
+
+    public function buscarActivaPorSlug(string $slug): ?EmpresaEntity
+    {
+        $slug = $this->normalizarSlug($slug);
+        if ($slug === '') {
+            return null;
+        }
+
+        $empresa = $this->modelo()->where('slug', $slug)->where('estado', 1)->first();
+
+        return $empresa instanceof EmpresaEntity ? $empresa : null;
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function listar(): array
+    {
+        $this->exigirOperador();
+
+        $filas = $this->modelo()->orderBy('nombre', 'ASC')->findAll();
+        $salida = [];
+        foreach ($filas as $empresa) {
+            $salida[] = $this->presentar($empresa);
+        }
+
+        return $salida;
+    }
+
+    /** @param array<string, mixed> $datos */
+    public function crear(array $datos): array
+    {
+        $this->exigirOperador();
+
+        $nombre = trim((string) ($datos['nombre'] ?? ''));
+        $slug = $this->normalizarSlug((string) ($datos['slug'] ?? $nombre));
+        $plan = trim((string) ($datos['plan'] ?? 'base'));
+        $admin = $datos['admin'] ?? null;
+
+        if ($nombre === '' || $slug === '') {
+            throw new \Exception('El nombre y el slug de la empresa son obligatorios.');
+        }
+        if (mb_strlen($nombre) > 120 || mb_strlen($slug) > 80) {
+            throw new \Exception('El nombre o el slug superan el tamaño permitido.');
+        }
+        if ($plan === '') {
+            $plan = 'base';
+        }
+        if (mb_strlen($plan) > 40) {
+            throw new \Exception('El plan supera los 40 caracteres.');
+        }
+        if (! is_array($admin)) {
+            throw new \Exception('El administrador de la empresa es obligatorio.');
+        }
+        if ($this->modelo()->where('slug', $slug)->first() !== null) {
+            throw new \Exception('Ya existe una empresa con ese slug.');
+        }
+
+        $db = db_connect();
+        $db->transStart();
+
+        try {
+            $empresa = new EmpresaEntity();
+            $empresa->nombre = $nombre;
+            $empresa->slug = $slug;
+            $empresa->plan = $plan;
+            $empresa->estado = 1;
+
+            $modelo = $this->modelo();
+            if (! $modelo->save($empresa)) {
+                throw new \Exception(json_encode($modelo->errors()));
+            }
+
+            $idEmpresa = (int) $modelo->insertID;
+            $this->crearPortafolioInicial($idEmpresa);
+            $administrador = usuario()->crearAdministradorEmpresa($idEmpresa, $admin);
+            $this->asignarAccesoAdministrador((int) $administrador['id_usuario']);
+
+            $db->transComplete();
+            if ($db->transStatus() === false) {
+                throw new \Exception('No se pudo crear la empresa.');
+            }
+
+            return [
+                'id' => $idEmpresa,
+                'nombre' => $nombre,
+                'slug' => $slug,
+                'plan' => $plan,
+                'estado' => 1,
+                'admin' => $administrador,
+            ];
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            throw $e;
+        }
+    }
+
+    private function crearPortafolioInicial(int $idEmpresa): void
+    {
+        $portafolio = new PortafolioEntity();
+        $portafolio->id_empresa = $idEmpresa;
+        $portafolio->nombre = 'whatsapp';
+        $portafolio->business_id = 0;
+        $portafolio->estado = 1;
+
+        $modelo = new PortafolioModel();
+        if (! $modelo->save($portafolio)) {
+            throw new \Exception('No se pudo crear el portafolio inicial.');
+        }
+    }
+
+    private function asignarAccesoAdministrador(int $idUsuario): void
+    {
+        db_connect()->table('grupo_usuario_usuario')->insert([
+            'id_grupo_usuario' => 1,
+            'id_usuario' => $idUsuario,
+            'id_grupo_usuario_rol' => 1,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function exigirOperador(): void
+    {
+        helper('vip2system');
+        $usuario = auth()->getUsuario();
+        if ($usuario === null || (int) ($usuario->sudo ?? 0) !== 1 || (int) ($usuario->id_empresa ?? 0) !== 1) {
+            throw new \Exception('No autorizado para administrar empresas.');
+        }
+    }
+
+    private function presentar(EmpresaEntity $empresa): array
+    {
+        return [
+            'id' => (int) $empresa->id,
+            'nombre' => $empresa->nombre,
+            'slug' => $empresa->slug,
+            'plan' => $empresa->plan,
+            'estado' => (int) $empresa->estado,
+        ];
+    }
+
+    private function normalizarSlug(string $slug): string
+    {
+        $slug = strtolower(trim($slug));
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
+
+        return trim($slug, '-');
+    }
+
+    private function modelo(): EmpresaModel
+    {
+        $clase = $this->config->empresa_provider;
+
+        return new $clase();
+    }
+}

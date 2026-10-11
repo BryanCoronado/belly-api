@@ -29,6 +29,11 @@ class CreateAppTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'id_portafolio' => [
                 'type'       => 'INT',
                 'constraint' => 11,
@@ -47,14 +52,9 @@ class CreateAppTable extends Migration
                 'constraint' => '50',
                 'null'       => true,
             ],
-            'page_id' => [
-                'type'       => 'VARCHAR',
-                'constraint' => '50',
-                'null'       => true,
-            ],
             'canal' => [
                 'type'       => 'ENUM',
-                'constraint' => ['whatsapp', 'messenger', 'both'],
+                'constraint' => ['whatsapp'],
                 'default'    => 'whatsapp',
             ],
             'whatsapp_business_account_id' => [
@@ -64,11 +64,6 @@ class CreateAppTable extends Migration
             'access_token' => [
                 'type'       => 'TEXT',
                 'null'       => true,
-            ],
-            'page_access_token' => [
-                'type'       => 'TEXT',
-                'null'       => true,
-                'comment'    => 'Page Access Token de Messenger (independiente del token WhatsApp)',
             ],
             'estado' => [
                 'type'       => 'TINYINT',
@@ -107,6 +102,7 @@ class CreateAppTable extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_app_empresa');
         $this->forge->addForeignKey('id_portafolio','portafolio','id','CASCADE','CASCADE');
         $this->forge->addKey('deleted_at');
 

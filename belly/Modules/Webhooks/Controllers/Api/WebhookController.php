@@ -48,6 +48,12 @@ class WebhookController extends BaseController
 
     private function recibirEvento()
     {
+        if (! $this->firmaValida()) {
+            log_message('warning', '[WEBHOOK WA] Firma inválida');
+
+            return $this->response->setStatusCode(403);
+        }
+
         try {
             $payload = $this->leerPayload();
             if ($payload === null) {
@@ -87,6 +93,21 @@ class WebhookController extends BaseController
         }
 
         return $payload;
+    }
+
+    private function firmaValida(): bool
+    {
+        $secret = trim((string) config('WebhooksConfig')->meta_app_secret);
+        if ($secret === '') {
+            log_message('error', '[WEBHOOK WA] Falta META_APP_SECRET');
+
+            return false;
+        }
+
+        $header = trim((string) $this->request->getHeaderLine('X-Hub-Signature-256'));
+        $esperada = 'sha256=' . hash_hmac('sha256', (string) $this->request->getBody(), $secret);
+
+        return strlen($header) === strlen($esperada) && hash_equals($esperada, $header);
     }
 
     private function ack()

@@ -280,7 +280,7 @@ if (!function_exists('descargarContenidoURL')) {
             CURLOPT_SSL_VERIFYHOST => false,
             CURLOPT_HTTPHEADER => [
                 "Authorization: Bearer {$access_token}",
-                'User-Agent: CIMAK-CRM/1.0',
+                'User-Agent: Belly-CRM/1.0',
             ],
         ]);
 

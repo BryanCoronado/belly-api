@@ -28,6 +28,11 @@ class CreatePlantillaRapidaTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'nombre' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '255',
@@ -68,6 +73,7 @@ class CreatePlantillaRapidaTable extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_plantilla_rapida_empresa');
         $this->forge->addForeignKey('id_usuario','usuario','id','CASCADE','CASCADE'); 
 
         $this->forge->addKey('deleted_at');

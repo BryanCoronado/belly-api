@@ -13,8 +13,9 @@ class CreateAppSeeder extends Seeder
         $data = [
             [
                 'id' => 1,
+                'id_empresa' => 1,
                 'id_portafolio' => 1, 
-                'nombre' => 'cima whatsapp',
+                'nombre' => 'belly whatsapp',
                 'telefono' => '+51908528231',
                 'phone_number_id' => '1136836639502449',
                 'whatsapp_business_account_id' => '978774918039409',

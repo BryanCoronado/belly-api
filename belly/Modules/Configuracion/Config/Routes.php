@@ -12,6 +12,8 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
         $routes->post('apps/(:num)/usuarios', 'ConfiguracionControllerApi::asignarUsuarioAApp/$1', ['as' => 'apiv1_app_asignar_usuario']);
         $routes->get('portafolios-con-apps', 'ConfiguracionControllerApi::listarPortafoliosConApps', ['as' => 'apiv1_portafolios_con_apps']);
         $routes->post('crear-app', 'ConfiguracionControllerApi::crearApp', ['as' => 'apiv1_crear_app']);
+        $routes->get('empresas', 'EmpresaControllerApi::listar', ['as' => 'apiv1_empresas']);
+        $routes->post('empresas', 'EmpresaControllerApi::crear', ['as' => 'apiv1_empresas_crear']);
         $routes->delete('apps/(:num)/usuarios/(:num)', 'ConfiguracionControllerApi::desasignarUsuarioDeApp/$1/$2', ['as' => 'apiv1_app_desasignar_usuario']);
     });
 });

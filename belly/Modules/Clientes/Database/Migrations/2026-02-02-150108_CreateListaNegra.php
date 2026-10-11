@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Database\Migrations;
+namespace Belly\Clientes\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 use CodeIgniter\Database\RawSql;
@@ -31,10 +31,14 @@ class CreateListaNegra extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'telefono' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '15',
-                'unique'     => true,
             ],
             'motivo' => [
                 'type'       => 'VARCHAR',
@@ -56,6 +60,8 @@ class CreateListaNegra extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_lista_negra_empresa');
+        $this->forge->addUniqueKey(['id_empresa', 'telefono'], 'uk_lista_negra_empresa_telefono');
         $this->forge->addKey('deleted_at');
 
         $this->forge->createTable('lista_negra');

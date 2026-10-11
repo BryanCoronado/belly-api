@@ -167,6 +167,7 @@ class PlantillaRapidaUseCase
         $entity->contenido = $contenido;
 
         $entity->id_usuario = $idUsuario;
+        $entity->id_empresa = $this->resolverIdEmpresaPlantilla($idUsuario);
 
         $entity->imagen_path = $imagenDatos['media_path'] ?? null;
 
@@ -665,6 +666,23 @@ class PlantillaRapidaUseCase
 
         ];
 
+    }
+
+    private function resolverIdEmpresaPlantilla(int $idUsuario): int
+    {
+        helper('vip2system');
+        $id = (int) (id_empresa_sesion() ?? 0);
+        if ($id > 0) {
+            return $id;
+        }
+
+        $usuario = model('UsuarioModel')->find($idUsuario);
+        $id = (int) ($usuario->id_empresa ?? 0);
+        if ($id <= 0) {
+            throw new \Exception('id_empresa es obligatorio para la plantilla rápida.');
+        }
+
+        return $id;
     }
 
 }

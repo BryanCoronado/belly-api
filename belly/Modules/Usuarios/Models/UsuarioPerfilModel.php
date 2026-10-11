@@ -22,20 +22,12 @@ class UsuarioPerfilModel extends Model {
         'correo',
         'celular',
         'celular_secundario',
-        'extension',
-        'sip_password',
-        'sip_en_uso',
-        'sip_lock_token',
-        'sip_lock_at',
-        'sip_lock_user_agent',
     ];
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id_usuario' => 'int',
         'id_tipo_documento' => 'int',
-        'extension' => '?int',
-        'sip_en_uso' => 'int',
     ];
     protected array $castHandlers = [];
     // Dates

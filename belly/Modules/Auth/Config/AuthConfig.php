@@ -12,5 +12,6 @@ class AuthConfig extends BaseConfig
     public string $usuario_provider = UsuarioModel::class;
     public int $inttentos_permitidos = 3; // Intentos permitidos antes de bloquear la cuenta
     public int $tiempo_bloqueo = 5; // Tiempo en minutos que durara el bloqeo de cuenta
-    public int $vigencia_token = 720; // Tiempo en horas que durara el token (30 días)
+    public int $vigencia_token = 24; // Horas de la sesión
+    public int $vigencia_token_descarga = 10; // Minutos del token de descarga
 }

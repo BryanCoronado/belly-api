@@ -10,9 +10,6 @@ use Belly\Conversacion\Database\Seeds\CreateEstadoConversacionSeeder;
 use Belly\Conversacion\Database\Seeds\CreateMotivoConversacionSeeder;
 use Belly\Mensajes\Database\Seeds\CreateEstadoMensajeSeeder;
 use Belly\Mensajes\Database\Seeds\CreateEstadoPlantillaMetaSeeder;
-use Belly\Integraciones\Database\Seeds\CreateVehiculoMarcaSeeder;
-use Belly\Integraciones\Database\Seeds\CreateVehiculoTipoSeeder;
-use Belly\Integraciones\Database\Seeds\CreateVehiculoModeloSeeder;
 use Belly\Media\Database\Seeds\CreateGrupoGaleriaSeeder;
 
 
@@ -32,12 +29,6 @@ class InitSeeder extends Seeder
         $this->call(CreateUsuariosSeeder::class);
         $this->call(CreatePortafolioSeeder::class);
 
-        // Integraciones (Vehicle seeders)
-        $this->call(CreateVehiculoTipoSeeder::class);
-        $this->call(CreateVehiculoMarcaSeeder::class);
-        $this->call(CreateVehiculoModeloSeeder::class);
-
-        // Media (Galeria seeders)
         $this->call(CreateGrupoGaleriaSeeder::class);
     
 

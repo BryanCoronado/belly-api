@@ -64,6 +64,9 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
 
     $routes->group('etiqueta', ['namespace' => 'Belly\Conversacion\Controllers\Api'], static function ($routes) {
         $routes->get('listar', 'EtiquetaControllerApi::listar', ['as' => 'apiv1_etiqueta_listar']);
+        $routes->post('crear', 'EtiquetaControllerApi::crear', ['as' => 'apiv1_etiqueta_crear']);
+        $routes->put('(:num)', 'EtiquetaControllerApi::editar/$1', ['as' => 'apiv1_etiqueta_editar']);
+        $routes->delete('(:num)', 'EtiquetaControllerApi::eliminar/$1', ['as' => 'apiv1_etiqueta_eliminar']);
     });
 
     $routes->group('motivo-conversacion', ['namespace' => 'Belly\Conversacion\Controllers\Api'], static function ($routes) {

@@ -29,23 +29,25 @@ class CreateClienteTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'telefono' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '15',
                 'null'       => true,
-                'unique'     => true,
             ],
             'psid' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '50',
                 'null'       => true,
-                'unique'     => true,
             ],
             'wa_user_id' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '128',
                 'null'       => true,
-                'unique'     => true,
                 'comment'    => 'Business-scoped user ID WhatsApp (US.…)',
             ],
             'wa_parent_user_id' => [
@@ -69,6 +71,10 @@ class CreateClienteTable extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_cliente_empresa');
+        $this->forge->addUniqueKey(['id_empresa', 'telefono'], 'uk_cliente_empresa_telefono');
+        $this->forge->addUniqueKey(['id_empresa', 'wa_user_id'], 'uk_cliente_empresa_wa_user');
+        $this->forge->addUniqueKey(['id_empresa', 'psid'], 'uk_cliente_empresa_psid');
         $this->forge->addKey('deleted_at');
         $this->forge->addKey('wa_parent_user_id');
 

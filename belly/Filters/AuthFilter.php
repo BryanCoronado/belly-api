@@ -29,6 +29,7 @@ class AuthFilter implements FilterInterface {
     public function before(RequestInterface $request, $arguments = null) {
 
         $token = null;
+        $uso = 'sesion';
         $authorization = $request->header('Authorization');
 
         if (isset($authorization) && ! empty($authorization)) {
@@ -36,11 +37,11 @@ class AuthFilter implements FilterInterface {
             $token = $parts[1] ?? null;
         }
 
-        // Descargas por enlace/iframe: el navegador no envía Authorization en GET directo
         if (empty($token) && strtoupper($request->getMethod()) === 'GET') {
             $queryToken = $request->getGet('access_token');
             if (is_string($queryToken) && $queryToken !== '') {
                 $token = $queryToken;
+                $uso = 'descarga';
             }
         }
 
@@ -49,7 +50,7 @@ class AuthFilter implements FilterInterface {
         }
 
         try {
-            if (! auth()->isValid($token)) {
+            if (! auth()->isValid($token, $uso)) {
                 throw new \Exception(lang('Auth.tokenInvalido'));
             }
 

@@ -419,18 +419,6 @@ class ConversacionUseCase {
         }
     }
 
-    private function selectCamposIaListadoSql(): string
-    {
-        return 'NULL as ia_activa, NULL as ia_estado';
-    }
-
-    private function selectCamposAutomatizacionListadoSql(): string
-    {
-        return 'NULL as auto_ultimo_orden, NULL as auto_activo, NULL as auto_bloque_vencido, '
-            . 'NULL as auto_bloque_futuro, NULL as auto_programado_at, NULL as auto_ultimo_error, '
-            . 'NULL as auto_galeria_ejecutadas';
-    }
-
     private function obtenerUltimoMensajeContesta(int $id_conversacion): ?string
     {
         $row = model('MensajeModel')
@@ -450,6 +438,7 @@ class ConversacionUseCase {
         $conversacion_model = $this->getConversacionProvider();
 
         $conversacion_entity = new ConversacionEntity();
+        $conversacion_entity->id_empresa = $this->resolverIdEmpresaConversacion($datos);
         $conversacion_entity->id_cliente = $datos['id_cliente'] ?? null;
         $conversacion_entity->id_usuario = $datos['id_usuario'] ?? null;
         $conversacion_entity->id_app = $datos['id_app'] ?? null;
@@ -1014,8 +1003,7 @@ class ConversacionUseCase {
                  AND mensaje.contesta = "cliente" 
                  AND mensaje.id_estado = 3 
                  AND mensaje.deleted_at IS NULL) as ultimo_mensaje_no_leido_fecha,
-            ' . $this->selectUltimoMensajeContestaSql() . ', '
-            . $this->selectCamposAutomatizacionListadoSql() . '
+            ' . $this->selectUltimoMensajeContestaSql() . '
         ', false);
         $conversacion_model->join('cliente', 'cliente.id = conversacion.id_cliente');
         $conversacion_model->join('cliente_perfil', 'cliente_perfil.id_cliente = cliente.id', 'left');
@@ -1870,12 +1858,10 @@ class ConversacionUseCase {
                 . 'usuario_perfil_asignador.apellidos AS asignado_por_apellidos, '
                 . 'usuario_asignador.es_bot AS asignado_por_es_bot, '
                 . 'usuario.es_bot AS usuario_es_bot, '
-                . $this->selectCamposIaListadoSql() . ', '
                 . "{$sqNombreAsignadoPor} AS nombre_asignado_por, "
                 . "{$sqNombre} AS nombre_campania, "
                 . "{$sqCodigo} AS codigo, "
                 . $this->selectUltimoMensajeContestaSql() . ', '
-                . $this->selectCamposAutomatizacionListadoSql() . ', '
                 . $this->selectVentaRegistradaAtSql()
             )
             ->join('cliente', 'cliente.id = conversacion.id_cliente')
@@ -1962,9 +1948,7 @@ class ConversacionUseCase {
         $conversacion_model
             ->select(
                 'conversacion.*, cliente.telefono, usuario.usuario as nombre_usuario, usuario.es_bot AS usuario_es_bot, usuario_perfil.nombres, usuario_perfil.apellidos, cliente_perfil.nombre as nombre_cliente, cliente_perfil.apellido as apellido_cliente, etiqueta.nombre AS etiqueta_nombre, etiqueta.color AS etiqueta_color, '
-                . $this->selectCamposIaListadoSql() . ', '
                 . $this->selectUltimoMensajeContestaSql() . ', '
-                . $this->selectCamposAutomatizacionListadoSql() . ', '
                 . $this->selectVentaRegistradaAtSql()
             )
             ->join('cliente', 'cliente.id = conversacion.id_cliente')
@@ -2234,10 +2218,7 @@ class ConversacionUseCase {
 
         $accessToken = trim((string) ($app->access_token ?? ''));
         if ($accessToken === '') {
-            $accessToken = trim((string) ($app->page_access_token ?? ''));
-        }
-        if ($accessToken === '') {
-            throw new \Exception('La app no tiene access_token ni page_access_token configurado');
+            throw new \Exception('La app no tiene access_token configurado');
         }
 
         $limit = max(1, min(100, (int) ($opciones['limit'] ?? 50)));
@@ -2465,5 +2446,29 @@ class ConversacionUseCase {
         }
 
         return $responseData;
+    }
+
+    private function resolverIdEmpresaConversacion(array $datos): int
+    {
+        $id = (int) ($datos['id_empresa'] ?? 0);
+        if ($id > 0) {
+            return $id;
+        }
+
+        if (! empty($datos['id_app'])) {
+            $app = model('AppModel')->find((int) $datos['id_app']);
+            $id = (int) ($app->id_empresa ?? 0);
+            if ($id > 0) {
+                return $id;
+            }
+        }
+
+        helper('vip2system');
+        $id = (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0) {
+            throw new \Exception('id_empresa es obligatorio para la conversación.');
+        }
+
+        return $id;
     }
 }

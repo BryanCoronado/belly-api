@@ -32,13 +32,6 @@ class UsuarioPermisoEspecialUseCase
         return $this->usuario_permiso_especial_provider;
     }
 
-    // public function listar()
-    // {
-    //     $user_permi_esp_model = $this->getUsuarioPermisoEspecialProvider();
-
-    //     return $user_permi_esp_model->select(['id', 'id_permmiso', 'id_usuario'])->paginate(10);
-    // }
-
     public function crear(array $datos)
     {
         $user_permi_esp_model = $this->getUsuarioPermisoEspecialProvider();

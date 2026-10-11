@@ -2,10 +2,12 @@
 
 namespace Belly\Conversacion\Models;
 use Belly\Conversacion\Entities\ConversacionEntity;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 
 use CodeIgniter\Model;
 
 class ConversacionModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'conversacion';
     protected $primaryKey = 'id';
@@ -14,6 +16,7 @@ class ConversacionModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'id_cliente',
         'id_asignado_por',
         'id_usuario',
@@ -34,6 +37,7 @@ class ConversacionModel extends Model {
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
         'id_cliente' => 'int',
         'id_asignado_por' => '?int',
         'id_usuario' => 'int',

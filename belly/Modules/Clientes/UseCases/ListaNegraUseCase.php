@@ -34,8 +34,8 @@ class ListaNegraUseCase {
             throw new \Exception('El número de teléfono ya está en la lista negra');
         }
 
-        // Crear nueva entrada
         $entity = new ListaNegraEntity();
+        $entity->id_empresa = $this->idEmpresa();
         $entity->telefono = $datos['telefono'];
         $entity->motivo = $datos['motivo'] ?? null;
 
@@ -132,6 +132,10 @@ class ListaNegraUseCase {
         $entity->id = $id;
         
         if (isset($datos['telefono'])) {
+            $otro = $lista_negra_model->where('telefono', $datos['telefono'])->where('id !=', $id)->first();
+            if ($otro) {
+                throw new \Exception('El número de teléfono ya está en la lista negra');
+            }
             $entity->telefono = $datos['telefono'];
         }
         if (isset($datos['motivo'])) {
@@ -218,6 +222,17 @@ class ListaNegraUseCase {
         $lista_negra_model = $this->getListaNegraProvider();
         $registro = $lista_negra_model->where('telefono', $telefono)->first();
         return $registro !== null;
+    }
+
+    private function idEmpresa(): int
+    {
+        helper('vip2system');
+        $id = (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0) {
+            throw new \Exception('La empresa de la sesión es obligatoria.');
+        }
+
+        return $id;
     }
 
 }

@@ -2,10 +2,12 @@
 
 namespace Belly\Mensajes\Models;
 use Belly\Mensajes\Entities\PlantillaMetaEntity;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 
 use CodeIgniter\Model;
 
 class PlantillaMetaModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'plantilla_meta';
     protected $primaryKey = 'id';
@@ -14,6 +16,7 @@ class PlantillaMetaModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'template_id',
         'id_app',
         'id_estado',
@@ -23,6 +26,7 @@ class PlantillaMetaModel extends Model {
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id' => 'int',
+        'id_empresa' => 'int',
         'id_estado' => 'int',
     ];
     protected array $castHandlers = [];

@@ -55,7 +55,7 @@ class GrupoUsuarioUsuarioUseCase
         ]);
         $builder->join('usuario', 'usuario.id = grupo_usuario_usuario.id_usuario', 'inner');
         $builder->join('usuario_perfil', 'usuario_perfil.id_usuario = grupo_usuario_usuario.id_usuario', 'inner');
-        $builder->join('tipo_documento', 'tipo_documento.id = usuario_perfil.id_tipo_documento', 'inner');
+        $builder->join('tipo_documento', 'tipo_documento.id = usuario_perfil.id_tipo_documento', 'left');
         $builder->join('grupo_usuario', 'grupo_usuario.id = grupo_usuario_usuario.id_grupo_usuario', 'inner');
         $builder->join('grupo_usuario_rol', 'grupo_usuario_rol.id = grupo_usuario_usuario.id_grupo_usuario_rol', 'inner');
         $builder->where('grupo_usuario_usuario.id_grupo_usuario', $id_grupo_usuario);

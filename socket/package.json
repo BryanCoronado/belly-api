@@ -1,0 +1,15 @@
+{
+  "name": "belly-socket",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node servidor.js",
+    "dev": "node --watch servidor.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1"
+  }
+}

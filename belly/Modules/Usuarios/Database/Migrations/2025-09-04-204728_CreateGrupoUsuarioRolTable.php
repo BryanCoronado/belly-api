@@ -30,6 +30,16 @@ class CreateGrupoUsuarioRolTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
+            'es_admin' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 0,
+            ],
             'rol' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '45',
@@ -58,6 +68,7 @@ class CreateGrupoUsuarioRolTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey('deleted_at');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_rol_empresa');
 
         $this->forge->createTable('grupo_usuario_rol');
     }

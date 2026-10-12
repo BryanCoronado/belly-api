@@ -7,6 +7,7 @@ use Belly\Configuracion\Entities\EmpresaEntity;
 use Belly\Configuracion\Entities\PortafolioEntity;
 use Belly\Configuracion\Models\EmpresaModel;
 use Belly\Configuracion\Models\PortafolioModel;
+use Belly\Services\Autorizacion;
 
 class EmpresaUseCase
 {
@@ -44,10 +45,22 @@ class EmpresaUseCase
     }
 
     /** @param array<string, mixed> $datos */
+    public function registrar(array $datos): array
+    {
+        return $this->guardarEmpresa($datos);
+    }
+
+    /** @param array<string, mixed> $datos */
     public function crear(array $datos): array
     {
         $this->exigirOperador();
 
+        return $this->guardarEmpresa($datos);
+    }
+
+    /** @param array<string, mixed> $datos */
+    private function guardarEmpresa(array $datos): array
+    {
         $nombre = trim((string) ($datos['nombre'] ?? ''));
         $slug = $this->normalizarSlug((string) ($datos['slug'] ?? $nombre));
         $plan = trim((string) ($datos['plan'] ?? 'base'));
@@ -90,7 +103,9 @@ class EmpresaUseCase
             $idEmpresa = (int) $modelo->insertID;
             $this->crearPortafolioInicial($idEmpresa);
             $administrador = usuario()->crearAdministradorEmpresa($idEmpresa, $admin);
-            $this->asignarAccesoAdministrador((int) $administrador['id_usuario']);
+            helper('vip2system');
+            $roles = acceso()->crearRolesIniciales($idEmpresa);
+            acceso()->asignarUsuarioARol((int) $administrador['id_usuario'], $roles['admin'], $idEmpresa);
 
             $db->transComplete();
             if ($db->transStatus() === false) {
@@ -125,24 +140,9 @@ class EmpresaUseCase
         }
     }
 
-    private function asignarAccesoAdministrador(int $idUsuario): void
-    {
-        db_connect()->table('grupo_usuario_usuario')->insert([
-            'id_grupo_usuario' => 1,
-            'id_usuario' => $idUsuario,
-            'id_grupo_usuario_rol' => 1,
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-        ]);
-    }
-
     private function exigirOperador(): void
     {
-        helper('vip2system');
-        $usuario = auth()->getUsuario();
-        if ($usuario === null || (int) ($usuario->sudo ?? 0) !== 1 || (int) ($usuario->id_empresa ?? 0) !== 1) {
-            throw new \Exception('No autorizado para administrar empresas.');
-        }
+        Autorizacion::exigirOperadorPlataforma('No autorizado para administrar empresas.');
     }
 
     private function presentar(EmpresaEntity $empresa): array

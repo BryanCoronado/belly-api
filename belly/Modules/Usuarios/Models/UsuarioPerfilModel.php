@@ -27,7 +27,7 @@ class UsuarioPerfilModel extends Model {
     protected bool $updateOnlyChanged = true;
     protected array $casts = [
         'id_usuario' => 'int',
-        'id_tipo_documento' => 'int',
+        'id_tipo_documento' => '?int',
     ];
     protected array $castHandlers = [];
     // Dates

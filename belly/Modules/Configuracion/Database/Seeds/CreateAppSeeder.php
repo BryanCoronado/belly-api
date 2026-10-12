@@ -20,7 +20,8 @@ class CreateAppSeeder extends Seeder
                 'phone_number_id' => '1136836639502449',
                 'whatsapp_business_account_id' => '978774918039409',
                 'estado' => 1,
-                'access_token' => 'EAAmqYb6ynykBRS7kBZBxiES8qy1RAR2RvQ2eg0VGF78NSAKXgvp3oTvQPTxDgZAGxSyXI0wZBCGubB5ntGYJP3zpQdhYvCI3zrz2DCx1T0G1kLESGcXAgxZAb1LdCKq3oQak5NIXct7nyCs2Nmgien3LQgiLUzlr2dxiirHZBmZB3lsLWjDBKAkK9oleuxWAZDZD',
+                'access_token' => \Belly\Services\Cifrado::cifrar(env('META_SEED_ACCESS_TOKEN') ?: null),
+                'verificado_at' => env('META_SEED_ACCESS_TOKEN') ? date('Y-m-d H:i:s') : null,
                 'modo' => 'compartido',
                 'max_usuarios' => 30,
                 'tipo' => 'NORMAL'

@@ -208,7 +208,7 @@ class MensajeUseCase {
 
         try {
             $conversacionUseCase = new ConversacionUseCase(new ConversacionConfig());
-            $datosConversacion = $conversacionUseCase->obtenerDatosConversacionCompleta($datos['id_conversacion']);
+            $datosConversacion = $conversacionUseCase->obtenerDatosConversacionCompleta($datos['id_conversacion'], true);
 
             if (!in_array($datosConversacion['conversacion']->id_estado, [1,3])) {
                 throw new \Exception('Solo se pueden enviar mensajes a conversaciones en estado 1.');
@@ -573,7 +573,7 @@ class MensajeUseCase {
     {
         try {
             $conversacionUseCase = new ConversacionUseCase(new ConversacionConfig());
-            $datosConversacion = $conversacionUseCase->obtenerDatosConversacionCompleta($datos['id_conversacion']);
+            $datosConversacion = $conversacionUseCase->obtenerDatosConversacionCompleta($datos['id_conversacion'], true);
 
             if (!in_array((int) $datosConversacion['conversacion']->id_estado, [1, 3], true)) {
                 throw new \Exception('Solo se pueden enviar plantillas a conversaciones en atención o sin abrir.');

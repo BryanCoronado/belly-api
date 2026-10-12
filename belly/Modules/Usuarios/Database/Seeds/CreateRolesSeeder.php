@@ -13,6 +13,8 @@ class CreateRolesSeeder extends Seeder {
         $data = [
             [
                 'id' => 1,
+                'id_empresa' => 1,
+                'es_admin' => 1,
                 'rol' => 'Programador',
                 'alias' => 'rol_dev',
                 'descripcion' => 'Rol para los Programadores del sistema.',
@@ -20,6 +22,8 @@ class CreateRolesSeeder extends Seeder {
             ],
             [
                 'id' => 2,
+                'id_empresa' => 1,
+                'es_admin' => 1,
                 'rol' => 'Administrador',
                 'alias' => 'rol_admin',
                 'descripcion' => 'Rol para los Administradores del sistema.',
@@ -27,6 +31,8 @@ class CreateRolesSeeder extends Seeder {
             ],
             [
                 'id' => 3,
+                'id_empresa' => 1,
+                'es_admin' => 0,
                 'rol' => 'Jefe de Sistemas',
                 'alias' => 'rol_jefatura_sistemas',
                 'descripcion' => 'Rol para jefatura de sistemas.',
@@ -34,6 +40,8 @@ class CreateRolesSeeder extends Seeder {
             ],
             [
                 'id' => 4,
+                'id_empresa' => 1,
+                'es_admin' => 0,
                 'rol' => 'Jefe de Marketing',
                 'alias' => 'rol_jefatura_marketing',
                 'descripcion' => 'Rol para jefatura de marketing.',
@@ -41,6 +49,8 @@ class CreateRolesSeeder extends Seeder {
             ],
             [
                 'id' => 5,
+                'id_empresa' => 1,
+                'es_admin' => 0,
                 'rol' => 'Personal de Contac Center',
                 'alias' => 'rol_personal_contac_center',
                 'descripcion' => 'Rol para personal de contact center',
@@ -48,6 +58,8 @@ class CreateRolesSeeder extends Seeder {
             ],
             [
                 'id' => 6,
+                'id_empresa' => 1,
+                'es_admin' => 0,
                 'rol' => 'Jefe de Contac Center',
                 'alias' => 'rol_jefatura_contac_center',
                 'descripcion' => 'Rol de jefatura de contac center',
@@ -55,11 +67,13 @@ class CreateRolesSeeder extends Seeder {
             ],
             [
                 'id' => 7,
+                'id_empresa' => 1,
+                'es_admin' => 0,
                 'rol' => 'Personal de Marketing',
                 'alias' => 'rol_personal_marketing',
                 'descripcion' => 'Personal de marketing',
                 'created_at' => date('Y-m-d H:i:s'),
-            ],          
+            ],
 
         ];
 

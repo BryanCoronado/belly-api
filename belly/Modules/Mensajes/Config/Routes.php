@@ -2,7 +2,7 @@
 
 use CodeIgniter\Router\RouteCollection;
 
-$routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
+$routes->group('v1', ['filter' => ['authFilter', 'whatsappFilter']], static function ($routes) {
     $routes->group('mensaje', ['namespace' => 'Belly\Mensajes\Controllers\Api'], static function ($routes) {
         $routes->post('enviar', 'MensajeController::enviar');
         $routes->post('enviar-plantilla', 'MensajeController::enviarPlantilla');

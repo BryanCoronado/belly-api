@@ -14,9 +14,11 @@ class GrupoUsuarioRolModel extends Model
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
+        'es_admin',
         'rol',
         'alias',
-        'descripcion'
+        'descripcion',
     ];
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

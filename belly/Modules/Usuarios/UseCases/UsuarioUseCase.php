@@ -1,6 +1,7 @@
 <?php
 namespace Belly\Usuarios\UseCases;
 
+use Belly\Services\Autorizacion;
 use Belly\Usuarios\Config\UsuarioConfig;
 use Belly\Usuarios\Models\UsuarioModel;
 use Belly\Usuarios\Entities\UsuarioEntity;
@@ -8,6 +9,8 @@ use Belly\Usuarios\Entities\UsuarioPerfilEntity;
 use Belly\Usuarios\Models\UsuarioPerfilModel;
 
 class UsuarioUseCase {
+    private const TIPO_DOCUMENTO_POR_DEFECTO = 1;
+
     protected UsuarioConfig $config;
     protected ?UsuarioModel $usuario_provider = NULL;
     protected ?UsuarioPerfilModel $perfil_provider = NULL;
@@ -49,7 +52,7 @@ class UsuarioUseCase {
         $usuario_model->select(['usuario.id as id_usuario','usuario.id_estado_usuario', 'es.nombre as nombre_estado_usuario', 'usuario.created_at', 'usuario.usuario', 'usuario.activo', 'up.nombres', 'up.apellidos', 'up.id_tipo_documento', 'up.nro_documento','doc.tipo as nombre_documento', 'up.correo', 'up.celular', 'up.celular_secundario', 'usuario.cuenta_bloqueada']);
         $usuario_model->join('usuario_perfil as up', 'up.id_usuario = usuario.id');
         $usuario_model->join('estado_usuario as es','es.id = usuario.id_estado_usuario');
-        $usuario_model->join('tipo_documento as doc', 'doc.id = up.id_tipo_documento');
+        $usuario_model->join('tipo_documento as doc', 'doc.id = up.id_tipo_documento', 'left');
         $usuario = $usuario_model->find($id);
 
         if (isset($usuario) && !empty($usuario)) {
@@ -63,35 +66,55 @@ class UsuarioUseCase {
 
     public function crearUsuario(array $datos)
     {
+        $this->exigirAdministradorEmpresa();
+        $this->validarNuevoUsuario($datos);
+
+        $idEmpresa = $this->resolverIdEmpresaUsuario($datos);
+        $usuario = strtolower(trim((string) $datos['usuario']));
+        $ocupado = db_connect()->table('usuario')
+            ->where('id_empresa', $idEmpresa)
+            ->where('usuario', $usuario)
+            ->where('deleted_at', null)
+            ->countAllResults();
+        if ($ocupado > 0) {
+            throw new \Exception('Ese usuario ya existe en la empresa.');
+        }
+
+        $idRol = (int) ($datos['id_rol'] ?? 0);
+        $rol = $idRol > 0 ? acceso()->rolDeEmpresa($idRol, $idEmpresa) : acceso()->rolPorDefecto($idEmpresa);
+        $idRol = (int) $rol['id'];
+
+        $datos['usuario'] = $usuario;
+
         $password = $this->encriptarContrasenia($datos);
 
         $usuario_entity = new UsuarioEntity();
-        $usuario_entity->id_empresa = $this->resolverIdEmpresaUsuario($datos);
-        $usuario_entity->usuario = $datos['usuario'];
+        $usuario_entity->id_empresa = $idEmpresa;
+        $usuario_entity->usuario = $usuario;
         $usuario_entity->password = $password;
         $usuario_entity->login_fallidos = 0;
         $usuario_entity->cuenta_bloqueada = 0;
-        $usuario_entity->id_estado_usuario = 6; //offline
+        $usuario_entity->id_estado_usuario = 6;
         $usuario_entity->activo = 1;
-        $usuario_entity->sudo = 0;
+        $usuario_entity->sudo = (int) ($rol['es_admin'] ?? 0) === 1 ? 1 : 0;
 
-        if ($usuario_model = $this->getUsuarioProvider()) {
-            if ($usuario_model->save($usuario_entity)) {
-                $usuario_entity->id = $usuario_model->insertID;
-                $perfil = $this->crearPerfilUsuario($datos, $usuario_entity->id);
-                
-                return [
-                    'id_usuario' => $usuario_entity->id,
-                    'usuario' => $usuario_entity->usuario,
-                    'nombres' => $perfil->nombres,
-                    'nro_documento' => $perfil->nro_documento,
-                ];
-            } else {
-                throw new \Exception(json_encode($usuario_model->errors()));
-            }
-        } else {
-            throw new \Exception('Error al obtener el modelo de usuario');
+        $usuario_model = $this->getUsuarioProvider();
+        if (! $usuario_model->save($usuario_entity)) {
+            throw new \Exception(json_encode($usuario_model->errors()));
         }
+
+        $usuario_entity->id = (int) $usuario_model->insertID;
+        $perfil = $this->crearPerfilUsuario($datos, $usuario_entity->id);
+        $idGrupo = (int) ($datos['id_grupo_usuario'] ?? 0);
+        acceso()->asignarUsuarioARol($usuario_entity->id, $idRol, $idEmpresa, $idGrupo > 0 ? $idGrupo : null);
+
+        return [
+            'id_usuario' => $usuario_entity->id,
+            'usuario' => $usuario_entity->usuario,
+            'nombres' => $perfil->nombres,
+            'apellidos' => $perfil->apellidos,
+            'nro_documento' => $perfil->nro_documento,
+        ];
     }
 
 
@@ -102,13 +125,14 @@ class UsuarioUseCase {
         $perfil_entity = new UsuarioPerfilEntity();
         $perfil_entity->id_usuario = $id_usuario;
 
-        $perfil_entity->nombres = $datos['nombres'] ?? null;
-        $perfil_entity->apellidos = $datos['apellidos'] ?? null;
-        $perfil_entity->id_tipo_documento = $this->resolverIdTipoDocumento($datos);
-        $perfil_entity->nro_documento = $datos['nro_documento'];
-        $perfil_entity->correo = $datos['correo'];
-        $perfil_entity->celular = $datos['celular'] ?? null;
-        $perfil_entity->celular_secundario = $datos['celular_secundario'] ?? null;
+        $documento = $this->opcional($datos, 'nro_documento');
+        $perfil_entity->nombres = trim((string) $datos['nombres']);
+        $perfil_entity->apellidos = $this->opcional($datos, 'apellidos');
+        $perfil_entity->id_tipo_documento = $documento === null ? null : $this->resolverIdTipoDocumento($datos);
+        $perfil_entity->nro_documento = $documento;
+        $perfil_entity->correo = $this->opcional($datos, 'correo');
+        $perfil_entity->celular = $this->opcional($datos, 'celular');
+        $perfil_entity->celular_secundario = $this->opcional($datos, 'celular_secundario');
 
         if ($model_perfil->save($perfil_entity)) {
             $perfil_entity->id = $model_perfil->insertID;
@@ -160,10 +184,19 @@ class UsuarioUseCase {
             'up.celular_secundario',
             'doc.tipo as nombre_documento',
             'up.correo',
-            'usuario.cuenta_bloqueada'
+            'usuario.cuenta_bloqueada',
+            'usuario.sudo',
+            'gur.rol',
+            'gur.es_admin',
+            'guu.id_grupo_usuario_rol as id_rol',
+            'guu.id_grupo_usuario',
+            'gu.grupo',
         ]);
         $usuario_model->join('usuario_perfil as up', 'up.id_usuario = usuario.id');
-        $usuario_model->join('tipo_documento as doc', 'doc.id = up.id_tipo_documento');
+        $usuario_model->join('tipo_documento as doc', 'doc.id = up.id_tipo_documento', 'left');
+        $usuario_model->join('grupo_usuario_usuario as guu', 'guu.id_usuario = usuario.id AND guu.deleted_at IS NULL', 'left');
+        $usuario_model->join('grupo_usuario_rol as gur', 'gur.id = guu.id_grupo_usuario_rol AND gur.deleted_at IS NULL', 'left');
+        $usuario_model->join('grupo_usuario as gu', 'gu.id = guu.id_grupo_usuario AND gu.deleted_at IS NULL', 'left');
         
         // Filtro de búsqueda
         if (!empty($search)) {
@@ -223,17 +256,33 @@ class UsuarioUseCase {
 
     public function editarUsuario(array $datos, int $id)
     {
+        $this->exigirAdministradorEmpresa();
         $usuario_model = $this->getUsuarioProvider();
         $existe_usuario = $usuario_model->find($id);
 
-        if (!empty($usuario_model->find($id))) {
-            $perfil_actual = $this->getPerfilProvider()->where('id_usuario', $id)->first();
-            $this->resolverIdTipoDocumento($datos, $perfil_actual ? (int) $perfil_actual->id_tipo_documento : null);
+        if (!empty($existe_usuario)) {
+            $this->validarDatosPerfil($datos, false);
 
             $usuario_entity = new UsuarioEntity();
             $usuario_entity->id = $id;
-            $usuario_entity->usuario = $datos['usuario'];
+            $usuario_entity->usuario = isset($datos['usuario']) && trim((string) $datos['usuario']) !== ''
+                ? strtolower(trim((string) $datos['usuario']))
+                : $existe_usuario->usuario;
+            if ($usuario_entity->usuario !== $existe_usuario->usuario) {
+                $ocupado = db_connect()->table('usuario')
+                    ->where('id_empresa', $existe_usuario->id_empresa)
+                    ->where('usuario', $usuario_entity->usuario)
+                    ->where('id !=', $id)
+                    ->where('deleted_at', null)
+                    ->countAllResults();
+                if ($ocupado > 0) {
+                    throw new \Exception('Ese usuario ya existe en la empresa.');
+                }
+            }
             $cambiaClave = isset($datos['password']) && $datos['password'] !== '';
+            if ($cambiaClave && strlen((string) $datos['password']) < 8) {
+                throw new \Exception('La contraseña debe tener al menos 8 caracteres.');
+            }
 
             if ($cambiaClave) {
                 $usuario_entity->password = $this->encriptarContrasenia($datos);
@@ -250,6 +299,15 @@ class UsuarioUseCase {
                     auth()->cerrarSesionesUsuario($id);
                 }
                 $perfil = $this->editarPerfil($datos, $id);
+                $idRol = (int) ($datos['id_rol'] ?? 0);
+                if ($idRol > 0) {
+                    $idEmpresa = (int) ($existe_usuario->id_empresa ?? $this->resolverIdEmpresaUsuario($datos));
+                    $rol = acceso()->rolDeEmpresa($idRol, $idEmpresa);
+                    $idGrupo = (int) ($datos['id_grupo_usuario'] ?? 0);
+                    acceso()->asignarUsuarioARol($id, $idRol, $idEmpresa, $idGrupo > 0 ? $idGrupo : null);
+                    $usuario_entity->sudo = (int) ($rol['es_admin'] ?? 0) === 1 ? 1 : 0;
+                    $usuario_model->save($usuario_entity);
+                }
                 return [
                     'id_usuario' => $usuario_entity->id,
                     'usuario' => $usuario_entity->usuario,
@@ -272,15 +330,21 @@ class UsuarioUseCase {
         $existe_perfil_model = $perfil_model->where('id_usuario', $id_usuario_perfil)->first();
 
         if (isset($existe_perfil_model->id_usuario)) {
+            $valor = fn (string $campo) => array_key_exists($campo, $datos)
+                ? $this->opcional($datos, $campo)
+                : $existe_perfil_model->{$campo};
+
             $perfil_entity = new UsuarioPerfilEntity();
             $perfil_entity->id_usuario = $id_usuario_perfil;
-            $perfil_entity->nombres = !isset($datos['nombres']) ? $existe_perfil_model->nombres : $datos['nombres'];
-            $perfil_entity->apellidos = !isset($datos['apellidos']) ? $existe_perfil_model->apellidos : $datos['apellidos'];
-            $perfil_entity->id_tipo_documento = $this->resolverIdTipoDocumento($datos, (int) $existe_perfil_model->id_tipo_documento);
-            $perfil_entity->nro_documento = !isset($datos['nro_documento']) ? $existe_perfil_model->nro_documento : $datos['nro_documento'];
-            $perfil_entity->correo = !isset($datos['correo']) ? $existe_perfil_model->correo : $datos['correo'];
-            $perfil_entity->celular = !isset($datos['celular']) ? $existe_perfil_model->celular : $datos['celular'];
-            $perfil_entity->celular_secundario = !isset($datos['celular_secundario']) ? $existe_perfil_model->celular_secundario : $datos['celular_secundario'];
+            $perfil_entity->nombres = $valor('nombres') ?? $existe_perfil_model->nombres;
+            $perfil_entity->apellidos = $valor('apellidos');
+            $perfil_entity->nro_documento = $valor('nro_documento');
+            $perfil_entity->id_tipo_documento = $perfil_entity->nro_documento === null
+                ? null
+                : $this->resolverIdTipoDocumento($datos, (int) ($existe_perfil_model->id_tipo_documento ?? 0));
+            $perfil_entity->correo = $valor('correo');
+            $perfil_entity->celular = $valor('celular');
+            $perfil_entity->celular_secundario = $valor('celular_secundario');
 
             if ($perfil_model->save($perfil_entity)) {
                 return $perfil_entity;
@@ -298,12 +362,8 @@ class UsuarioUseCase {
             || $datos['id_tipo_documento'] === null
             || trim((string) $datos['id_tipo_documento']) === '';
 
-        if ($sinCambio && $idActual !== null && $idActual > 0) {
-            return $idActual;
-        }
-
         if ($sinCambio) {
-            throw new \Exception('El tipo de documento es obligatorio');
+            return $idActual !== null && $idActual > 0 ? $idActual : self::TIPO_DOCUMENTO_POR_DEFECTO;
         }
 
         $idTipoDocumento = (int) $datos['id_tipo_documento'];
@@ -322,6 +382,10 @@ class UsuarioUseCase {
 
     public function cambiarEstadoUsuario(array $datos, int $id)
     {
+        $this->exigirAdministradorEmpresa();
+        if (! (bool) ($datos['estado'] ?? true)) {
+            $this->impedirSobreSiMismo($id, 'No puedes desactivar tu propio usuario.');
+        }
         $usuario_model = $this->getUsuarioProvider();
         $existe_usuario = $usuario_model->find($id);
 
@@ -347,6 +411,9 @@ class UsuarioUseCase {
      */
     public function cambiarIdEstadoUsuario(array $datos, int $id)
     {
+        if (! Autorizacion::esUsuarioActual($id) && ! Autorizacion::esAdministradorEmpresa()) {
+            throw new \Exception('Solo puedes cambiar tu propio estado.');
+        }
         $usuario_model = $this->getUsuarioProvider();
         $existe_usuario = $usuario_model->find($id);
 
@@ -368,6 +435,8 @@ class UsuarioUseCase {
 
     public function eliminar_usuario(?int $id)
     {
+        $this->exigirAdministradorEmpresa();
+        $this->impedirSobreSiMismo((int) $id, 'No puedes eliminar tu propio usuario.');
         $perfil_model = $this->getPerfilProvider();
         $usuario_model = $this->getUsuarioProvider();
         if (isset($id) && $id !== null) {
@@ -553,15 +622,7 @@ class UsuarioUseCase {
             throw new \Exception('id_empresa es obligatorio para el administrador.');
         }
 
-        foreach (['usuario', 'password', 'nombres', 'apellidos', 'nro_documento', 'correo', 'id_tipo_documento'] as $campo) {
-            if (! isset($datos[$campo]) || trim((string) $datos[$campo]) === '') {
-                throw new \Exception('El administrador requiere ' . $campo . '.');
-            }
-        }
-
-        if (strlen((string) $datos['password']) < 8) {
-            throw new \Exception('La contraseña del administrador debe tener al menos 8 caracteres.');
-        }
+        $this->validarNuevoUsuario($datos);
 
         $usuario = strtolower(trim((string) $datos['usuario']));
         $ocupado = db_connect()->table('usuario')
@@ -604,11 +665,6 @@ class UsuarioUseCase {
 
     private function resolverIdEmpresaUsuario(array $datos): int
     {
-        $id = (int) ($datos['id_empresa'] ?? 0);
-        if ($id > 0) {
-            return $id;
-        }
-
         helper('vip2system');
         $id = (int) (id_empresa_sesion() ?? 0);
         if ($id <= 0) {
@@ -617,4 +673,58 @@ class UsuarioUseCase {
 
         return $id;
     }
+
+    private function exigirAdministradorEmpresa(): void
+    {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador de la empresa puede gestionar usuarios.');
+    }
+
+    /** @param array<string, mixed> $datos */
+    private function validarNuevoUsuario(array $datos): void
+    {
+        foreach (['nombres' => 'el nombre', 'usuario' => 'el usuario', 'password' => 'la contraseña'] as $campo => $nombre) {
+            if ($this->opcional($datos, $campo) === null) {
+                throw new \Exception('Falta ' . $nombre . '.');
+            }
+        }
+        if (strlen((string) $datos['password']) < 8) {
+            throw new \Exception('La contraseña debe tener al menos 8 caracteres.');
+        }
+        if (! preg_match('/^[a-z0-9._-]{3,45}$/i', trim((string) $datos['usuario']))) {
+            throw new \Exception('El usuario debe tener de 3 a 45 caracteres: letras, números, punto, guion o guion bajo.');
+        }
+        $this->validarDatosPerfil($datos, true);
+    }
+
+    /** @param array<string, mixed> $datos */
+    private function validarDatosPerfil(array $datos, bool $nuevo): void
+    {
+        if (! $nuevo && array_key_exists('nombres', $datos) && $this->opcional($datos, 'nombres') === null) {
+            throw new \Exception('Falta el nombre.');
+        }
+        $correo = $this->opcional($datos, 'correo');
+        if ($correo !== null && filter_var($correo, FILTER_VALIDATE_EMAIL) === false) {
+            throw new \Exception('El correo no es válido.');
+        }
+        $documento = $this->opcional($datos, 'nro_documento');
+        if ($documento !== null && strlen($documento) > 15) {
+            throw new \Exception('El documento admite hasta 15 caracteres.');
+        }
+    }
+
+    /** @param array<string, mixed> $datos */
+    private function opcional(array $datos, string $campo): ?string
+    {
+        $valor = trim((string) ($datos[$campo] ?? ''));
+
+        return $valor === '' ? null : $valor;
+    }
+
+    private function impedirSobreSiMismo(int $id, string $mensaje): void
+    {
+        if (Autorizacion::esUsuarioActual($id)) {
+            throw new \Exception($mensaje);
+        }
+    }
+
 }

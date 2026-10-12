@@ -15,18 +15,21 @@ class CreateGruposUsuariosSeeder extends Seeder
         $data = [
             [
                 'id' => 1,
+                'id_empresa' => 1,
                 'grupo' => 'Sistemas',
                 'descripcion' => 'Grupo de Usuarios',
                 'created_at' => date('Y-m-d H:i:s'),
             ],
             [
                 'id' => 2,
+                'id_empresa' => 1,
                 'grupo' => 'Contact Center',
                 'descripcion' => 'Grupo de usuarios que se encargan de la  Prospección de nuevos clientes',
                 'created_at' => date('Y-m-d H:i:s'),
             ],
             [
                 'id' => 3,
+                'id_empresa' => 1,
                 'grupo' => 'Marketing',
                 'descripcion' => 'Grupo de usuarios que se encargan de la Marketing',
                 'created_at' => date('Y-m-d H:i:s'),

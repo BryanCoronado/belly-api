@@ -21,6 +21,9 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
             $routes->get('(:num)', 'CitaConversacionControllerApi::ver/$1', ['as' => 'apiv1_cita_conversacion_ver']);   
         });
     });
+});
+
+$routes->group('v1', ['filter' => ['authFilter', 'whatsappFilter']], static function ($routes) {
 
     $routes->group('conversacion', ['namespace' => 'Belly\Conversacion\Controllers\Api'], static function ($routes) {
         $routes->get('listar', 'ConversacionControllerApi::listar', ['as' => 'apiv1_conversacion_listar'] );
@@ -61,6 +64,9 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
         });
 
     });
+});
+
+$routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
 
     $routes->group('etiqueta', ['namespace' => 'Belly\Conversacion\Controllers\Api'], static function ($routes) {
         $routes->get('listar', 'EtiquetaControllerApi::listar', ['as' => 'apiv1_etiqueta_listar']);

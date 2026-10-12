@@ -35,6 +35,12 @@ class CreatePermisoTable extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
+            'id_permiso_padre' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
             'permiso' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '100',
@@ -47,6 +53,26 @@ class CreatePermisoTable extends Migration
                 'type'       => 'VARCHAR',
                 'constraint' => '150',
                 'null'       => true,
+            ],
+            'tipo' => [
+                'type'       => 'ENUM',
+                'constraint' => ['modulo', 'accion'],
+                'default'    => 'modulo',
+            ],
+            'requiere_whatsapp' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 0,
+            ],
+            'solo_admin' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 0,
+            ],
+            'orden' => [
+                'type'       => 'SMALLINT',
+                'unsigned'   => true,
+                'default'    => 0,
             ],
             'activo' => [
                 'type'       => 'TINYINT',
@@ -68,6 +94,7 @@ class CreatePermisoTable extends Migration
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addForeignKey('id_grupo_permiso', 'grupo_permiso', 'id', 'CASCADE', 'CASCADE');
+        $this->forge->addForeignKey('id_permiso_padre', 'permiso', 'id', 'CASCADE', 'CASCADE');
         $this->forge->addKey('deleted_at');
         
         $this->forge->createTable('permiso');

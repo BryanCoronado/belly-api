@@ -3,10 +3,13 @@
 namespace Belly\Usuarios\Models;
 
 use CodeIgniter\Model;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 use Belly\Usuarios\Entities\GrupoUsuarioEntity;
 
 class GrupoUsuarioModel extends Model
 {
+    use FiltraPorEmpresa;
+
     protected $table = 'grupo_usuario';
     protected $primaryKey = 'id';
     protected $useAutoIncrement = true;
@@ -14,6 +17,7 @@ class GrupoUsuarioModel extends Model
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'grupo',
         'descripcion'
     ];

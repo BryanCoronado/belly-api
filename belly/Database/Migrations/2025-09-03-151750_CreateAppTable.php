@@ -41,11 +41,12 @@ class CreateAppTable extends Migration
             ],
             'nombre' => [
                 'type'       => 'VARCHAR',
-                'constraint' => '15',
+                'constraint' => '100',
             ],
             'telefono' => [
                 'type'       => 'VARCHAR',
-                'constraint' => '15',
+                'constraint' => '20',
+                'null'       => true,
             ],
             'phone_number_id' => [
                 'type'       => 'VARCHAR',
@@ -60,10 +61,15 @@ class CreateAppTable extends Migration
             'whatsapp_business_account_id' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '50',
+                'null'       => true,
             ],
             'access_token' => [
                 'type'       => 'TEXT',
                 'null'       => true,
+            ],
+            'verificado_at' => [
+                'type' => 'DATETIME',
+                'null' => true,
             ],
             'estado' => [
                 'type'       => 'TINYINT',
@@ -105,6 +111,7 @@ class CreateAppTable extends Migration
         $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_app_empresa');
         $this->forge->addForeignKey('id_portafolio','portafolio','id','CASCADE','CASCADE');
         $this->forge->addKey('deleted_at');
+        $this->forge->addUniqueKey('phone_number_id');
 
         $this->forge->createTable('app');
     }

@@ -11,6 +11,38 @@ class AuthController extends BaseController
 {
     use ResponseTrait;
 
+    public function registro()
+    {
+        $datos = $this->request->getJSON(true);
+        if (! is_array($datos)) {
+            return $this->fail('Datos inválidos.', 400);
+        }
+
+        try {
+            $creada = empresa()->registrar([
+                'nombre' => $datos['nombre'] ?? '',
+                'slug' => $datos['empresa'] ?? '',
+                'admin' => [
+                    'usuario' => $datos['username'] ?? '',
+                    'password' => $datos['password'] ?? '',
+                    'nombres' => $datos['nombres'] ?? '',
+                    'apellidos' => $datos['apellidos'] ?? '',
+                    'correo' => $datos['correo'] ?? '',
+                    'nro_documento' => $datos['nro_documento'] ?? '',
+                    'id_tipo_documento' => 1,
+                ],
+            ]);
+
+            return $this->respond([
+                'success' => true,
+                'empresa' => $creada['slug'],
+                'usuario' => $creada['admin']['usuario'],
+            ], 201);
+        } catch (\Throwable $e) {
+            return $this->fail($e->getMessage(), 400);
+        }
+    }
+
     public function login()
     {
         $datos = $this->request->getJSON(true);
@@ -70,6 +102,7 @@ class AuthController extends BaseController
                     'usuario' => $usuario->usuario,
                     'nombres' => $perfil->nombres ?? null,
                     'apellidos' => $perfil->apellidos ?? null,
+                    'sudo' => (int) ($usuario->sudo ?? 0),
                 ],
             ];
             return $this->respond($response, 200);
@@ -89,6 +122,21 @@ class AuthController extends BaseController
         } catch (\Exception $exc) {
             return $this->failUnauthorized($exc->getMessage(), 'Auth');
         }
+    }
+
+    /** Lo consulta el servidor de sockets para saber a qué empresa unir la conexión. */
+    public function tiempoReal()
+    {
+        $usuario = auth()->getUsuario();
+        $idEmpresa = id_empresa_sesion();
+        if (! $usuario || ! $idEmpresa) {
+            return $this->failUnauthorized('No autenticado.', 'Auth');
+        }
+
+        return $this->respond([
+            'success' => true,
+            'data' => ['id_usuario' => (int) $usuario->id, 'id_empresa' => $idEmpresa],
+        ], 200);
     }
 
     public function logout()

@@ -30,6 +30,11 @@ class CreateGrupoUsuarioTable extends Migration
                 'unsigned'       => true,
                 'auto_increment' => true,
             ],
+            'id_empresa' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+            ],
             'grupo' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '45',
@@ -55,6 +60,7 @@ class CreateGrupoUsuarioTable extends Migration
 
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey('deleted_at');
+        $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_grupo_usuario_empresa');
         $this->forge->createTable('grupo_usuario');
     }
 }

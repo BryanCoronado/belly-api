@@ -2,9 +2,10 @@
 
 use CodeIgniter\Router\RouteCollection;
 
-$routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
+// El catálogo de módulos es global para todas las empresas: solo el operador de la plataforma lo gestiona.
+$routes->group('v1', ['filter' => ['authFilter', 'rolFilter:operador']], static function ($routes) {
 
-    $routes->group('modulo', ['namespace' => 'Belly\Modulos\Controllers\Api','filter' => 'permisosFilter:mod_sistemas_access,acc_lectura'], static function ($routes) {
+    $routes->group('modulo', ['namespace' => 'Belly\Modulos\Controllers\Api'], static function ($routes) {
         $routes->get('/', 'ModuloController::listar', ['as' => 'apiv1_modulos_list']);
         $routes->get('(:num)', 'ModuloController::ver/$1', ['as' => 'api-v1_modulos_read']);
         $routes->post('crear', 'ModuloController::crear', ['as' => 'apiv1_modulos_create']);

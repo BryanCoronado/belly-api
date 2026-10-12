@@ -3,19 +3,10 @@
 use CodeIgniter\Router\RouteCollection;
 
 $routes->group('v1', ['filter' => ['authFilter', 'permisosFilter:mod_sistemas_access,acc_lectura']], static function ($routes) {
-
     $routes->group('usuario', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
         $routes->get('/', 'UsuarioController::listar', ['as' => 'apiv1_usuarios_listar']);
         $routes->get('(:num)', 'UsuarioController::ver/$1', ['as' => 'apiv1_usuarios_ver']);
         $routes->get('por-rol/(:num)', 'UsuarioController::listarPorRol/$1', ['as' => 'apiv1_usuarios_listar_por_rol']);
-        $routes->post('crear', 'UsuarioController::crear', ['as' => 'apiv1_usuarios_crear']);
-        $routes->put('editar/(:num)', 'UsuarioController::editar/$1', ['as' => 'apiv1_usuarios_editar']);
-
-        //es de la columna activo
-        $routes->put('estado/(:num)', 'UsuarioController::actualizarEstado/$1', ['as' => 'apiv1_usuarios_update_estado']);
-        // para actualizar la columna id_estado_usuario
-        $routes->put('estado-usuario/(:num)', 'UsuarioController::actualizarEstadoUsuario/$1', ['as' => 'apiv1_usuarios_update_estado_id']);
-        $routes->delete('(:num)', 'UsuarioController::eliminar/$1', ['as' => 'apiv1_usuarios_delete']);
         $routes->group('logueado', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
             $routes->get('/', 'UsuarioLoginController::user', ['as' => 'apiv1_usuariologin_read']);
         });
@@ -24,6 +15,56 @@ $routes->group('v1', ['filter' => ['authFilter', 'permisosFilter:mod_sistemas_ac
         });
     });
 
+    $routes->group('estado_usuario', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
+        $routes->get('/', 'EstadoUsuarioController::listar', ['as' => 'apiv1_estado_usuario_list']);
+        $routes->put('(:num)', 'EstadoUsuarioController::ver/$1', ['as' => 'apiv1_estado_usuario_read']);
+    });
+});
+
+// Cada usuario puede cambiar su propia disponibilidad; el caso de uso valida que sea él o un administrador.
+$routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
+    $routes->group('usuario', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
+        $routes->put('estado-usuario/(:num)', 'UsuarioController::actualizarEstadoUsuario/$1', ['as' => 'apiv1_usuarios_update_estado_id']);
+    });
+});
+
+$routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static function ($routes) {
+    $routes->group('usuario', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
+        $routes->post('crear', 'UsuarioController::crear', ['as' => 'apiv1_usuarios_crear']);
+        $routes->put('editar/(:num)', 'UsuarioController::editar/$1', ['as' => 'apiv1_usuarios_editar']);
+        $routes->put('estado/(:num)', 'UsuarioController::actualizarEstado/$1', ['as' => 'apiv1_usuarios_update_estado']);
+        $routes->delete('(:num)', 'UsuarioController::eliminar/$1', ['as' => 'apiv1_usuarios_delete']);
+    });
+
+    $routes->group('acceso', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
+        $routes->get('roles', 'AccesoController::roles');
+        $routes->post('roles', 'AccesoController::crearRol');
+        $routes->get('roles/(:num)', 'AccesoController::verRol/$1');
+        $routes->put('roles/(:num)', 'AccesoController::editarRol/$1');
+        $routes->delete('roles/(:num)', 'AccesoController::eliminarRol/$1');
+        $routes->get('roles/(:num)/permisos', 'AccesoController::permisosRol/$1');
+        $routes->put('roles/(:num)/permisos', 'AccesoController::guardarPermisosRol/$1');
+        $routes->get('permisos', 'AccesoController::catalogo');
+        $routes->get('grupos', 'AccesoController::grupos');
+        $routes->post('grupos', 'AccesoController::crearGrupo');
+        $routes->get('grupos/(:num)', 'AccesoController::verGrupo/$1');
+        $routes->put('grupos/(:num)', 'AccesoController::editarGrupo/$1');
+        $routes->delete('grupos/(:num)', 'AccesoController::eliminarGrupo/$1');
+    });
+});
+
+$routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
+    $routes->group('usuario-metricas', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
+        $routes->get('dashboard', 'UsuarioMetricaController::dashboard', ['as' => 'apiv1_usuario_metricas_dashboard']);
+    });
+
+    $routes->group('acceso', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
+        $routes->get('menu', 'AccesoController::menu');
+    });
+});
+
+// Endpoints heredados que trabajan con ids crudos de grupos/roles/permisos: solo el operador de la plataforma.
+$routes->group('v1', ['filter' => ['authFilter', 'rolFilter:operador']], static function ($routes) {
     $routes->group('grupo_usuario', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
         $routes->get('/', 'GrupoUsuarioController::listar', ['as' => 'apiv1_grupo_usuario_list']);
         $routes->get('(:num)', 'GrupoUsuarioController::ver/$1', ['as' => 'apiv1_grupo_usuario_read']);
@@ -74,24 +115,9 @@ $routes->group('v1', ['filter' => ['authFilter', 'permisosFilter:mod_sistemas_ac
 
     $routes->group('permiso_especial', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
         $routes->get('(:num)', 'UsuarioPermisoEspecialController::obtenerpermisoEspecialPorUsuario/$1', ['as' => 'apiv1_permiso_especial_read']);
-
         $routes->get('/', 'UsuarioPermisoEspecialController::list', ['as' => 'apiv1_permiso_especial_list']);
-        // $routes->get('(:num)', 'UsuarioPermisoEspecialControllerApi::read/$1', ['as' => 'apiv1_permiso_especial_read']);
         $routes->post('create', 'UsuarioPermisoEspecialController::crear', ['as' => 'apiv1_permiso_especial_create']);
         $routes->put('/', 'UsuarioPermisoEspecialController::actualizar', ['as' => 'apiv1_permiso_especial_update']);
         $routes->delete('(:num)', 'UsuarioPermisoEspecialController::eliminar/$1', ['as' => 'apiv1_permiso_especial_delete']);
-    });
-
-    $routes->group('estado_usuario', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
-        $routes->get('/', 'EstadoUsuarioController::listar', ['as' => 'apiv1_estado_usuario_list']);
-        $routes->put('(:num)', 'EstadoUsuarioController::ver/$1', ['as' => 'apiv1_estado_usuario_read']);
-    });
-
-});
-
-// Rutas de métricas del usuario (solo requiere autenticación)
-$routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
-    $routes->group('usuario-metricas', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
-        $routes->get('dashboard', 'UsuarioMetricaController::dashboard', ['as' => 'apiv1_usuario_metricas_dashboard']);
     });
 });

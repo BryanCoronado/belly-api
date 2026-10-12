@@ -36,19 +36,23 @@ class CreateUsuarioPerfilTable extends Migration
             'apellidos' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '45',
+                'null'       => true,
             ],
             'id_tipo_documento' => [
                 'type'       => 'INT',
                 'constraint' => 11,
                 'unsigned'   => true,
+                'null'       => true,
             ],
             'nro_documento' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '15',
+                'null'       => true,
             ],
             'correo' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '100',
+                'null'       => true,
             ],
             'celular' => [
                 'type'       => 'VARCHAR',

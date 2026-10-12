@@ -2,6 +2,7 @@
 
 use Belly\Clientes\UseCases\ClienteUseCase;
 use Belly\Clientes\UseCases\ClienteMetricaUseCase;
+use Belly\Usuarios\UseCases\AccesoUseCase;
 use Belly\Usuarios\UseCases\UsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioUsuarioUseCase;
@@ -53,6 +54,11 @@ if (!function_exists('auth')) {
 if (!function_exists('id_empresa_sesion')) {
     function id_empresa_sesion(): ?int
     {
+        $contexto = \Belly\Services\ContextoEmpresa::actual();
+        if ($contexto !== null) {
+            return $contexto;
+        }
+
         static $enCurso = false;
         if ($enCurso) {
             return null;
@@ -122,6 +128,13 @@ if (!function_exists('grupo_usuario_permiso_usuario')) {
     function grupo_usuario_permiso_usuario(): GrupoUsuarioPermisoUsuarioUseCase
     {
         return service('GrupoUsuarioPermisoUsuarioUseCase');
+    }
+}
+
+if (!function_exists('acceso')) {
+    function acceso(): AccesoUseCase
+    {
+        return service('AccesoUseCase');
     }
 }
 
@@ -293,6 +306,13 @@ if (!function_exists('app')) {
     function app(): AppUseCase
     {
         return service('AppUseCase');
+    }
+}
+
+if (!function_exists('conexion_whatsapp')) {
+    function conexion_whatsapp(): \Belly\Configuracion\UseCases\ConexionWhatsappUseCase
+    {
+        return service('ConexionWhatsappUseCase');
     }
 }
 

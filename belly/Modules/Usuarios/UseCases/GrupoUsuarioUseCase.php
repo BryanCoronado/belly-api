@@ -83,8 +83,14 @@ class GrupoUsuarioUseCase
     {
         $grupo_usuario_model = $this->getGrupoUsuarioProvider();
 
+        helper('vip2system');
+        $idEmpresa = (int) (id_empresa_sesion() ?? 0);
+        if ($idEmpresa <= 0) {
+            throw new \Exception('No hay empresa en sesión.');
+        }
+
         $grupo_usuario_entity = new GrupoUsuarioEntity();
-        // $grupo_usuario_entity->id_empresa = auth()->getUsuario()->id_empresa;
+        $grupo_usuario_entity->id_empresa = $idEmpresa;
         $grupo_usuario_entity->grupo = $datos['grupo'];
         $grupo_usuario_entity->descripcion = $datos['descripcion'];
 

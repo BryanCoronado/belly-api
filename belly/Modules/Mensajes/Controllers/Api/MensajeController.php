@@ -110,7 +110,6 @@ class MensajeController extends BaseController
             $canalLog = 'whatsapp';
             log_message('debug', '[MSG ENVIAR] request_id=' . $requestId
                 . ' id_conversacion=' . ($datos['id_conversacion'] ?? 'null')
-                . ' id_vista=' . ($idConversacionVista ?: 'null')
                 . ' canal_envio=' . $canalLog
                 . ' media_type=' . ($datos['media_type'] ?? 'text')
                 . ' mensaje_preview=' . json_encode($previewMensaje, JSON_UNESCAPED_UNICODE));

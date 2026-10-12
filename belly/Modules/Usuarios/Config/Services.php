@@ -3,6 +3,7 @@
 namespace Belly\Usuarios\Config;
 
 use Belly\Usuarios\Config\UsuarioConfig;
+use Belly\Usuarios\UseCases\AccesoUseCase;
 use Belly\Usuarios\UseCases\UsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioPermisoGrupoUsuarioRolUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioPermisoRolUseCase;
@@ -23,6 +24,15 @@ use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
 {
+    public static function AccesoUseCase(bool $getShared = true): AccesoUseCase
+    {
+        if ($getShared) {
+            return self::getSharedInstance('AccesoUseCase');
+        }
+
+        return new AccesoUseCase();
+    }
+
     public static function UsuarioUseCase($config = null, bool $getShared = true): UsuarioUseCase
     {
         if ($getShared) {

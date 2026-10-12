@@ -5,6 +5,7 @@ use Belly\Configuracion\Config\ConfiguracionConfig;
 use Belly\Configuracion\Models\AppModel;
 use Belly\Configuracion\Models\TipoDocumentoModel;
 use Belly\Configuracion\Entities\AppEntity;
+use Belly\Services\Autorizacion;
 
 class AppUseCase {
     /** @see grupo_usuario_rol — rol «Personal de Contact Center» */
@@ -48,6 +49,7 @@ class AppUseCase {
 
     public function crearApp(array $datos)
     {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador puede conectar apps.');
         $app_model = $this->getAppProvider();
         
         if (($datos['modo'] ?? null) === 'compartido') {
@@ -121,6 +123,7 @@ class AppUseCase {
 
     public function asignarUsuarioAApp(int $id_app, int $id_usuario): array
     {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador puede asignar usuarios a apps.');
         $app_model = $this->getAppProvider();
         
         // Verificar que la app existe
@@ -222,6 +225,7 @@ class AppUseCase {
 
     public function desasignarUsuarioDeApp(int $id_app, int $id_usuario): array
     {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador puede quitar usuarios de apps.');
         $app_model = $this->getAppProvider();
         
         // Verificar que la app existe

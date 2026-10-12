@@ -23,7 +23,8 @@ class AppModel extends Model {
         'canal',
         'whatsapp_business_account_id',
         'access_token',
-        'modo',	
+        'verificado_at',
+        'modo',
         'tipo',
         'max_usuarios',
         'estado',
@@ -44,8 +45,8 @@ class AppModel extends Model {
     protected $deletedField = 'deleted_at';
     // Validation
     protected $validationRules = [
-        'nombre' => 'required|max_length[255]',
-        'telefono' => 'required|max_length[20]|is_unique[app.telefono,id,{id}]',
+        'nombre' => 'required|max_length[100]',
+        'telefono' => 'permit_empty|max_length[20]',
         'modo' => 'required|in_list[individual,compartido]',
         'max_usuarios' => 'permit_empty|integer|greater_than[0]',
         'id_portafolio' => 'permit_empty|integer',
@@ -59,12 +60,10 @@ class AppModel extends Model {
     protected $validationMessages = [
         'nombre' => [
             'required' => 'El nombre de la app es obligatorio.',
-            'max_length' => 'El nombre no debe exceder los 255 caracteres.',
+            'max_length' => 'El nombre no debe exceder los 100 caracteres.',
         ],
         'telefono' => [
-            'required' => 'El teléfono es obligatorio.',
             'max_length' => 'El teléfono no debe exceder los 20 caracteres.',
-            'is_unique' => 'Ya existe una app activa con este teléfono.',
         ],
         'modo' => [
             'required' => 'El modo es obligatorio.',

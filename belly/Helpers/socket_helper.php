@@ -1,205 +1,120 @@
 <?php
 
-class SocketHelper 
+/**
+ * Publica avisos en el servidor de tiempo real (carpeta socket/).
+ * Solo viajan identificadores: el front vuelve a pedir los datos al API, que aplica los permisos.
+ */
+class SocketHelper
 {
-    private static $socketUrl = null;
-    
-    /**
-     * Emitir mensaje (reemplaza el curl que tienes en MensajeUseCase)
-     */
-    public static function emitirMensaje($conversacionId, $mensaje, $idUsuario = null) 
+    public static function emitirMensaje($conversacionId, $mensaje = null, $idUsuario = null): bool
     {
-        $data = [
-            'conversacion_id' => $conversacionId,
-            'mensaje' => $mensaje
-            
-        ];
-        
-        if ($idUsuario !== null) {
-            $data['id_usuario'] = $idUsuario;
-        }
-        
-        return self::emitir('emitir-mensaje', $data);
+        return self::emitir('mensaje', ['id_conversacion' => (int) $conversacionId]);
     }
-    
-    /**
-     * Emitir conversación (nueva)
-     */
-    public static function emitirConversacion($conversacionData) 
-    {
-        return self::emitir('emitir-conversacion', $conversacionData);
-    }
-    
-    /**
-     * Emitir actualización de conversación (estado, motivo, etc.)
-     */
-    public static function emitirActualizacionConversacion($conversacionData) 
-    {
-        return self::emitir('emitir-actualizar-conversacion', $conversacionData);
-    }
-    
-    public static function emitirEstadoMensaje($mensajeId, $nuevoEstado, $datosMensaje = null) 
-    {
-        $data = [
-            'tipo' => 'estado_mensaje_actualizado',
-            'mensaje_id' => $mensajeId,
-            'nuevo_estado' => $nuevoEstado,
-            'datos_mensaje' => $datosMensaje
-        ];
-        return self::emitir('emitir-estado-mensaje', $data);
-    }
-    
-    /**
-     * Emitir actualización de contadores de mensajes no leídos
-     */
-    public static function emitirActualizacionContadores($conversacionId, $mensajesNoLeidos, $ultimoMensajeNoLeidoFecha, $idUsuario = null) 
-    {
-        $data = [
-            'conversacion_id' => $conversacionId,
-            'mensajes_no_leidos' => $mensajesNoLeidos,
-            'ultimo_mensaje_no_leido_fecha' => $ultimoMensajeNoLeidoFecha
-        ];
-        
-        if ($idUsuario !== null) {
-            $data['id_usuario'] = $idUsuario;
-        }
-        
-        return self::emitir('emitir-actualizar-contadores', $data);
-    }
-    
-    /**
-     * Método privado para hacer la petición HTTP
-     */
-    private static function emitir($endpoint, $data) 
-    {
-        try {
-            if (self::$socketUrl === null) {
-                // Preferir loopback si el socket corre en el mismo servidor (evita TLS/DNS públicos).
-                $envUrl = getenv('SOCKET_URL');
-                self::$socketUrl = ($envUrl !== false && trim((string) $envUrl) !== '')
-                    ? trim((string) $envUrl)
-                    : 'http://127.0.0.1:4000';
-            }
 
-            $url = rtrim(self::$socketUrl, '/') . '/' . ltrim($endpoint, '/');
-            $jsonData = json_encode($data);
-            
-            log_message('debug', "[SOCKET HELPER] Intentando emitir: {$endpoint}");
-            log_message('debug', "[SOCKET HELPER] URL: {$url}");
-            log_message('debug', "[SOCKET HELPER] Data: {$jsonData}");
-            
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            // Fail-fast: si el socket está caído o falta el endpoint, no congelar el CRM.
-            curl_setopt($ch, CURLOPT_TIMEOUT, 1);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
-            curl_setopt($ch, CURLOPT_NOSIGNAL, 1);
-            
-            $result = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-            curl_close($ch);
-            
-            log_message('debug', "[SOCKET HELPER] HTTP Code: {$httpCode}, Error: {$error}");
-            log_message('debug', "[SOCKET HELPER] Response: " . substr($result, 0, 500));
-            
-            if ($httpCode !== 200) {
-                log_message('error', "Socket error: HTTP $httpCode - URL: $url - Error: $error - Response: " . substr($result, 0, 200));
-                return false;
-            }
-            
-            log_message('info', "[SOCKET HELPER] Emitido exitosamente: {$endpoint}");
-            return true;
-        } catch (\Exception $e) {
-            log_message('error', 'Socket exception: ' . $e->getMessage());
+    public static function emitirConversacion($conversacionData): bool
+    {
+        return self::emitir('conversacion', ['id_conversacion' => self::idConversacion($conversacionData)]);
+    }
+
+    public static function emitirActualizacionConversacion($conversacionData): bool
+    {
+        return self::emitir('conversacion', ['id_conversacion' => self::idConversacion($conversacionData)]);
+    }
+
+    public static function emitirEstadoMensaje($mensajeId, $nuevoEstado, $datosMensaje = null): bool
+    {
+        return self::emitir('mensaje', ['id_conversacion' => (int) ($datosMensaje['id_conversacion'] ?? 0)]);
+    }
+
+    public static function emitirActualizacionContadores($conversacionId): bool
+    {
+        return self::emitir('contadores', ['id_conversacion' => (int) $conversacionId]);
+    }
+
+    private static function idConversacion($datos): int
+    {
+        $datos = (array) $datos;
+
+        return (int) ($datos['id'] ?? $datos['id_conversacion'] ?? 0);
+    }
+
+    /** Nunca debe frenar ni romper la petición: si el socket está caído, se registra y se sigue. */
+    private static function emitir(string $evento, array $datos): bool
+    {
+        $clave = trim((string) env('SOCKET_CLAVE', ''));
+        if ($clave === '') {
             return false;
         }
+
+        if (! function_exists('id_empresa_sesion')) {
+            helper('vip2system');
+        }
+        $idEmpresa = id_empresa_sesion();
+        if (! $idEmpresa) {
+            log_message('warning', "[SOCKET] Evento {$evento} sin empresa en contexto; no se emite.");
+
+            return false;
+        }
+
+        $url = rtrim((string) (env('SOCKET_URL') ?: 'http://127.0.0.1:4000'), '/') . '/emitir';
+        $cuerpo = json_encode(['evento' => $evento, 'id_empresa' => $idEmpresa, 'datos' => $datos]);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $cuerpo,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'X-Socket-Clave: ' . $clave],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT_MS => 300,
+            CURLOPT_TIMEOUT_MS => 800,
+            CURLOPT_NOSIGNAL => true,
+        ]);
+        curl_exec($ch);
+        $codigo = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($codigo !== 200) {
+            log_message('warning', "[SOCKET] No se pudo emitir {$evento} (HTTP {$codigo}) {$error}");
+
+            return false;
+        }
+
+        return true;
     }
 }
 
-
-
-
-
-//############################################################################################
-
-if (!function_exists('emitir_mensaje_socket')) {
-    function emitir_mensaje_socket($conversacionId, $mensaje, $idUsuario = null) {
+if (! function_exists('emitir_mensaje_socket')) {
+    function emitir_mensaje_socket($conversacionId, $mensaje = null, $idUsuario = null)
+    {
         return SocketHelper::emitirMensaje($conversacionId, $mensaje, $idUsuario);
     }
 }
 
-if (!function_exists('emitir_conversacion_socket')) {
-    function emitir_conversacion_socket($conversacionData) {
+if (! function_exists('emitir_conversacion_socket')) {
+    function emitir_conversacion_socket($conversacionData)
+    {
         return SocketHelper::emitirConversacion($conversacionData);
     }
 }
 
-if (!function_exists('emitir_actualizacion_conversacion_socket')) {
-    function emitir_actualizacion_conversacion_socket($conversacionData) {
+if (! function_exists('emitir_actualizacion_conversacion_socket')) {
+    function emitir_actualizacion_conversacion_socket($conversacionData)
+    {
         return SocketHelper::emitirActualizacionConversacion($conversacionData);
     }
 }
 
-if (!function_exists('emitir_estado_mensaje_socket')) {
-    function emitir_estado_mensaje_socket($mensajeId, $nuevoEstado, $datosMensaje = null) {
+if (! function_exists('emitir_estado_mensaje_socket')) {
+    function emitir_estado_mensaje_socket($mensajeId, $nuevoEstado, $datosMensaje = null)
+    {
         return SocketHelper::emitirEstadoMensaje($mensajeId, $nuevoEstado, $datosMensaje);
     }
 }
 
-if (!function_exists('emitir_actualizacion_contadores_socket')) {
-    function emitir_actualizacion_contadores_socket($conversacionId, $mensajesNoLeidos, $ultimoMensajeNoLeidoFecha, $idUsuario = null) {
-        return SocketHelper::emitirActualizacionContadores($conversacionId, $mensajesNoLeidos, $ultimoMensajeNoLeidoFecha, $idUsuario);
-    }
-}
-
-if (!function_exists('calcular_y_emitir_contadores_no_leidos')) {
-    /**
-     * Calcula los contadores de mensajes no leídos y los emite por socket
-     */
-    function calcular_y_emitir_contadores_no_leidos($id_conversacion) {
-        try {
-            $db = \Config\Database::connect();
-            
-            // Calcular mensajes no leídos
-            $builder = $db->table('mensaje');
-            $mensajesNoLeidos = $builder
-                ->where('id_conversacion', $id_conversacion)
-                ->where('contesta', 'cliente')
-                ->where('id_estado', 3)
-                ->where('deleted_at', null)
-                ->countAllResults(false);
-            
-            // Obtener fecha del último mensaje no leído
-            $ultimoMensaje = $builder
-                ->select('created_at')
-                ->where('id_conversacion', $id_conversacion)
-                ->where('contesta', 'cliente')
-                ->where('id_estado', 3)
-                ->where('deleted_at', null)
-                ->orderBy('created_at', 'DESC')
-                ->limit(1)
-                ->get()
-                ->getRow();
-            
-            $ultimoMensajeNoLeidoFecha = $ultimoMensaje ? $ultimoMensaje->created_at : null;
-            
-            // Obtener id_usuario de la conversación
-            $conversacion = model('ConversacionModel')->find($id_conversacion);
-            $id_usuario = $conversacion ? $conversacion->id_usuario : null;
-            
-            // Emitir actualización
-            emitir_actualizacion_contadores_socket(
-                $id_conversacion,
-                $mensajesNoLeidos,
-                $ultimoMensajeNoLeidoFecha,
-                $id_usuario
-            );
-        } catch (\Exception $e) {
-            log_message('error', 'Error calculando contadores no leídos: ' . $e->getMessage());
-        }
+if (! function_exists('calcular_y_emitir_contadores_no_leidos')) {
+    function calcular_y_emitir_contadores_no_leidos($id_conversacion)
+    {
+        return SocketHelper::emitirActualizacionContadores($id_conversacion);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Belly\Modulos\Database\Seeds;
 
+use Belly\Database\Catalogo\CatalogoAcceso;
 use CodeIgniter\Database\Seeder;
 
 class CreateGruposModulosSeeder extends Seeder
@@ -12,28 +13,11 @@ class CreateGruposModulosSeeder extends Seeder
 
     public function run()
     {
-        $data = [
-            [
-                'id' => 1,
-                'grupo' => 'Administradores',
-                'created_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'id' => 2,
-                'grupo' => 'Leads',
-                'created_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'id' => 3,
-                'grupo' => 'Marketing',
-                'created_at' => date('Y-m-d H:i:s'),
-            ],
-            [
-                'id' => 4,
-                'grupo' => 'Integraciones',
-                'created_at' => date('Y-m-d H:i:s'),
-            ],
-        ];
+        $ahora = date('Y-m-d H:i:s');
+        $data = array_map(
+            static fn (array $g) => ['id' => $g['id'], 'grupo' => $g['grupo'], 'created_at' => $ahora],
+            CatalogoAcceso::grupos(),
+        );
 
         $this->db->table('modulo_grupo')->insertBatch($data);
     }

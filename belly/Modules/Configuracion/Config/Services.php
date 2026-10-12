@@ -2,6 +2,7 @@
 
 namespace Belly\Configuracion\Config;
 use Belly\Configuracion\UseCases\AppUseCase;
+use Belly\Configuracion\UseCases\ConexionWhatsappUseCase;
 use Belly\Configuracion\UseCases\EmpresaUseCase;
 use Belly\Configuracion\UseCases\PortafolioUseCase ;
 
@@ -30,6 +31,16 @@ class Services extends BaseService
         // Asegúrate de pasar el argumento necesario al constructor
         $config = $config ?? config('ConfiguracionConfig');
         return new PortafolioUseCase($config);
+    }
+
+    public static function ConexionWhatsappUseCase($config = null, bool $getShared = true): ConexionWhatsappUseCase
+    {
+        if ($getShared) {
+            return self::getSharedInstance('ConexionWhatsappUseCase', $config);
+        }
+
+        $config = $config ?? config('ConfiguracionConfig');
+        return new ConexionWhatsappUseCase($config);
     }
 
     public static function EmpresaUseCase($config = null, bool $getShared = true): EmpresaUseCase

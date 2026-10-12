@@ -160,38 +160,16 @@ class ConversacionUseCase {
             log_message('warning', '[LISTADO SIDEBAR] ultimo batch: ' . $e->getMessage());
         }
 
-        $iaById = [];
-        try {
-            $iaRows = $db->query(
-                "SELECT acs.id_conversacion, acs.ia_activa, acs.estado AS ia_estado
-                 FROM ai_conversation_state acs
-                 INNER JOIN (
-                    SELECT id_conversacion, MAX(id) AS max_id
-                    FROM ai_conversation_state
-                    WHERE id_conversacion IN ({$inList})
-                    GROUP BY id_conversacion
-                 ) t ON t.max_id = acs.id"
-            )->getResult();
-            foreach ($iaRows as $ia) {
-                $iaById[(int) $ia->id_conversacion] = $ia;
-            }
-        } catch (\Throwable $e) {
-            log_message('warning', '[LISTADO SIDEBAR] ia batch: ' . $e->getMessage());
-        }
-
         foreach ($rows as $row) {
             $id = (int) ($row->id ?? 0);
             $unread = $unreadById[$id] ?? null;
             $ultimo = $ultimoById[$id] ?? null;
-            $ia = $iaById[$id] ?? null;
 
             $row->mensajes_no_leidos = $unread ? (int) $unread->mensajes_no_leidos : 0;
             $row->ultimo_mensaje_no_leido_fecha = $unread->ultimo_mensaje_no_leido_fecha ?? null;
             $row->texto_ultimo_mensaje = $ultimo->texto_ultimo_mensaje ?? null;
             $row->ultimo_mensaje_fecha = $ultimo->ultimo_mensaje_fecha ?? ($row->updated_at ?? null);
             $row->ultimo_mensaje_contesta = $ultimo->ultimo_mensaje_contesta ?? null;
-            $row->ia_activa = $ia->ia_activa ?? null;
-            $row->ia_estado = $ia->ia_estado ?? null;
         }
 
         return $rows;
@@ -645,8 +623,8 @@ class ConversacionUseCase {
             ],
         ];
 
-        /** @var object|null Registro completo de app (tokens, phone_number_id) para MensajeUseCase / Graph API */
-        $appEntidad = $conversacion->id_app
+        /** @var object|null Registro completo de app (tokens, phone_number_id): nunca debe salir hacia el cliente HTTP */
+        $appEntidad = $incluirCredencialesApp && $conversacion->id_app
             ? model('AppModel')->find($conversacion->id_app)
             : null;
 

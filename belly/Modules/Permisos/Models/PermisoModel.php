@@ -16,6 +16,7 @@ class PermisoModel extends Model
     protected $protectFields = true;
     protected $allowedFields = [
         'id_grupo_permiso',
+        'id_permiso_padre',
         'permiso',
         'alias',
         'descripcion',
@@ -25,6 +26,7 @@ class PermisoModel extends Model
     protected array $casts = [
         'id' => 'int',
         'id_grupo_permiso' => 'int',
+        'id_permiso_padre' => '?int',
         'created_at' => 'datetime',
         'updated_at' => '?datetime',
         'deleted_at' => '?datetime',

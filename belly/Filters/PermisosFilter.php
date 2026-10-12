@@ -2,6 +2,7 @@
 
 namespace Belly\Filters;
 
+use Belly\Services\Autorizacion;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
@@ -28,6 +29,11 @@ class PermisosFilter implements FilterInterface
             if (!$usuario || empty($usuario->id)) {
                 log_message('error', "PermisosFilter::before - Usuario no autenticado - URI: {$uri}");
                 return $this->unauthorized('Usuario no autenticado.');
+            }
+
+            // El administrador de la empresa tiene acceso a todo, incluidos módulos nuevos aún no asignados a su rol.
+            if (Autorizacion::esAdministradorEmpresa()) {
+                return;
             }
 
             $permisos = service_permiso();

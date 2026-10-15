@@ -1987,6 +1987,7 @@ class ConversacionUseCase {
         int $id_usuario_destino,
         ?int $id_usuario_origen = null,
         ?string $temperatura = null,
+        bool $exigirUsuarioApp = true,
     ): array {
         $conversacion_model = $this->getConversacionProvider();
         $conversacion = $conversacion_model->find($id_conversacion);
@@ -2008,7 +2009,7 @@ class ConversacionUseCase {
             ->where('deleted_at', null)
             ->first();
         
-        if (!$usuario_app_destino) {
+        if ($exigirUsuarioApp && !$usuario_app_destino) {
             throw new \Exception('El usuario destino no pertenece a la app de esta conversación');
         }
 

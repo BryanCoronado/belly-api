@@ -42,6 +42,7 @@ class Autoload extends AutoloadConfig {
         'Belly\Media' => ROOTPATH . 'belly/Modules/Media',
         'Belly\Modulos' => ROOTPATH . 'belly/Modules/Modulos',
         'Belly\Metricas' => ROOTPATH . 'belly/Modules/Metricas',
+        'Belly\Flujos' => ROOTPATH . 'belly/Modules/Flujos',
 
 
         

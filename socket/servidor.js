@@ -43,6 +43,29 @@ servidor.listen(config.puerto, config.host, () => {
   console.log(`[socket] Escuchando en http://${config.host}:${config.puerto}`)
 })
 
+// Cada pocos segundos le pide al API que retome los flujos del bot cuyo tiempo de espera ya terminó.
+let retomando = false
+setInterval(async () => {
+  if (retomando) {
+    return
+  }
+  retomando = true
+  try {
+    const respuesta = await fetch(`${config.apiUrl}/v1/interno/flujos/procesar`, {
+      method: 'POST',
+      headers: { 'X-Socket-Clave': config.clave },
+      signal: AbortSignal.timeout(60000),
+    })
+    if (!respuesta.ok) {
+      console.error(`[socket] No se pudieron retomar los flujos (HTTP ${respuesta.status})`)
+    }
+  } catch (error) {
+    console.error('[socket] No se pudieron retomar los flujos:', error.message)
+  } finally {
+    retomando = false
+  }
+}, 10_000)
+
 /** Solo el API conoce la clave: es el único que puede publicar eventos. */
 async function recibirDelApi(peticion, respuesta) {
   if (peticion.method !== 'POST' || peticion.url !== '/emitir') {

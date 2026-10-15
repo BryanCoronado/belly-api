@@ -59,6 +59,8 @@ final class CatalogoAcceso
             self::permiso(12, self::ATENCION, 11, 'mod_asesores_asesores_contac_center_access', 'De venta', 'Asesores de venta.', wa: true, orden: 41),
             self::permiso(13, self::ATENCION, 11, 'mod_metricas_asesores_customer_success_access', 'De customer success', 'Asesores de postventa.', wa: true, orden: 42),
 
+            self::permiso(46, self::ATENCION, null, 'mod_flujos_access', 'Respuestas automáticas', 'Armar el asistente automático de WhatsApp con botones y respuestas.', wa: true, admin: true, orden: 55),
+
             self::permiso(4, self::ATENCION, null, 'mod_metricas_access', 'Métricas', 'Indicadores de atención.', wa: true, orden: 50),
             self::permiso(9, self::ATENCION, 4, 'mod_metricas_metricas_contact_center_access', 'De asesores', 'Métricas del equipo de ventas.', wa: true, orden: 51),
             self::permiso(10, self::ATENCION, 4, 'mod_metricas_metricas_customer_success_access', 'De customer success', 'Métricas del equipo de postventa.', wa: true, orden: 52),
@@ -98,6 +100,8 @@ final class CatalogoAcceso
             self::modulo(11, 11, self::ATENCION, null, 'Asesores', 'mod_asesores', '/asesores', 'person_alt', 4),
             self::modulo(12, 12, self::ATENCION, 11, 'De venta', 'mod_asesores_asesores_contac_center', '/asesores/contact_center', 'person_alt', 1),
             self::modulo(13, 13, self::ATENCION, 11, 'De customer success', 'mod_asesores_asesores_customer_success', '/asesores/customer_success', 'person_alt', 2),
+
+            self::modulo(38, 46, self::ATENCION, null, 'Respuestas automáticas', 'mod_flujos', '/automatizacion', 'bot', 6),
 
             self::modulo(4, 4, self::ATENCION, null, 'Métricas', 'mod_metricas', '/metricas', 'chart_bar_alt_fill', 5),
             self::modulo(9, 9, self::ATENCION, 4, 'De asesores', 'mod_metricas_metricas_contact_center', '/metricas/contact_center', 'tag', 1),

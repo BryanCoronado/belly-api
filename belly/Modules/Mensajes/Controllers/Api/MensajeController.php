@@ -94,6 +94,8 @@ class MensajeController extends BaseController
                 $datos = array_merge($datos, $payload);
             }
 
+            // Estos campos solo los puede fijar el sistema (el bot automático), no quien llama a la API.
+            unset($datos['interactivo'], $datos['contesta']);
             $datos['request_id'] = $requestId;
 
             $canalEnvio = strtolower(trim((string) ($datos['canal_envio'] ?? '')));
@@ -129,6 +131,13 @@ class MensajeController extends BaseController
                     'error' => $error,
                     'request_id' => $requestId,
                 ])->setStatusCode(400);
+            }
+
+            // Si una persona escribe, el bot automático deja de contestar en esa conversación.
+            try {
+                bot_flujos()->pausarPorAsesor((int) ($datos['id_conversacion'] ?? 0));
+            } catch (\Throwable $e) {
+                log_message('error', '[BOT] No se pudo pausar el bot: ' . $e->getMessage());
             }
 
             $resultado['request_id'] = $requestId;

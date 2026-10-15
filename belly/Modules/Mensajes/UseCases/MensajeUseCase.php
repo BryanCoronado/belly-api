@@ -548,10 +548,65 @@ class MensajeUseCase {
                 $mensaje_data['mensaje_responde_contenido'] = $respuestasPorWamid[$wamid] ?? null;
             }
 
+            $interactivo = $this->extraerInteractivo($mensaje_data['payload'] ?? null);
+            if ($interactivo !== null) {
+                $mensaje_data['interactivo'] = $interactivo;
+            }
+
             $mensajes_procesados[] = $mensaje_data;
         }
 
         return $mensajes_procesados;
+    }
+
+    /**
+     * Botones o lista que envió el bot, para dibujarlos en el chat como los ve el cliente en WhatsApp.
+     *
+     * @return array{tipo:string, boton?:string, opciones:list<array{titulo:string, descripcion?:string}>}|null
+     */
+    private function extraerInteractivo(mixed $payload): ?array
+    {
+        $datos = is_string($payload) ? json_decode($payload, true) : $payload;
+        $bloque = is_array($datos) ? ($datos['request']['interactive'] ?? null) : null;
+        if (! is_array($bloque)) {
+            return null;
+        }
+
+        if (($bloque['type'] ?? '') === 'button') {
+            $opciones = [];
+            foreach ((array) ($bloque['action']['buttons'] ?? []) as $boton) {
+                $titulo = (string) ($boton['reply']['title'] ?? '');
+                if ($titulo !== '') {
+                    $opciones[] = ['titulo' => $titulo];
+                }
+            }
+
+            return $opciones === [] ? null : ['tipo' => 'botones', 'opciones' => $opciones];
+        }
+
+        if (($bloque['type'] ?? '') === 'list') {
+            $opciones = [];
+            foreach ((array) ($bloque['action']['sections'] ?? []) as $seccion) {
+                foreach ((array) ($seccion['rows'] ?? []) as $fila) {
+                    $titulo = (string) ($fila['title'] ?? '');
+                    if ($titulo !== '') {
+                        $opcion = ['titulo' => $titulo];
+                        if (! empty($fila['description'])) {
+                            $opcion['descripcion'] = (string) $fila['description'];
+                        }
+                        $opciones[] = $opcion;
+                    }
+                }
+            }
+
+            return $opciones === [] ? null : [
+                'tipo' => 'lista',
+                'boton' => (string) ($bloque['action']['button'] ?? 'Ver opciones'),
+                'opciones' => $opciones,
+            ];
+        }
+
+        return null;
     }
 
     public function crearMensajeError($id_conversacion, $id_mensaje_whatsapp, $texto_original, $cod_error, $descripcion_error, $payload = null)

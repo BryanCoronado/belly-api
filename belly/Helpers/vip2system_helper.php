@@ -309,6 +309,20 @@ if (!function_exists('app')) {
     }
 }
 
+if (!function_exists('flujos')) {
+    function flujos(): \Belly\Flujos\UseCases\FlujoUseCase
+    {
+        return service('FlujoUseCase');
+    }
+}
+
+if (!function_exists('bot_flujos')) {
+    function bot_flujos(): \Belly\Flujos\UseCases\FlujoBotUseCase
+    {
+        return service('FlujoBotUseCase');
+    }
+}
+
 if (!function_exists('conexion_whatsapp')) {
     function conexion_whatsapp(): \Belly\Configuracion\UseCases\ConexionWhatsappUseCase
     {

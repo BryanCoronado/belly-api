@@ -31,6 +31,11 @@ class IntegracionWhatsappControllerApi extends BaseController
         return $this->ejecutar(fn () => conexion_whatsapp()->conectarNumero($this->datos()));
     }
 
+    public function desconectar()
+    {
+        return $this->ejecutar(static fn () => conexion_whatsapp()->desconectar());
+    }
+
     public function desconectarNumero(int $id)
     {
         return $this->ejecutar(static fn () => conexion_whatsapp()->desconectarNumero($id));

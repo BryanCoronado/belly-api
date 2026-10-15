@@ -115,6 +115,14 @@ class ConexionWhatsappUseCase
             throw new \InvalidArgumentException('Completa los tres datos del número.');
         }
 
+        $conexion = $this->conexionDeEmpresa($idEmpresa);
+        if (! $conexion->tieneAppSecret()) {
+            throw new \DomainException('Primero completa el paso 1: los datos de tu app de Meta.');
+        }
+        if ($conexion->webhook_verificado_at === null) {
+            throw new \DomainException('Primero completa el paso 2: conecta la recepción de mensajes en Meta.');
+        }
+
         $existente = $this->appPorPhoneNumberId($phoneNumberId);
         if ($existente !== null && (int) $existente->id_empresa !== $idEmpresa && $existente->deleted_at === null) {
             throw new \DomainException('Este número ya está conectado en otra empresa.');
@@ -174,6 +182,43 @@ class ConexionWhatsappUseCase
         $this->apps()->update($idApp, ['estado' => 0]);
         $this->apps()->delete($idApp);
         unset($this->conectadas[$this->idEmpresa()]);
+
+        return $this->estado();
+    }
+
+    /**
+     * Corta toda la conexión: números, clave de la app y verificación del webhook.
+     * El enlace anterior queda inservible. Las conversaciones y los mensajes se conservan.
+     */
+    public function desconectar(): array
+    {
+        $this->exigirAdministrador();
+        $idEmpresa = $this->idEmpresa();
+        $ahora = date('Y-m-d H:i:s');
+        $db = db_connect();
+
+        $db->transStart();
+        $db->table('app')
+            ->where('id_empresa', $idEmpresa)
+            ->where('canal', 'whatsapp')
+            ->where('deleted_at', null)
+            ->update(['estado' => 0, 'access_token' => null, 'verificado_at' => null, 'deleted_at' => $ahora]);
+        $db->table('conexion_meta')
+            ->where('id_empresa', $idEmpresa)
+            ->update([
+                'meta_app_id' => null,
+                'app_secret' => null,
+                'webhook_clave' => Cifrado::tokenAleatorio(16),
+                'verify_token' => Cifrado::tokenAleatorio(),
+                'webhook_verificado_at' => null,
+                'ultimo_evento_at' => null,
+            ]);
+        $db->transComplete();
+
+        if (! $db->transStatus()) {
+            throw new \RuntimeException('No pudimos desconectar WhatsApp. Intenta de nuevo.');
+        }
+        unset($this->conectadas[$idEmpresa]);
 
         return $this->estado();
     }

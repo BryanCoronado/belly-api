@@ -11,7 +11,8 @@ if (!function_exists('procesarTipoMensajeWhatsappEntrante')) {
             'media_path' => null,
             'media_type' => null
         ];
-        $id_mensaje_responde = isset($message['context']['id']) ? $message['context']['id'] : null;
+        // Al tocar un botón o una opción de lista no se muestra la cita del mensaje del bot: se vería repetido.
+        $id_mensaje_responde = ($tipo !== 'interactive' && isset($message['context']['id'])) ? $message['context']['id'] : null;
         $referral_mensaje = null;
         $referral_media_data = [
             'media_url' => null,
@@ -323,6 +324,81 @@ if (! function_exists('construir_encabezado_destinatario_whatsapp')) {
     }
 }
 
+if (! function_exists('construir_interactivo_whatsapp')) {
+    /**
+     * Arma el bloque "interactive" de la Cloud API.
+     * Botones: hasta 3 (título ≤ 20). Lista: hasta 10 opciones (título ≤ 24, descripción ≤ 72).
+     *
+     * @param array{tipo?:string, texto?:string, botones?:array, boton?:string, opciones?:array} $datos
+     * @return array{interactive:array, mensaje_bd:string}|null
+     */
+    function construir_interactivo_whatsapp(array $datos): ?array
+    {
+        $recorta = static fn (string $t, int $max): string => mb_substr(trim($t), 0, $max);
+        $cuerpo = $recorta((string) ($datos['texto'] ?? ''), 1024);
+        if ($cuerpo === '') {
+            return null;
+        }
+
+        if (($datos['tipo'] ?? '') === 'botones') {
+            $botones = [];
+            foreach (array_slice((array) ($datos['botones'] ?? []), 0, 3) as $b) {
+                $titulo = $recorta((string) ($b['titulo'] ?? ''), 20);
+                if ($titulo === '' || empty($b['id'])) {
+                    continue;
+                }
+                $botones[] = ['type' => 'reply', 'reply' => ['id' => (string) $b['id'], 'title' => $titulo]];
+            }
+            if ($botones === []) {
+                return null;
+            }
+
+            return [
+                'interactive' => [
+                    'type' => 'button',
+                    'body' => ['text' => $cuerpo],
+                    'action' => ['buttons' => $botones],
+                ],
+                'mensaje_bd' => $cuerpo,
+            ];
+        }
+
+        if (($datos['tipo'] ?? '') === 'lista') {
+            $filas = [];
+            foreach (array_slice((array) ($datos['opciones'] ?? []), 0, 10) as $o) {
+                $titulo = $recorta((string) ($o['titulo'] ?? ''), 24);
+                if ($titulo === '' || empty($o['id'])) {
+                    continue;
+                }
+                $fila = ['id' => (string) $o['id'], 'title' => $titulo];
+                $descripcion = $recorta((string) ($o['descripcion'] ?? ''), 72);
+                if ($descripcion !== '') {
+                    $fila['description'] = $descripcion;
+                }
+                $filas[] = $fila;
+            }
+            if ($filas === []) {
+                return null;
+            }
+
+            $textoBoton = $recorta((string) ($datos['boton'] ?? ''), 20);
+            return [
+                'interactive' => [
+                    'type' => 'list',
+                    'body' => ['text' => $cuerpo],
+                    'action' => [
+                        'button' => $textoBoton !== '' ? $textoBoton : 'Ver opciones',
+                        'sections' => [['title' => 'Opciones', 'rows' => $filas]],
+                    ],
+                ],
+                'mensaje_bd' => $cuerpo,
+            ];
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('procesarMensajeWhatsappSaliente')) {
     function procesarMensajeWhatsappSaliente(array $datos, string $destino): array
     {
@@ -337,6 +413,19 @@ if (!function_exists('procesarMensajeWhatsappSaliente')) {
                 ];
             }
         };
+
+        // Botones o lista (solo los arma el bot automático, nunca llegan del cliente web).
+        if (! empty($datos['interactivo']) && is_array($datos['interactivo'])) {
+            $armado = construir_interactivo_whatsapp($datos['interactivo']);
+            if ($armado !== null) {
+                $payload['type'] = 'interactive';
+                $payload['interactive'] = $armado['interactive'];
+                $payload['mensaje_bd'] = $armado['mensaje_bd'];
+                $addContext($payload, $datos);
+
+                return $payload;
+            }
+        }
 
         switch ($tipo) {
             case 'text':

@@ -192,6 +192,34 @@ class WebhookUseCase
         if ($conversacionNueva) {
             log_message('info', '[WEBHOOK WA] Conversación nueva id=' . $idConversacion . ' usuario=' . $idUsuario);
         }
+
+        $this->responderConBot($idConversacion, $message, $mensajeData, $conversacionNueva);
+    }
+
+    /**
+     * Pasa el mensaje al bot de flujos. Nunca debe tumbar el procesamiento del webhook.
+     *
+     * @param array<string, mixed> $message
+     * @param array<string, mixed> $mensajeData
+     */
+    private function responderConBot(int $idConversacion, array $message, array $mensajeData, bool $conversacionNueva): void
+    {
+        try {
+            $respuestaId = (string) (
+                $message['interactive']['button_reply']['id']
+                ?? $message['interactive']['list_reply']['id']
+                ?? ''
+            );
+
+            bot_flujos()->alRecibirMensaje(
+                $idConversacion,
+                trim((string) ($mensajeData['mensaje'] ?? '')),
+                $respuestaId,
+                $conversacionNueva
+            );
+        } catch (\Throwable $e) {
+            log_message('error', '[BOT] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+        }
     }
 
     /**

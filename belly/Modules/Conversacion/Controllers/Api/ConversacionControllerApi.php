@@ -3,6 +3,7 @@
 namespace Belly\Conversacion\Controllers\Api;
 
 use App\Controllers\BaseController;
+use Belly\Services\Autorizacion;
 use CodeIgniter\API\ResponseTrait;
 
 class ConversacionControllerApi extends BaseController
@@ -29,6 +30,39 @@ class ConversacionControllerApi extends BaseController
         ];
     }
 
+    /** Etapa, tipo y etiqueta del cliente (no la del chat). */
+    private function filtrosClienteCrm(): array
+    {
+        return [
+            'id_etapa' => $this->request->getGet('id_etapa'),
+            'id_tipo' => $this->request->getGet('id_tipo'),
+            'id_etiqueta_cliente' => $this->request->getGet('id_etiqueta_cliente'),
+        ];
+    }
+
+    public function supervision()
+    {
+        if (! Autorizacion::esAdministradorEmpresa()) {
+            return $this->respond(['success' => false, 'message' => 'Solo el administrador puede ver todas las conversaciones.'], 403);
+        }
+
+        try {
+            $result = conversaciones()->listarSupervision(array_merge([
+                'search' => $this->request->getGet('search'),
+                'id_usuario' => $this->request->getGet('id_usuario'),
+                'estado' => $this->request->getGet('estado'),
+            ], $this->filtrosClienteCrm()), max(1, (int) ($this->request->getGet('page') ?? 1)));
+
+            return $this->respond([
+                'success' => true,
+                'data' => $result['data'],
+                'pagination' => $result['pagination'],
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respond(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+    }
+
     public function listar()
     {
         try {
@@ -42,7 +76,7 @@ class ConversacionControllerApi extends BaseController
                 'temperatura' => $this->request->getGet('temperatura'),
                 'ventana_24h' => $this->request->getGet('ventana_24h'),
                 'origen_canal' => $this->request->getGet('origen_canal'),
-            ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta());
+            ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta(), $this->filtrosClienteCrm());
 
             $page = max(1, (int) ($this->request->getGet('page') ?? 1));
             $result = conversaciones()->listarConversacion($usuario->id, $filtros, $page, 'sidebar');
@@ -63,6 +97,7 @@ class ConversacionControllerApi extends BaseController
     public function ver(int $id)
     {
         try {
+            conversaciones()->exigirAcceso($id);
             $data = conversaciones()->obtenerDatosConversacionCompleta($id);
 
             return $this->respond([
@@ -98,7 +133,7 @@ class ConversacionControllerApi extends BaseController
                 'campaign_id'   => $this->request->getGet('campaign_id'),
                 'ventana_24h'   => $this->request->getGet('ventana_24h'),
                 'origen_canal'  => $this->request->getGet('origen_canal'),
-            ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta());
+            ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta(), $this->filtrosClienteCrm());
             $result = conversaciones()->listarMisConversaciones($page, $perPage, null, $filtros);
             return $this->respond([
                 'success' => true,
@@ -117,10 +152,10 @@ class ConversacionControllerApi extends BaseController
     {
         $usuario = auth()->getUsuario();
         $page = max(1, (int) ($this->request->getGet('page') ?? 1));
-        $filtros = [
+        $filtros = array_merge([
             'origen_canal' => $this->request->getGet('origen_canal'),
             'search' => $this->request->getGet('search'),
-        ];
+        ], $this->filtrosClienteCrm());
         $result = conversaciones()->listarConversacionFinalizada($usuario->id, $page, $filtros);
 
         return $this->respond([
@@ -142,7 +177,7 @@ class ConversacionControllerApi extends BaseController
             'temperatura'   => $this->request->getGet('temperatura'),
             'ventana_24h'   => $this->request->getGet('ventana_24h'),
             'origen_canal'  => $this->request->getGet('origen_canal'),
-        ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta());
+        ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta(), $this->filtrosClienteCrm());
 
         $page = max(1, (int) ($this->request->getGet('page') ?? 1));
         $result = conversaciones()->conversacionNoLeido($usuario->id, $filtros, $page);
@@ -165,7 +200,7 @@ class ConversacionControllerApi extends BaseController
             'temperatura'   => $this->request->getGet('temperatura'),
             'ventana_24h'   => $this->request->getGet('ventana_24h'),
             'origen_canal'  => $this->request->getGet('origen_canal'),
-        ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta());
+        ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta(), $this->filtrosClienteCrm());
 
         $page = max(1, (int) ($this->request->getGet('page') ?? 1));
         $result = conversaciones()->conversacionFaltaResponder($usuario->id, $filtros, $page);
@@ -202,6 +237,7 @@ class ConversacionControllerApi extends BaseController
     public function editar(int $id)
     {
         try {
+            conversaciones()->exigirAcceso($id);
             $datos = $this->request->getJSON(true);
             
             $conversacion = conversaciones()->editarConversacion($id, $datos);
@@ -221,6 +257,7 @@ class ConversacionControllerApi extends BaseController
     public function abrir(int $id)
     {
         try {
+            conversaciones()->exigirAcceso($id);
             $resultado = conversaciones()->abrirConversacion($id);
 
             return $this->respond([
@@ -238,6 +275,7 @@ class ConversacionControllerApi extends BaseController
     public function actualizarTemperatura(int $id)
     {
         try {
+            conversaciones()->exigirAcceso($id);
             $datos = $this->request->getJSON(true);
             $temperatura = $datos['temperatura'] ?? null;
 
@@ -298,6 +336,7 @@ class ConversacionControllerApi extends BaseController
     public function actualizarEtiqueta(int $id)
     {
         try {
+            conversaciones()->exigirAcceso($id);
             $datos = $this->request->getJSON(true) ?? [];
             if (!array_key_exists('id_etiqueta', $datos)) {
                 return $this->respond([
@@ -350,6 +389,7 @@ class ConversacionControllerApi extends BaseController
     public function finalizar(int $id)
     {
         try {
+            conversaciones()->exigirAcceso($id);
             $datos = $this->request->getJSON(true);
             
             if (!isset($datos['id_motivo']) || empty($datos['id_motivo'])) {
@@ -390,160 +430,10 @@ class ConversacionControllerApi extends BaseController
         }
     }
 
-    public function listarCampaniasMetaFiltro()
-    {
-        try {
-            $data = conversaciones()->listarCampaniasMetaFiltroContactCenter();
-
-            return $this->respond([
-                'success' => true,
-                'data' => $data,
-            ]);
-        } catch (\Throwable $e) {
-            return $this->respond([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
-        }
-    }
-
-    public function listarCampaniasMeta()
-    {
-        try {
-            $idApp = (int) ($this->request->getGet('id_app') ?? 0);
-            if ($idApp <= 0) {
-                throw new \Exception('El parámetro id_app es obligatorio');
-            }
-
-            $resultado = conversaciones()->listarCampaniasMetaDesdeApi($idApp, [
-                'ad_account_id' => $this->request->getGet('ad_account_id'),
-                'after' => $this->request->getGet('after'),
-                'limit' => $this->request->getGet('limit'),
-                'limit_por_cuenta' => $this->request->getGet('limit_por_cuenta'),
-                'max_ad_accounts' => $this->request->getGet('max_ad_accounts'),
-                'effective_status' => $this->request->getGet('effective_status'),
-                'solo_cuentas' => filter_var($this->request->getGet('solo_cuentas'), FILTER_VALIDATE_BOOLEAN),
-            ]);
-
-            return $this->respond([
-                'success' => true,
-                'data' => $resultado['data'],
-                'ad_accounts' => $resultado['ad_accounts'] ?? [],
-                'pagination' => $resultado['pagination'] ?? null,
-                'paging' => $resultado['paging'] ?? null,
-                'meta' => [
-                    'id_app' => $resultado['id_app'] ?? $idApp,
-                    'app_nombre' => $resultado['app_nombre'] ?? null,
-                    'total' => $resultado['total'] ?? 0,
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            return $this->respond([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
-        }
-    }
-
-    public function listarAsesoresFiltro()
-    {
-        try {
-            $tipo = $this->request->getGet('tipo');
-            $data = conversaciones()->listarAsesoresParaFiltroListado(
-                is_string($tipo) && $tipo !== '' ? $tipo : null
-            );
-
-            return $this->respond([
-                'success' => true,
-                'data' => $data,
-            ]);
-        } catch (\Throwable $e) {
-            return $this->respond([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
-        }
-    }
-
-    public function listarContactCenter()
-    {
-        try {
-            $page = (int) ($this->request->getGet('page') ?? 1);
-            $perPage = $this->request->getGet('perPage') ?? 10;
-            
-            if ($perPage !== 'all') {
-                $perPage = (int) $perPage;
-            }
-            
-            $filtros = array_merge([
-                'id_estado' => $this->request->getGet('id_estado'),
-                'temperatura' => $this->request->getGet('temperatura'),
-                'id_etiqueta' => $this->request->getGet('id_etiqueta'),
-                'campaign_id' => $this->request->getGet('campaign_id'),
-                'search' => $this->request->getGet('search'),
-                'fechaInicio' => $this->request->getGet('fechaInicio'),
-                'fechaFin' => $this->request->getGet('fechaFin'),
-                'excluir_id_usuario' => $this->request->getGet('excluir_id_usuario'),
-                'ventana_24h' => $this->request->getGet('ventana_24h'),
-                'origen_canal' => $this->request->getGet('origen_canal'),
-            ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta());
-            
-            $conversaciones = conversaciones()->listarConversacionesContactCenter($page, $perPage, $filtros);
-            
-            return $this->respond([
-                'success' => true,
-                'data' => $conversaciones['data'],
-                'pagination' => $conversaciones['pagination']
-            ]);
-        } catch (\Exception $e) {
-            return $this->respond([
-                'success' => false,
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-    public function listarCustomerSuccess()
-    {
-        try {
-            $page = (int) ($this->request->getGet('page') ?? 1);
-            $perPage = $this->request->getGet('perPage') ?? 10;
-            
-            if ($perPage !== 'all') {
-                $perPage = (int) $perPage;
-            }
-            
-            $filtros = array_merge([
-                'id_estado' => $this->request->getGet('id_estado'),
-                'id_etiqueta' => $this->request->getGet('id_etiqueta'),
-                'search' => $this->request->getGet('search'),
-                'fechaInicio' => $this->request->getGet('fechaInicio'),
-                'fechaFin' => $this->request->getGet('fechaFin'),
-                'excluir_id_usuario' => $this->request->getGet('excluir_id_usuario'),
-                'ventana_24h' => $this->request->getGet('ventana_24h'),
-                'temperatura' => $this->request->getGet('temperatura'),
-                'origen_canal' => $this->request->getGet('origen_canal'),
-            ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta());
-            
-            $conversaciones = conversaciones()->listarConversacionesCustomerSuccess($page, $perPage, $filtros);
-            
-            return $this->respond([
-                'success' => true,
-                'data' => $conversaciones['data'],
-                'pagination' => $conversaciones['pagination']
-            ]);
-        } catch (\Exception $e) {
-            return $this->respond([
-                'success' => false,
-                'message' => $e->getMessage()
-            ]);
-        }
-    }
-
-
     public function transferir(int $id)
     {
         try {
+            conversaciones()->exigirAcceso($id);
             $data = $this->request->getJSON(true);
             
             if (!isset($data['id_usuario_destino']) || empty($data['id_usuario_destino'])) {
@@ -590,6 +480,9 @@ class ConversacionControllerApi extends BaseController
             }
 
             $ids_conversaciones = array_map('intval', $data['ids_conversaciones']);
+            foreach ($ids_conversaciones as $idConversacion) {
+                conversaciones()->exigirAcceso($idConversacion);
+            }
             $id_usuario_destino = (int) $data['id_usuario_destino'];
             $id_usuario_origen = isset($data['id_usuario_origen']) ? (int) $data['id_usuario_origen'] : null;
 
@@ -623,59 +516,4 @@ class ConversacionControllerApi extends BaseController
             ], 400);
         }
     }
-
-    public function exportar()
-    {
-        try {
-            $usuario = auth()->getUsuario();
-            $tipo = trim((string) ($this->request->getGet('tipo') ?? 'listar'));
-            $alcance = trim((string) ($this->request->getGet('alcance') ?? 'filtrados'));
-            $columnasRaw = trim((string) ($this->request->getGet('columnas') ?? ''));
-            $idsRaw = trim((string) ($this->request->getGet('ids_conversaciones') ?? ''));
-
-            $filtros = array_merge([
-                'id_estado' => $this->request->getGet('id_estado'),
-                'temperatura' => $this->request->getGet('temperatura'),
-                'id_etiqueta' => $this->request->getGet('id_etiqueta'),
-                'campaign_id' => $this->request->getGet('campaign_id'),
-                'search' => $this->request->getGet('search'),
-                'fechaInicio' => $this->request->getGet('fechaInicio'),
-                'fechaFin' => $this->request->getGet('fechaFin'),
-                'excluir_id_usuario' => $this->request->getGet('excluir_id_usuario'),
-                'ventana_24h' => $this->request->getGet('ventana_24h'),
-                'origen_canal' => $this->request->getGet('origen_canal'),
-            ], $this->filtroBusquedaMensaje(), $this->filtrosRegistroVenta());
-
-            $columnKeys = $columnasRaw !== ''
-                ? array_values(array_filter(array_map('trim', explode(',', $columnasRaw))))
-                : [];
-
-            $idsSeleccionados = [];
-            if ($idsRaw !== '') {
-                $idsSeleccionados = array_values(array_unique(array_filter(
-                    array_map('intval', explode(',', $idsRaw)),
-                    static fn ($id) => $id > 0
-                )));
-            }
-
-            $resultado = conversacion_export()->exportar(
-                $tipo,
-                (int) $usuario->id,
-                $filtros,
-                $alcance,
-                $idsSeleccionados,
-                $columnKeys
-            );
-
-            return $this->response
-                ->download($resultado['filename'], $resultado['content'], true)
-                ->setHeader('X-Export-Total', (string) $resultado['total']);
-        } catch (\Exception $e) {
-            return $this->respond([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 400);
-        }
-    }
-
 }

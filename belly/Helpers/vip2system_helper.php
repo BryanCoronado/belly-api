@@ -1,15 +1,22 @@
 <?php
 
 use Belly\Clientes\UseCases\ClienteUseCase;
-use Belly\Clientes\UseCases\ClienteMetricaUseCase;
 use Belly\Usuarios\UseCases\AccesoUseCase;
+use Belly\Usuarios\UseCases\AsesorUseCase;
+use Belly\Catalogo\UseCases\FamiliaProductoUseCase;
+use Belly\Catalogo\UseCases\ImagenProductoUseCase;
+use Belly\Catalogo\UseCases\ProductoUseCase;
+use Belly\AgenteIa\UseCases\AgenteIaUseCase;
+use Belly\AgenteIa\UseCases\AtencionIaUseCase;
+use Belly\Reparto\UseCases\AsignadorChatUseCase;
+use Belly\Reparto\UseCases\GrupoAtencionUseCase;
+use Belly\Reparto\UseCases\RepartoUseCase;
 use Belly\Usuarios\UseCases\UsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioUsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioPermisoRolUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioPermisoUsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioRolUseCase;
-use Belly\Usuarios\UseCases\HorarioGrupoUsuarioRolUseCase;
 use Belly\Usuarios\UseCases\UsuarioPermisoEspecialUseCase;
 
 use Belly\Mensajes\UseCases\MensajeUseCase;
@@ -17,8 +24,6 @@ use Belly\Mensajes\UseCases\PlantillaMensajeUseCase;
 use Belly\Mensajes\UseCases\PlantillaRapidaUseCase;
 use Belly\Conversacion\UseCases\ConversacionUseCase;
 use Belly\Conversacion\UseCases\ConversacionMotivoUseCase;
-use Belly\Conversacion\UseCases\ComentarioConversacionUseCase;
-use Belly\Conversacion\UseCases\ConversacionReporteUseCase;
 use Belly\Conversacion\UseCases\EtiquetaUseCase;
 use Belly\Webhooks\UseCases\WebhookUseCase;
 use Belly\Configuracion\UseCases\AppUseCase;
@@ -31,18 +36,8 @@ use Belly\Permisos\UseCases\PermisoUseCase;
 use Belly\Permisos\UseCases\GrupoUsuarioPermisoUseCase;
 use Belly\Modulos\UseCases\ModuloGrupoUseCase;
 use Belly\Modulos\UseCases\ModulosUseCase;
-use Belly\Media\UseCases\MediaGaleriaUseCase;
-use Belly\Media\UseCases\MediaDocumentoUseCase;
-use Belly\Conversacion\UseCases\CitaConversacionUseCase;
 use Belly\Conversacion\UseCases\ConversacionVentaUseCase;
 use Belly\Clientes\UseCases\ListaNegraUseCase;
-use Belly\Usuarios\UseCases\UsuarioMetricaUseCase;
-use Belly\conversacion\UseCases\ConversacionMetricaUseCase;
-use Belly\Media\UseCases\GrupoProductoUseCase;
-use Belly\Media\UseCases\ProductoUseCase;
-use Belly\Media\UseCases\ProductoReferenciaUseCase;
-
-
 
 if (!function_exists('auth')) {
     function auth(): AuthUseCase
@@ -89,17 +84,18 @@ if (!function_exists('clientes')) {
     }
 }
 
-if (!function_exists('clientes_metrica')) {
-    function clientes_metrica(): ClienteMetricaUseCase
-    {
-        return service('ClienteMetricaUseCase');
-    }
-}
 // MODULO USUARIOS
 if (!function_exists('usuario')) {
     function usuario(): UsuarioUseCase
     {
         return service('UsuarioUseCase');
+    }
+}
+
+if (!function_exists('asesores')) {
+    function asesores(): AsesorUseCase
+    {
+        return service('AsesorUseCase');
     }
 }
 
@@ -145,17 +141,72 @@ if (!function_exists('grupo_usuario_rol')) {
     }
 }
 
-if (!function_exists('horario_grupo_usuario_rol')) {
-    function horario_grupo_usuario_rol(): HorarioGrupoUsuarioRolUseCase
-    {
-        return service('HorarioGrupoUsuarioRolUseCase');
-    }
-}
-
 if (!function_exists('usuario_permiso_especial')) {
     function usuario_permiso_especial(): UsuarioPermisoEspecialUseCase
     {
         return service('UsuarioPermisoEspecialUseCase');
+    }
+}
+// #####################################
+
+// MODULO CATALOGO
+if (!function_exists('catalogo_familias')) {
+    function catalogo_familias(): FamiliaProductoUseCase
+    {
+        return service('FamiliaProductoUseCase');
+    }
+}
+
+if (!function_exists('catalogo_productos')) {
+    function catalogo_productos(): ProductoUseCase
+    {
+        return service('ProductoUseCase');
+    }
+}
+
+if (!function_exists('catalogo_imagenes')) {
+    function catalogo_imagenes(): ImagenProductoUseCase
+    {
+        return service('ImagenProductoUseCase');
+    }
+}
+// #####################################
+
+// MODULO REPARTO
+if (!function_exists('reparto')) {
+    function reparto(): RepartoUseCase
+    {
+        return service('RepartoUseCase');
+    }
+}
+
+if (!function_exists('asignador_chats')) {
+    function asignador_chats(): AsignadorChatUseCase
+    {
+        return service('AsignadorChatUseCase');
+    }
+}
+
+if (!function_exists('grupos_atencion')) {
+    function grupos_atencion(): GrupoAtencionUseCase
+    {
+        return service('GrupoAtencionUseCase');
+    }
+}
+// #####################################
+
+// MODULO AGENTE IA
+if (!function_exists('agentes_ia')) {
+    function agentes_ia(): AgenteIaUseCase
+    {
+        return service('AgenteIaUseCase');
+    }
+}
+
+if (!function_exists('atencion_ia')) {
+    function atencion_ia(): AtencionIaUseCase
+    {
+        return service('AtencionIaUseCase');
     }
 }
 // #####################################
@@ -199,17 +250,12 @@ if (!function_exists('modulo_grupo')) {
 
 // #####################################
 
-
-
-
 if (!function_exists('media')) {
     function media(): MediaUseCase
     {
         return service('MediaUseCase');
     }
 }
-
-
 
 if (!function_exists('mensaje')) {
     function mensaje(): MensajeUseCase
@@ -239,13 +285,6 @@ if (!function_exists('conversaciones')) {
     }
 }
 
-if (!function_exists('conversacion_export')) {
-    function conversacion_export(): \Belly\Conversacion\UseCases\ConversacionExportUseCase
-    {
-        return service('ConversacionExportUseCase');
-    }
-}
-
 if (!function_exists('motivo_conversacion')) {
     function motivo_conversacion(): ConversacionMotivoUseCase
     {
@@ -260,31 +299,10 @@ if (!function_exists('etiquetas')) {
     }
 }
 
-if (!function_exists('comentario_conversacion')) {
-    function comentario_conversacion(): ComentarioConversacionUseCase
-    {
-        return service('ComentarioConversacionUseCase');
-    }
-}
-
-if (!function_exists('cita_conversacion')) {
-    function cita_conversacion(): CitaConversacionUseCase
-    {
-        return service('CitaConversacionUseCase');
-    }
-}
-
 if (!function_exists('conversacion_venta')) {
     function conversacion_venta(): ConversacionVentaUseCase
     {
         return service('ConversacionVentaUseCase');
-    }
-}
-
-if (!function_exists('conversacion_reporte')) {
-    function conversacion_reporte(): ConversacionReporteUseCase
-    {
-        return service('ConversacionReporteUseCase');
     }
 }
 
@@ -337,17 +355,38 @@ if (!function_exists('portafolio')) {
     }
 }
 
-if (!function_exists('media_galeria')) {
-    function media_galeria(): MediaGaleriaUseCase
+if (!function_exists('crm_ajustes')) {
+    function crm_ajustes(): \Belly\Crm\UseCases\AjustesCrmUseCase
     {
-        return service('MediaGaleriaUseCase');
+        return service('AjustesCrmUseCase');
     }
 }
 
-if (!function_exists('media_documento')) {
-    function media_documento(): MediaDocumentoUseCase
+if (!function_exists('crm_clientes')) {
+    function crm_clientes(): \Belly\Crm\UseCases\CarteraClientesUseCase
     {
-        return service('MediaDocumentoUseCase');
+        return service('CarteraClientesUseCase');
+    }
+}
+
+if (!function_exists('crm_alta')) {
+    function crm_alta(): \Belly\Crm\UseCases\AltaClientesUseCase
+    {
+        return service('AltaClientesUseCase');
+    }
+}
+
+if (!function_exists('crm_envios')) {
+    function crm_envios(): \Belly\Crm\UseCases\EnvioMasivoUseCase
+    {
+        return service('EnvioMasivoUseCase');
+    }
+}
+
+if (!function_exists('crm_dashboard')) {
+    function crm_dashboard(): \Belly\Crm\UseCases\DashboardCrmUseCase
+    {
+        return service('DashboardCrmUseCase');
     }
 }
 
@@ -357,41 +396,6 @@ if (!function_exists('lista_negra')) {
         return service('ListaNegraUseCase');
     }
 }
-
-if (!function_exists('grupo_producto')) {
-    function grupo_producto(): GrupoProductoUseCase
-    {
-        return service('GrupoProductoUseCase');
-    }
-}
-
-if (!function_exists('producto')) {
-    function producto(): ProductoUseCase
-    {
-        return service('ProductoUseCase');
-    }
-}
-
-if (!function_exists('producto_referencia')) {
-    function producto_referencia(): ProductoReferenciaUseCase
-    {
-        return service('ProductoReferenciaUseCase');
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // Funciones helper para validación
 if (!function_exists('pretty_phone_number')) {
@@ -507,19 +511,5 @@ if (!function_exists('mb_url_title')) {
         
         // Eliminar separadores al inicio y final
         return trim($str, $separator);
-    }
-}
-
-if (!function_exists('usuario_metrica')) {
-    function usuario_metrica(): UsuarioMetricaUseCase
-    {
-        return service('UsuarioMetricaUseCase');
-    }
-}
-
-if (!function_exists('conversacion_metrica')) {
-    function conversacion_metrica(): ConversacionMetricaUseCase
-    {
-        return service('ConversacionMetricaUseCase');
     }
 }

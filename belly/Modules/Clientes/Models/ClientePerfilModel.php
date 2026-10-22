@@ -18,12 +18,8 @@ class ClientePerfilModel extends Model {
         'nombre',
         'apellido',
         'nombre_completo',
-        'marca',
-        'modelo',
-        'placa',
         'correo',
         'distrito',
-        'tipo',
     ];
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -43,12 +39,8 @@ class ClientePerfilModel extends Model {
         'id_cliente'     => 'required|integer',
         'nombre'     => 'required|max_length[100]',
         'apellido'     => 'max_length[100]',
-        'marca'     => 'max_length[100]',
-        'modelo'     => 'max_length[100]',
-        'placa'     => 'max_length[20]',
         'correo'     => 'max_length[150]',
         'distrito'     => 'max_length[100]',
-        'tipo' => 'max_length[100]',
     ];
     protected $validationMessages = [
         'id_cliente'        => [

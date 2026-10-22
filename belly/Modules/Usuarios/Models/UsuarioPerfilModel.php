@@ -22,6 +22,8 @@ class UsuarioPerfilModel extends Model {
         'correo',
         'celular',
         'celular_secundario',
+        'foto_url',
+        'foto_path',
     ];
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

@@ -15,7 +15,7 @@ use Belly\Services\MetaGraph;
  * Conexión de una empresa con WhatsApp Cloud API, paso a paso:
  *  1. App de Meta (App ID + App Secret con el que Meta firma los eventos).
  *  2. Webhook propio de la empresa (URL con clave única + token de verificación generado).
- *  3. Números (phone_number_id + WABA + token), validados contra Meta antes de guardarse.
+ *  3. Número (phone_number_id + WABA + token), validado contra Meta antes de guardarse. Una empresa = un número.
  */
 class ConexionWhatsappUseCase
 {
@@ -126,6 +126,11 @@ class ConexionWhatsappUseCase
         $existente = $this->appPorPhoneNumberId($phoneNumberId);
         if ($existente !== null && (int) $existente->id_empresa !== $idEmpresa && $existente->deleted_at === null) {
             throw new \DomainException('Este número ya está conectado en otra empresa.');
+        }
+
+        $yaConectado = $this->numeroVerificadoDeEmpresa();
+        if ($yaConectado !== null && ($existente === null || (int) $existente->id !== (int) $yaConectado->id)) {
+            throw new \DomainException('Ya tienes un número conectado. Desconéctalo si quieres usar otro.');
         }
 
         $numero = $this->meta->obtenerNumero($phoneNumberId, $token);
@@ -318,6 +323,17 @@ class ConexionWhatsappUseCase
     private function numerosDeEmpresa(): array
     {
         return $this->apps()->where('canal', 'whatsapp')->orderBy('id', 'ASC')->findAll();
+    }
+
+    private function numeroVerificadoDeEmpresa(): ?AppEntity
+    {
+        foreach ($this->numerosDeEmpresa() as $app) {
+            if ((int) $app->estado === 1 && $app->verificado_at !== null && $app->tieneToken() && ! empty($app->phone_number_id)) {
+                return $app;
+            }
+        }
+
+        return null;
     }
 
     /** @return array<string, mixed> */

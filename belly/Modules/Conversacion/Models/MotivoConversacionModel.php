@@ -1,11 +1,13 @@
 <?php
 
 namespace Belly\Conversacion\Models;
+use Belly\Configuracion\Models\FiltraPorEmpresa;
 use Belly\Conversacion\Entities\MotivoConversacionEntity;
 
 use CodeIgniter\Model;
 
 class MotivoConversacionModel extends Model {
+    use FiltraPorEmpresa;
 
     protected $table = 'motivo_conversacion';
     protected $primaryKey = 'id';
@@ -14,7 +16,10 @@ class MotivoConversacionModel extends Model {
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
+        'id_empresa',
         'nombre',
+        'color',
+        'orden',
     ];
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

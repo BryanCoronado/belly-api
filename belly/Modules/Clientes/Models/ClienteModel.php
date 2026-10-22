@@ -21,6 +21,12 @@ class ClienteModel extends Model {
         'psid',
         'wa_user_id',
         'wa_parent_user_id',
+        'id_etapa',
+        'etapa_at',
+        'id_tipo',
+        'notas',
+        'id_responsable',
+        'origen',
         'id',
     ];
     protected bool $allowEmptyInserts = false;

@@ -5,6 +5,7 @@ use Belly\Conversacion\Config\ConversacionConfig;
 use Belly\Conversacion\Models\ConversacionModel;
 use Belly\Conversacion\Models\EtiquetaModel;
 use Belly\Conversacion\Entities\ConversacionEntity;
+use Belly\Services\Autorizacion;
 
 class ConversacionUseCase {
     protected ConversacionConfig $config;
@@ -79,6 +80,7 @@ class ConversacionUseCase {
     private function selectListadoSidebarChatBaseSql(): string
     {
         return 'conversacion.*, cliente.telefono, cliente.wa_user_id,'
+            . ' cliente.id as id_cliente,'
             . ' cliente_perfil.nombre as nombre_cliente,'
             . ' cliente_perfil.apellido as apellido_cliente,'
             . ' cliente_perfil.nombre_completo as nombre_completo_cliente,'
@@ -86,6 +88,10 @@ class ConversacionUseCase {
             . ' etiqueta.nombre as etiqueta_nombre,'
             . ' etiqueta.color as etiqueta_color,'
             . ' etiqueta.descripcion as etiqueta_descripcion,'
+            . ' embudo_etapa.nombre as etapa_nombre,'
+            . ' embudo_etapa.color as etapa_color,'
+            . ' cliente_tipo.nombre as tipo_nombre,'
+            . ' cliente_tipo.color as tipo_color,'
             . ' usuario.es_bot AS usuario_es_bot';
     }
 
@@ -432,9 +438,6 @@ class ConversacionUseCase {
         $conversacion_entity->source_id = $datos['source_id'] ?? null;
         $conversacion_entity->campaign_id = $datos['campaign_id'] ?? null;
 
-        
-        // Determinar el tipo basándose en el modo de la app del usuario
-        $conversacion_entity->tipo = $this->determinarTipoConversacion($conversacion_entity->id_usuario);
 
         if ($conversacion_model->save($conversacion_entity)) {
             $conversacion_entity->id = $conversacion_model->insertID;
@@ -494,7 +497,6 @@ class ConversacionUseCase {
                     'id_estado' => $conversacion_completa->id_estado,
                     'id_app' => $conversacion_completa->id_app,
                     'id_motivo' => $conversacion_completa->id_motivo,
-                    'tipo' => $conversacion_completa->tipo,
                     'registro' => $conversacion_completa->registro,
                     'origen' => $conversacion_completa->origen,
                     'id_asignado_por' => $conversacion_completa->id_asignado_por,
@@ -756,6 +758,7 @@ class ConversacionUseCase {
             ->join('usuario', 'usuario.id = conversacion.id_usuario', 'left')
             ->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left')
             ->where('conversacion.id_usuario', $id_usuario);
+        $this->unirDatosCrmCliente($conversacion_model);
 
         if (isset($filtros['id_estado']) && $filtros['id_estado'] !== '' && $filtros['id_estado'] !== null) {
             $conversacion_model->where('conversacion.id_estado', (int) $filtros['id_estado']);
@@ -795,6 +798,7 @@ class ConversacionUseCase {
         $this->aplicarFiltroRegistroVenta($conversacion_model, $filtros);
         $this->aplicarFiltroBusquedaMensaje($conversacion_model, $filtros);
         $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
+        $this->aplicarFiltrosClienteCrm($conversacion_model, $filtros);
 
         $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
 
@@ -827,6 +831,7 @@ class ConversacionUseCase {
                 null,
                 false
             );
+        $this->unirDatosCrmCliente($conversacion_model);
 
         if (! empty($filtros['search'])) {
             $search = trim((string) $filtros['search']);
@@ -856,6 +861,7 @@ class ConversacionUseCase {
         $this->aplicarFiltroRegistroVenta($conversacion_model, $filtros);
         $this->aplicarFiltroBusquedaMensaje($conversacion_model, $filtros);
         $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
+        $this->aplicarFiltrosClienteCrm($conversacion_model, $filtros);
 
         $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
 
@@ -883,6 +889,7 @@ class ConversacionUseCase {
             ->where('conversacion.id_usuario', $id_usuario)
             ->whereIn('conversacion.id_estado', [1, 3])
             ->where("{$ultimoContestaSql} = 'cliente'", null, false);
+        $this->unirDatosCrmCliente($conversacion_model);
 
         if (! empty($filtros['search'])) {
             $search = trim((string) $filtros['search']);
@@ -912,6 +919,7 @@ class ConversacionUseCase {
         $this->aplicarFiltroRegistroVenta($conversacion_model, $filtros);
         $this->aplicarFiltroBusquedaMensaje($conversacion_model, $filtros);
         $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
+        $this->aplicarFiltrosClienteCrm($conversacion_model, $filtros);
 
         $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
 
@@ -931,6 +939,7 @@ class ConversacionUseCase {
             ->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left')
             ->where('conversacion.id_usuario', $id_usuario)
             ->where('conversacion.id_estado', 2);
+        $this->unirDatosCrmCliente($conversacion_model);
 
         if (! empty($filtros['search'])) {
             $search = trim((string) $filtros['search']);
@@ -943,6 +952,7 @@ class ConversacionUseCase {
         }
 
         $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
+        $this->aplicarFiltrosClienteCrm($conversacion_model, $filtros);
         $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
 
         return $this->ejecutarListadoPaginadoSidebarChat($conversacion_model, $page);
@@ -987,6 +997,7 @@ class ConversacionUseCase {
         $conversacion_model->join('cliente_perfil', 'cliente_perfil.id_cliente = cliente.id', 'left');
         $conversacion_model->join('app', 'app.id = conversacion.id_app', 'left');
         $conversacion_model->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left');
+        $this->unirDatosCrmCliente($conversacion_model);
         $conversacion_model->where('conversacion.id_usuario', $usuario->id);
 
         if (isset($filtros['id_estado']) && $filtros['id_estado'] !== '' && $filtros['id_estado'] !== null) {
@@ -1031,6 +1042,7 @@ class ConversacionUseCase {
         $this->aplicarFiltroRegistroVenta($conversacion_model, $filtros);
         $this->aplicarFiltroBusquedaMensaje($conversacion_model, $filtros);
         $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
+        $this->aplicarFiltrosClienteCrm($conversacion_model, $filtros);
 
         $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
 
@@ -1308,13 +1320,7 @@ class ConversacionUseCase {
             throw new \Exception('Conversación no encontrada');
         }
 
-        // Verificar que el motivo existe
-        $motivo_class = $this->config->motivo_conversacion_provider;
-        $motivo_model = new $motivo_class();
-        $motivo = $motivo_model->find($datos['id_motivo']);
-        if (!$motivo) {
-            throw new \Exception('El motivo de finalización no existe');
-        }
+        crm_ajustes()->exigirMotivo((int) $datos['id_motivo']);
 
         // Llamar a editarConversacion para cambiar el estado y emitir socket
         $conversacion_actualizada = $this->editarConversacion($id, [
@@ -1435,82 +1441,6 @@ class ConversacionUseCase {
     }
 
     /**
-     * Cliente recurrente: mismo asesor solo si puede recibir chats (rol 5 en app, sin rol 8 off).
-     * Si el asesor previo no califica, reparto equitativo entre personal CC (excluyéndolo).
-     *
-     * @return array{
-     *     id_usuario: ?int,
-     *     origen: 'sin_historial'|'asesor_previo'|'apoyo_equitativo'|'sin_asesor_disponible',
-     *     id_asesor_previo: ?int,
-     *     nombre_asesor_previo: ?string
-     * }
-     */
-    public function resolverAsignacionClienteRecurrente(int $id_cliente, int $id_app, $app, ?int $id_conversacion_excluir = null): array
-    {
-        $sinHistorial = [
-            'id_usuario' => null,
-            'origen' => 'sin_historial',
-            'id_asesor_previo' => null,
-            'nombre_asesor_previo' => null,
-        ];
-
-        $id_asesor_previo = $this->obtenerUltimoAsesorHumanoCliente($id_cliente, $id_app, $id_conversacion_excluir);
-        if ($id_asesor_previo === null) {
-            return $sinHistorial;
-        }
-
-        $nombre_previo = $this->obtenerNombreVisibleAsesor($id_asesor_previo);
-
-        if (app()->usuarioPuedeRecibirChatsEnApp($id_asesor_previo, $id_app)) {
-            log_message('debug', "[CLIENTE RECURRENTE] Asignación al asesor previo (rol CC): {$id_asesor_previo}");
-
-            return [
-                'id_usuario' => $id_asesor_previo,
-                'origen' => 'asesor_previo',
-                'id_asesor_previo' => $id_asesor_previo,
-                'nombre_asesor_previo' => $nombre_previo,
-            ];
-        }
-
-        $id_equitativo = app()->obtenerUsuarioParaApp($app, $id_asesor_previo);
-        if ($id_equitativo !== null) {
-            log_message(
-                'debug',
-                "[CLIENTE RECURRENTE] Asesor previo {$id_asesor_previo} sin rol CC/disponible; equitativo: {$id_equitativo}"
-            );
-
-            return [
-                'id_usuario' => $id_equitativo,
-                'origen' => 'apoyo_equitativo',
-                'id_asesor_previo' => $id_asesor_previo,
-                'nombre_asesor_previo' => $nombre_previo,
-            ];
-        }
-
-        log_message(
-            'warning',
-            "[CLIENTE RECURRENTE] Sin asesor disponible (previo {$id_asesor_previo} inactivo/off y sin equitativo en app {$id_app})"
-        );
-
-        return [
-            'id_usuario' => null,
-            'origen' => 'sin_asesor_disponible',
-            'id_asesor_previo' => $id_asesor_previo,
-            'nombre_asesor_previo' => $nombre_previo,
-        ];
-    }
-
-    /**
-     * @return int|null null si el cliente no tiene historial con asesor humano en la app
-     */
-    public function resolverAsesorClienteConHistorial(int $id_cliente, int $id_app, $app, ?int $id_conversacion_excluir = null): ?int
-    {
-        $asignacion = $this->resolverAsignacionClienteRecurrente($id_cliente, $id_app, $app, $id_conversacion_excluir);
-
-        return $asignacion['id_usuario'];
-    }
-
-    /**
      * Contexto para el front: apoyo a otra asesora (sin persistir mensaje en BD).
      *
      * @return array{id_asesor_previo: int, nombre_asesor_previo: string, id_usuario_actual: int}|null
@@ -1576,105 +1506,6 @@ class ConversacionUseCase {
         return 'Asesora #' . $id_usuario;
     }
 
-    private function determinarTipoConversacion(?int $id_usuario): ?string
-    {
-        if (!$id_usuario) {
-            return null;
-        }
-        // Obtener la app del usuario a través de la tabla pivot
-        $usuario_app = model('UsuarioAppModel')
-            ->where('id_usuario', $id_usuario)
-            ->where('deleted_at', null)
-            ->first();
-        
-        if (!$usuario_app) {
-            log_message('warning', "Usuario $id_usuario no tiene app asignada para determinar tipo de conversación");
-            return null;
-        }
-        $app = app()->getAppProvider()->find($usuario_app->id_app);
-        
-        if (!$app) {
-            log_message('warning', "App {$usuario_app->id_app} no encontrada para usuario $id_usuario");
-            return null;
-        }
-        
-        if ($app->modo === 'compartido') {
-            return 'contact_center';
-        } elseif ($app->modo === 'individual') {
-            return 'customer_success';
-        }
-        return null;
-    }
-    
-    /**
-     * @param bool $agruparPorAnuncio true: una opción por anuncio (source_id); false: por campaña Meta
-     *
-     * @return list<array{campaign_id: string, nombre_campania: ?string, source_id?: ?string, meta_campaign_id?: ?string}>
-     */
-    public function listarCampaniasMetaFiltroContactCenter(bool $agruparPorAnuncio = true): array
-    {
-        $db = \Config\Database::connect();
-
-        if ($agruparPorAnuncio) {
-            $sql = 'SELECT MAX(TRIM(ccm.source_id)) AS source_id,
-                    MAX(TRIM(ccm.campaign_id)) AS meta_campaign_id,
-                    MAX(ccm.nombre_campania) AS nombre_campania
-                FROM conversacion_campania_meta ccm
-                INNER JOIN conversacion c ON c.id = ccm.id_conversacion
-                    AND c.deleted_at IS NULL
-                    AND c.tipo = \'contact_center\'
-                WHERE ccm.deleted_at IS NULL
-                  AND (
-                    NULLIF(TRIM(ccm.source_id), \'\') IS NOT NULL
-                    OR NULLIF(TRIM(ccm.campaign_id), \'\') IS NOT NULL
-                  )
-                GROUP BY COALESCE(NULLIF(TRIM(ccm.source_id), \'\'), CONCAT(\'c:\', TRIM(ccm.campaign_id)))
-                ORDER BY nombre_campania ASC';
-        } else {
-            $sql = 'SELECT MAX(TRIM(ccm.campaign_id)) AS meta_campaign_id, MAX(ccm.nombre_campania) AS nombre_campania
-                FROM conversacion_campania_meta ccm
-                INNER JOIN conversacion c ON c.id = ccm.id_conversacion
-                    AND c.deleted_at IS NULL
-                    AND c.tipo = \'contact_center\'
-                WHERE ccm.deleted_at IS NULL
-                  AND NULLIF(TRIM(ccm.campaign_id), \'\') IS NOT NULL
-                GROUP BY TRIM(ccm.campaign_id)
-                ORDER BY nombre_campania ASC';
-        }
-
-        $rows = $db->query($sql)->getResult();
-        $db->close();
-
-        $out = [];
-        foreach ($rows as $row) {
-            if ($agruparPorAnuncio) {
-                $sourceId = trim((string) ($row->source_id ?? ''));
-                $metaCampaignId = trim((string) ($row->meta_campaign_id ?? ''));
-                $filterId = $sourceId !== '' ? $sourceId : $metaCampaignId;
-                if ($filterId === '') {
-                    continue;
-                }
-                $out[] = [
-                    'campaign_id' => $filterId,
-                    'nombre_campania' => $row->nombre_campania,
-                    'source_id' => $sourceId !== '' ? $sourceId : null,
-                    'meta_campaign_id' => $metaCampaignId !== '' ? $metaCampaignId : null,
-                ];
-            } else {
-                $metaCampaignId = trim((string) ($row->meta_campaign_id ?? ''));
-                if ($metaCampaignId === '') {
-                    continue;
-                }
-                $out[] = [
-                    'campaign_id' => $metaCampaignId,
-                    'nombre_campania' => $row->nombre_campania,
-                ];
-            }
-        }
-
-        return $out;
-    }
-
     private function aplicarFiltroCampaignMeta($conversacion_model, string $campaignIdFilter): void
     {
         $cid = trim($campaignIdFilter);
@@ -1695,78 +1526,6 @@ class ConversacionUseCase {
     }
 
     /**
-     * Asesores con conversaciones asignadas (para filtro "ocultar" en listados).
-     *
-     * @return list<array{id: int, usuario: string, nombre_completo: string}>
-     */
-    public function listarAsesoresParaFiltroListado(?string $tipo = null): array
-    {
-        $model = $this->getConversacionProvider();
-        $builder = $model->builder();
-        $builder
-            ->select('usuario.id, usuario.usuario, usuario_perfil.nombres, usuario_perfil.apellidos')
-            ->join('usuario', 'usuario.id = conversacion.id_usuario', 'inner')
-            ->join('usuario_perfil', 'usuario_perfil.id_usuario = usuario.id', 'left')
-            ->where('conversacion.deleted_at', null)
-            ->where('conversacion.id_usuario IS NOT NULL')
-            ->where('usuario.deleted_at', null);
-
-        if ($tipo !== null && $tipo !== '') {
-            $builder->where('conversacion.tipo', $tipo);
-        }
-
-        $rows = $builder
-            ->groupBy('usuario.id, usuario.usuario, usuario_perfil.nombres, usuario_perfil.apellidos')
-            ->orderBy('usuario_perfil.nombres', 'ASC')
-            ->orderBy('usuario_perfil.apellidos', 'ASC')
-            ->get()
-            ->getResult();
-
-        $out = [];
-        foreach ($rows as $row) {
-            $nombre = trim(($row->nombres ?? '') . ' ' . ($row->apellidos ?? ''));
-            $out[] = [
-                'id' => (int) $row->id,
-                'usuario' => (string) $row->usuario,
-                'nombre_completo' => $nombre !== '' ? $nombre : (string) $row->usuario,
-            ];
-        }
-
-        return $out;
-    }
-
-    /**
-     * @param mixed $valor int, string "1,2", o array desde query
-     * @return list<int>
-     */
-    private function normalizarExcluirIdUsuario($valor): array
-    {
-        if ($valor === null || $valor === '' || $valor === []) {
-            return [];
-        }
-
-        if (is_array($valor)) {
-            $ids = $valor;
-        } elseif (is_string($valor) && str_contains($valor, ',')) {
-            $ids = explode(',', $valor);
-        } else {
-            $ids = [$valor];
-        }
-
-        $ids = array_map(static fn ($id) => (int) $id, $ids);
-
-        return array_values(array_unique(array_filter($ids, static fn ($id) => $id > 0)));
-    }
-
-    private function aplicarFiltroExcluirUsuarios($conversacion_model, array $filtros): void
-    {
-        $ids = $this->normalizarExcluirIdUsuario($filtros['excluir_id_usuario'] ?? null);
-        if ($ids !== []) {
-            $conversacion_model->whereNotIn('conversacion.id_usuario', $ids);
-        }
-    }
-
-    /**
      * @param array<string, mixed> $filtros origen_canal: whatsapp
      */
     private function aplicarFiltroOrigenCanal($conversacion_model, array $filtros): void
@@ -1782,6 +1541,41 @@ class ConversacionUseCase {
             null,
             false,
         );
+    }
+
+    private function unirDatosCrmCliente($conversacion_model): void
+    {
+        $conversacion_model
+            ->join('embudo_etapa', 'embudo_etapa.id = cliente.id_etapa AND embudo_etapa.deleted_at IS NULL', 'left')
+            ->join('cliente_tipo', 'cliente_tipo.id = cliente.id_tipo AND cliente_tipo.deleted_at IS NULL', 'left');
+    }
+
+    /** Etapa, tipo y etiqueta del cliente (no la etiqueta del chat). */
+    private function aplicarFiltrosClienteCrm($conversacion_model, array $filtros): void
+    {
+        if (($filtros['id_etapa'] ?? '') !== '' && $filtros['id_etapa'] !== null) {
+            $conversacion_model->where('cliente.id_etapa', (int) $filtros['id_etapa']);
+        }
+
+        if (array_key_exists('id_tipo', $filtros) && $filtros['id_tipo'] !== '' && $filtros['id_tipo'] !== null) {
+            $tipo = (int) $filtros['id_tipo'];
+            if ($tipo > 0) {
+                $conversacion_model->where('cliente.id_tipo', $tipo);
+            } else {
+                $conversacion_model->where('cliente.id_tipo', null);
+            }
+        }
+
+        if (($filtros['id_etiqueta_cliente'] ?? '') !== '' && $filtros['id_etiqueta_cliente'] !== null) {
+            $id = (int) $filtros['id_etiqueta_cliente'];
+            if ($id > 0) {
+                $conversacion_model->where(
+                    "EXISTS (SELECT 1 FROM cliente_etiqueta ce WHERE ce.id_cliente = cliente.id AND ce.id_etiqueta = {$id})",
+                    null,
+                    false
+                );
+            }
+        }
     }
 
     /**
@@ -1812,182 +1606,11 @@ class ConversacionUseCase {
         }
     }
 
-    public function listarConversacionesContactCenter($page = 1, $perPage = 10, $filtros = []): array
-    {
-        $conversacion_model = $this->getConversacionProvider();
-        $sqNombre = '(SELECT ccm.nombre_campania FROM conversacion_campania_meta ccm '
-            . 'WHERE ccm.id_conversacion = conversacion.id AND ccm.deleted_at IS NULL '
-            . 'ORDER BY ccm.id DESC LIMIT 1)';
-        $sqCodigo = '(SELECT ccm.codigo FROM conversacion_campania_meta ccm '
-            . 'WHERE ccm.id_conversacion = conversacion.id AND ccm.deleted_at IS NULL '
-            . 'ORDER BY ccm.id DESC LIMIT 1)';
-
-        $sqNombreAsignadoPor = 'COALESCE(NULLIF(TRIM(CONCAT(COALESCE(usuario_perfil_asignador.nombres, \'\'), \' \', '
-            . 'COALESCE(usuario_perfil_asignador.apellidos, \'\'))), \'\'), usuario_asignador.usuario)';
-
-        $conversacion_model
-            ->select(
-                'conversacion.*, cliente.telefono, usuario.usuario as nombre_usuario, '
-                . 'usuario_perfil.nombres, usuario_perfil.apellidos, cliente_perfil.nombre as nombre_cliente, '
-                . 'cliente_perfil.apellido as apellido_cliente, '
-                . 'etiqueta.nombre AS etiqueta_nombre, etiqueta.color AS etiqueta_color, '
-                . 'usuario_asignador.usuario AS asignado_por_usuario, '
-                . 'usuario_perfil_asignador.nombres AS asignado_por_nombres, '
-                . 'usuario_perfil_asignador.apellidos AS asignado_por_apellidos, '
-                . 'usuario_asignador.es_bot AS asignado_por_es_bot, '
-                . 'usuario.es_bot AS usuario_es_bot, '
-                . "{$sqNombreAsignadoPor} AS nombre_asignado_por, "
-                . "{$sqNombre} AS nombre_campania, "
-                . "{$sqCodigo} AS codigo, "
-                . $this->selectUltimoMensajeContestaSql() . ', '
-                . $this->selectVentaRegistradaAtSql()
-            )
-            ->join('cliente', 'cliente.id = conversacion.id_cliente')
-            ->join('cliente_perfil', 'cliente_perfil.id_cliente = cliente.id', 'left')
-            ->join('usuario', 'usuario.id = conversacion.id_usuario', 'left')
-            ->join('usuario_perfil', 'usuario_perfil.id_usuario = usuario.id', 'left')
-            ->join('usuario AS usuario_asignador', 'usuario_asignador.id = conversacion.id_asignado_por', 'left')
-            ->join(
-                'usuario_perfil AS usuario_perfil_asignador',
-                'usuario_perfil_asignador.id_usuario = usuario_asignador.id',
-                'left'
-            )
-            ->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left')
-            ->where('conversacion.id_usuario IS NOT NULL')
-            ->where('conversacion.tipo', 'contact_center');
-        
-        // Filtro por estado
-        if (isset($filtros['id_estado']) && $filtros['id_estado'] !== '' && $filtros['id_estado'] !== null) {
-            $conversacion_model->where('conversacion.id_estado', $filtros['id_estado']);
-        }
-        
-        // Búsqueda: cliente, asesor y campaña Meta (nombre_campania / codigo en conversacion_campania_meta)
-        if (!empty($filtros['search'])) {
-            $search = $filtros['search'];
-            $db = \Config\Database::connect();
-            $likePattern = '%' . $db->escapeLikeString($search) . '%';
-            $likeSql = $db->escape($likePattern);
-            $existsCampania = 'EXISTS (SELECT 1 FROM conversacion_campania_meta ccm '
-                . 'WHERE ccm.id_conversacion = conversacion.id AND ccm.deleted_at IS NULL '
-                . "AND (ccm.nombre_campania LIKE {$likeSql} OR ccm.codigo LIKE {$likeSql}))";
-
-            $conversacion_model->groupStart();
-            $conversacion_model->like('cliente.telefono', $search);
-            $conversacion_model->orLike('cliente_perfil.nombre', $search);
-            $conversacion_model->orLike('cliente_perfil.apellido', $search);
-            $conversacion_model->orLike('cliente_perfil.nombre_completo', $search);
-            $conversacion_model->orLike('usuario_perfil.nombres', $search);
-            $conversacion_model->orLike('usuario_perfil.apellidos', $search);
-            $conversacion_model->orWhere($existsCampania, null, false);
-            $conversacion_model->groupEnd();
-        }
-        
-        // Filtro por rango de fechas
-        if (!empty($filtros['fechaInicio'])) {
-            $conversacion_model->where('DATE(conversacion.created_at) >=', $filtros['fechaInicio']);
-        }
-        if (!empty($filtros['fechaFin'])) {
-            $conversacion_model->where('DATE(conversacion.created_at) <=', $filtros['fechaFin']);
-        }
-
-        //filtro por temperatura
-        if (!empty($filtros['temperatura'])) {
-            $conversacion_model->where('conversacion.temperatura', $filtros['temperatura']);
-        }
-
-        // Filtro por etiqueta (conversacion.id_etiqueta); valor 0 = sin etiqueta (NULL)
-        if (array_key_exists('id_etiqueta', $filtros) && $filtros['id_etiqueta'] !== '' && $filtros['id_etiqueta'] !== null) {
-            if ($filtros['id_etiqueta'] === '0' || $filtros['id_etiqueta'] === 0) {
-                $conversacion_model->where('conversacion.id_etiqueta', null);
-            } else {
-                $conversacion_model->where('conversacion.id_etiqueta', (int) $filtros['id_etiqueta']);
-            }
-        }
-
-        // Filtro por anuncio/campaña Meta (source_id o campaign_id)
-        if (!empty($filtros['campaign_id'])) {
-            $this->aplicarFiltroCampaignMeta($conversacion_model, (string) $filtros['campaign_id']);
-        }
-
-        $this->aplicarFiltroExcluirUsuarios($conversacion_model, $filtros);
-        $this->aplicarFiltroVentana24Horas($conversacion_model, $filtros);
-        $this->aplicarFiltroRegistroVenta($conversacion_model, $filtros);
-        $this->aplicarFiltroBusquedaMensaje($conversacion_model, $filtros);
-        $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
-
-        $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
-
-        return $this->ejecutarListadoPaginado($conversacion_model, max(1, (int) $page), $perPage);
-    }
-
-    public function listarConversacionesCustomerSuccess($page = 1, $perPage = 10, $filtros = []): array
-    {
-        $conversacion_model = $this->getConversacionProvider();
-        $conversacion_model
-            ->select(
-                'conversacion.*, cliente.telefono, usuario.usuario as nombre_usuario, usuario.es_bot AS usuario_es_bot, usuario_perfil.nombres, usuario_perfil.apellidos, cliente_perfil.nombre as nombre_cliente, cliente_perfil.apellido as apellido_cliente, etiqueta.nombre AS etiqueta_nombre, etiqueta.color AS etiqueta_color, '
-                . $this->selectUltimoMensajeContestaSql() . ', '
-                . $this->selectVentaRegistradaAtSql()
-            )
-            ->join('cliente', 'cliente.id = conversacion.id_cliente')
-            ->join('cliente_perfil', 'cliente_perfil.id_cliente = cliente.id', 'left')
-            ->join('usuario', 'usuario.id = conversacion.id_usuario', 'left')
-            ->join('usuario_perfil', 'usuario_perfil.id_usuario = usuario.id', 'left')
-            ->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left')
-            ->where('conversacion.id_usuario IS NOT NULL')
-            ->where('conversacion.tipo', 'customer_success');
-        
-        // Filtro por estado
-        if (isset($filtros['id_estado']) && $filtros['id_estado'] !== '' && $filtros['id_estado'] !== null) {
-            $conversacion_model->where('conversacion.id_estado', $filtros['id_estado']);
-        }
-        
-        // Búsqueda por teléfono o nombre del cliente
-        if (!empty($filtros['search'])) {
-            $search = $filtros['search'];
-            $conversacion_model->groupStart();
-            $conversacion_model->like('cliente.telefono', $search);
-            $conversacion_model->orLike('cliente_perfil.nombre', $search);
-            $conversacion_model->orLike('cliente_perfil.apellido', $search);
-            $conversacion_model->orLike('cliente_perfil.nombre_completo', $search);
-            $conversacion_model->orLike('usuario_perfil.nombres', $search);
-            $conversacion_model->orLike('usuario_perfil.apellidos', $search);
-            $conversacion_model->groupEnd();
-        }
-        
-        // Filtro por rango de fechas
-        if (!empty($filtros['fechaInicio'])) {
-            $conversacion_model->where('DATE(conversacion.created_at) >=', $filtros['fechaInicio']);
-        }
-        if (!empty($filtros['fechaFin'])) {
-            $conversacion_model->where('DATE(conversacion.created_at) <=', $filtros['fechaFin']);
-        }
-
-        if (array_key_exists('id_etiqueta', $filtros) && $filtros['id_etiqueta'] !== '' && $filtros['id_etiqueta'] !== null) {
-            if ($filtros['id_etiqueta'] === '0' || $filtros['id_etiqueta'] === 0) {
-                $conversacion_model->where('conversacion.id_etiqueta', null);
-            } else {
-                $conversacion_model->where('conversacion.id_etiqueta', (int) $filtros['id_etiqueta']);
-            }
-        }
-
-        $this->aplicarFiltroExcluirUsuarios($conversacion_model, $filtros);
-        $this->aplicarFiltroVentana24Horas($conversacion_model, $filtros);
-        $this->aplicarFiltroRegistroVenta($conversacion_model, $filtros);
-        $this->aplicarFiltroBusquedaMensaje($conversacion_model, $filtros);
-        $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
-
-        $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
-
-        return $this->ejecutarListadoPaginado($conversacion_model, max(1, (int) $page), $perPage);
-    }
-
     public function transferirConversacion(
         int $id_conversacion,
         int $id_usuario_destino,
         ?int $id_usuario_origen = null,
         ?string $temperatura = null,
-        bool $exigirUsuarioApp = true,
     ): array {
         $conversacion_model = $this->getConversacionProvider();
         $conversacion = $conversacion_model->find($id_conversacion);
@@ -2002,15 +1625,10 @@ class ConversacionUseCase {
             throw new \Exception('El usuario destino no existe o no está activo');
         }
 
-        // Validar que el usuario destino pertenece a la misma app
-        $usuario_app_destino = model('UsuarioAppModel')
-            ->where('id_usuario', $id_usuario_destino)
-            ->where('id_app', $conversacion->id_app)
-            ->where('deleted_at', null)
-            ->first();
-        
-        if ($exigirUsuarioApp && !$usuario_app_destino) {
-            throw new \Exception('El usuario destino no pertenece a la app de esta conversación');
+        // El destino debe ser de la misma empresa
+        $idEmpresa = id_empresa_sesion();
+        if ($idEmpresa !== null && (int) $usuario_destino->id_empresa !== $idEmpresa) {
+            throw new \Exception('El usuario destino no pertenece a tu empresa');
         }
 
         // Si se proporciona id_usuario_origen, validar que la conversación pertenece a ese usuario
@@ -2035,6 +1653,11 @@ class ConversacionUseCase {
         }
 
         $conversacion_actualizada = $this->editarConversacion($id_conversacion, $datosEditar);
+
+        // Si el chat pasa a una persona, el asistente de IA deja de contestar.
+        if ((int) ($usuario_destino->es_bot ?? 0) !== 1) {
+            atencion_ia()->pausarPorAsesor($id_conversacion);
+        }
 
         // Para el usuario destino se comporta como una conversación nueva en su bandeja.
         // Reutiliza el endpoint/socket existente: /emitir-conversacion -> nueva-conversacion.
@@ -2091,27 +1714,8 @@ class ConversacionUseCase {
 
     public function obtenerUsuariosDisponiblesParaTransferencia(int $id_app): array
     {
-        // Obtener todos los usuarios activos asignados a la app
-        $usuarios = model('UsuarioModel')
-            ->select('usuario.id, usuario.usuario, usuario_perfil.nombres, usuario_perfil.apellidos')
-            ->join('usuario_perfil', 'usuario_perfil.id_usuario = usuario.id', 'left')
-            ->join('usuario_app', 'usuario_app.id_usuario = usuario.id', 'inner')
-            ->where('usuario_app.id_app', $id_app)
-            ->where('usuario_app.deleted_at', null)
-            ->where('usuario.activo', 1)
-            ->where('usuario.deleted_at', null)
-            ->orderBy('usuario_perfil.nombres', 'ASC')
-            ->orderBy('usuario_perfil.apellidos', 'ASC')
-            ->findAll();
-
-        return array_map(function($usuario) {
-            $nombreCompleto = trim(($usuario->nombres ?? '') . ' ' . ($usuario->apellidos ?? ''));
-            return [
-                'id' => $usuario->id,
-                'usuario' => $usuario->usuario,
-                'nombre_completo' => $nombreCompleto ?: $usuario->usuario
-            ];
-        }, $usuarios);
+        // Los asesores activos de la empresa; el número (app) ya no limita a quién se puede transferir.
+        return asesores()->disponibles();
     }
 
     private function emitirConversacionComoNuevaSocket(int $id_conversacion): void
@@ -2158,7 +1762,6 @@ class ConversacionUseCase {
                 'id_motivo' => $conversacion->id_motivo,
                 'id_etiqueta' => $conversacion->id_etiqueta ?? null,
                 'temperatura' => $conversacion->temperatura,
-                'tipo' => $conversacion->tipo,
                 'registro' => $conversacion->registro,
                 'origen' => $conversacion->origen,
                 'id_asignado_por' => $conversacion->id_asignado_por,
@@ -2182,251 +1785,74 @@ class ConversacionUseCase {
     }
 
     /**
-     * Lista campañas publicitarias directamente desde Meta Marketing API (Graph).
-     *
-     * @param array<string, mixed> $opciones id_app, ad_account_id, after, limit, effective_status, solo_cuentas
-     *
-     * @return array<string, mixed>
+     * Acceso desde el panel: el asesor solo a sus chats; el administrador a cualquiera de su empresa.
+     * La empresa ya la limita FiltraPorEmpresa al buscar.
      */
-    public function listarCampaniasMetaDesdeApi(int $idApp, array $opciones = []): array
+    public function exigirAcceso(int $idConversacion): void
     {
-        $app = app()->getAppProvider()->find($idApp);
-        if ($app === null) {
-            throw new \Exception("No se encontró la app con ID: {$idApp}");
+        $conversacion = $this->getConversacionProvider()->find($idConversacion);
+        if (! $conversacion) {
+            throw new \Exception('Conversación no encontrada');
         }
-
-        $accessToken = trim((string) ($app->access_token ?? ''));
-        if ($accessToken === '') {
-            throw new \Exception('La app no tiene access_token configurado');
+        if (Autorizacion::esAdministradorEmpresa()) {
+            return;
         }
-
-        $limit = max(1, min(100, (int) ($opciones['limit'] ?? 50)));
-        $soloCuentas = ! empty($opciones['solo_cuentas']);
-
-        $adAccounts = $this->listarAdAccountsMeta($accessToken);
-        if ($soloCuentas) {
-            return [
-                'id_app' => $idApp,
-                'app_nombre' => $app->nombre ?? null,
-                'ad_accounts' => $adAccounts,
-                'data' => [],
-                'total' => 0,
-            ];
+        $usuario = Autorizacion::usuario();
+        if ($usuario === null || (int) $conversacion->id_usuario !== (int) $usuario->id) {
+            throw new \Exception('Esta conversación está asignada a otra persona.');
         }
+    }
 
-        $adAccountId = $this->normalizarAdAccountId((string) ($opciones['ad_account_id'] ?? ''));
-        $campaignFields = 'id,name,status,effective_status,objective,start_time,stop_time,created_time,updated_time,buying_type';
-        $campaigns = [];
-        $paging = null;
+    /**
+     * Todas las conversaciones de la empresa, para que el administrador supervise.
+     *
+     * @param array{search?:?string, id_usuario?:mixed, estado?:?string} $filtros estado: activos | finalizados | sin_responder
+     */
+    public function listarSupervision(array $filtros = [], int $page = 1): array
+    {
+        $modelo = $this->getConversacionProvider();
+        $modelo
+            ->select($this->selectListadoSidebarChatBaseSql() . ', usuario_perfil.nombres AS asesor_nombre, usuario.usuario AS asesor_usuario, usuario_perfil.foto_url AS asesor_foto')
+            ->join('cliente', 'cliente.id = conversacion.id_cliente')
+            ->join('cliente_perfil', 'cliente_perfil.id_cliente = cliente.id', 'left')
+            ->join('app', 'app.id = conversacion.id_app', 'left')
+            ->join('usuario', 'usuario.id = conversacion.id_usuario', 'left')
+            ->join('usuario_perfil', 'usuario_perfil.id_usuario = usuario.id AND usuario_perfil.deleted_at IS NULL', 'left')
+            ->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left');
+        $this->unirDatosCrmCliente($modelo);
 
-        if ($adAccountId !== '') {
-            $params = [
-                'fields' => $campaignFields,
-                'limit' => $limit,
-            ];
-            if (! empty($opciones['after'])) {
-                $params['after'] = (string) $opciones['after'];
-            }
-            if (! empty($opciones['effective_status'])) {
-                $params['effective_status'] = json_encode([(string) $opciones['effective_status']]);
-            }
-
-            $response = $this->metaGraphRequest("{$adAccountId}/campaigns", $accessToken, $params);
-            $accountMap = $this->mapaAdAccountsPorId($adAccounts);
-            $account = $accountMap[$adAccountId] ?? null;
-
-            foreach ($response['data'] ?? [] as $row) {
-                $campaigns[] = $this->formatearCampaniaMetaApi($row, $adAccountId, $account);
-            }
-            $paging = $response['paging'] ?? null;
+        $estado = (string) ($filtros['estado'] ?? 'activos');
+        if ($estado === 'finalizados') {
+            $modelo->where('conversacion.id_estado', 2);
         } else {
-            $maxAccounts = max(1, min(20, (int) ($opciones['max_ad_accounts'] ?? 10)));
-            $perAccountLimit = max(1, min(100, (int) ($opciones['limit_por_cuenta'] ?? 50)));
-
-            foreach (array_slice($adAccounts, 0, $maxAccounts) as $account) {
-                $accountId = (string) ($account['id'] ?? '');
-                if ($accountId === '') {
-                    continue;
-                }
-
-                $params = [
-                    'fields' => $campaignFields,
-                    'limit' => $perAccountLimit,
-                ];
-                if (! empty($opciones['effective_status'])) {
-                    $params['effective_status'] = json_encode([(string) $opciones['effective_status']]);
-                }
-
-                try {
-                    $response = $this->metaGraphRequest("{$accountId}/campaigns", $accessToken, $params);
-                } catch (\Throwable $e) {
-                    log_message('warning', "[META CAMPANIAS] No se pudieron leer campañas de {$accountId}: " . $e->getMessage());
-                    continue;
-                }
-
-                foreach ($response['data'] ?? [] as $row) {
-                    $campaigns[] = $this->formatearCampaniaMetaApi($row, $accountId, $account);
-                }
+            $modelo->whereIn('conversacion.id_estado', [1, 3]);
+            if ($estado === 'sin_responder') {
+                $modelo->where($this->sqlUltimoMensajeContestaEnConversacion() . " = 'cliente'", null, false);
             }
         }
 
-        usort($campaigns, static function (array $a, array $b): int {
-            return strcmp((string) ($b['updated_time'] ?? ''), (string) ($a['updated_time'] ?? ''));
-        });
+        $idUsuario = (int) ($filtros['id_usuario'] ?? 0);
+        if ($idUsuario > 0) {
+            $modelo->where('conversacion.id_usuario', $idUsuario);
+        }
 
-        return [
-            'id_app' => $idApp,
-            'app_nombre' => $app->nombre ?? null,
-            'ad_accounts' => $adAccounts,
-            'data' => $campaigns,
-            'total' => count($campaigns),
-            'paging' => $paging,
-            'pagination' => [
-                'per_page' => $limit,
-                'current_count' => count($campaigns),
-                'has_next' => ! empty($paging['cursors']['after'] ?? null),
-                'has_prev' => ! empty($paging['cursors']['before'] ?? null),
-                'next_cursor' => $paging['cursors']['after'] ?? null,
-                'prev_cursor' => $paging['cursors']['before'] ?? null,
-            ],
-        ];
+        $search = trim((string) ($filtros['search'] ?? ''));
+        if ($search !== '') {
+            $modelo->groupStart()
+                ->like('cliente.telefono', $search)
+                ->orLike('cliente_perfil.nombre', $search)
+                ->orLike('cliente_perfil.apellido', $search)
+                ->orLike('cliente_perfil.nombre_completo', $search)
+                ->groupEnd();
+        }
+
+        $this->aplicarFiltrosClienteCrm($modelo, $filtros);
+        $this->aplicarOrdenUltimoMensajeReciente($modelo);
+
+        return $this->ejecutarListadoPaginadoSidebarChat($modelo, $page);
     }
 
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function listarAdAccountsMeta(string $accessToken): array
-    {
-        $fields = 'id,account_id,name,account_status,currency,timezone_name,business_name';
-        $response = $this->metaGraphRequest('me/adaccounts', $accessToken, [
-            'fields' => $fields,
-            'limit' => 100,
-        ]);
-
-        $accounts = [];
-        foreach ($response['data'] ?? [] as $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-            $accounts[] = [
-                'id' => (string) ($row['id'] ?? ''),
-                'account_id' => (string) ($row['account_id'] ?? ''),
-                'name' => $row['name'] ?? null,
-                'account_status' => isset($row['account_status']) ? (int) $row['account_status'] : null,
-                'currency' => $row['currency'] ?? null,
-                'timezone_name' => $row['timezone_name'] ?? null,
-                'business_name' => $row['business_name'] ?? null,
-            ];
-        }
-
-        return $accounts;
-    }
-
-    /**
-     * @param array<string, mixed> $row
-     * @param array<string, mixed>|null $account
-     *
-     * @return array<string, mixed>
-     */
-    private function formatearCampaniaMetaApi(array $row, string $adAccountId, ?array $account): array
-    {
-        return [
-            'id' => (string) ($row['id'] ?? ''),
-            'name' => $row['name'] ?? null,
-            'status' => $row['status'] ?? null,
-            'effective_status' => $row['effective_status'] ?? null,
-            'objective' => $row['objective'] ?? null,
-            'buying_type' => $row['buying_type'] ?? null,
-            'start_time' => $row['start_time'] ?? null,
-            'stop_time' => $row['stop_time'] ?? null,
-            'created_time' => $row['created_time'] ?? null,
-            'updated_time' => $row['updated_time'] ?? null,
-            'ad_account_id' => $adAccountId,
-            'ad_account_name' => $account['name'] ?? null,
-        ];
-    }
-
-    /**
-     * @param list<array<string, mixed>> $adAccounts
-     *
-     * @return array<string, array<string, mixed>>
-     */
-    private function mapaAdAccountsPorId(array $adAccounts): array
-    {
-        $map = [];
-        foreach ($adAccounts as $account) {
-            $id = (string) ($account['id'] ?? '');
-            if ($id !== '') {
-                $map[$id] = $account;
-            }
-        }
-
-        return $map;
-    }
-
-    private function normalizarAdAccountId(string $id): string
-    {
-        $id = trim($id);
-        if ($id === '') {
-            return '';
-        }
-        if (str_starts_with($id, 'act_')) {
-            return $id;
-        }
-
-        $digits = preg_replace('/\D+/', '', $id);
-
-        return $digits !== '' ? 'act_' . $digits : $id;
-    }
-
-    /**
-     * @param array<string, mixed> $params
-     *
-     * @return array<string, mixed>
-     */
-    private function metaGraphRequest(string $path, string $accessToken, array $params = []): array
-    {
-        $version = $this->config->meta_graph_api_version;
-        $path = ltrim($path, '/');
-        $endpoint = "https://graph.facebook.com/{$version}/{$path}";
-        if ($params !== []) {
-            $endpoint .= '?' . http_build_query($params);
-        }
-
-        $ch = curl_init($endpoint);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $accessToken,
-                'Content-Type: application/json',
-            ],
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        if ($curlError !== '') {
-            throw new \Exception('Error de conexión con Meta: ' . $curlError);
-        }
-
-        $responseData = json_decode((string) $response, true);
-        if (! is_array($responseData)) {
-            throw new \Exception('Respuesta inválida de Meta Graph API');
-        }
-
-        if ($httpCode !== 200) {
-            $message = $responseData['error']['message'] ?? 'Error desconocido';
-            $code = $responseData['error']['code'] ?? $httpCode;
-            throw new \Exception("Meta Graph API: {$message} (código {$code})");
-        }
-
-        return $responseData;
-    }
-
+    /** La empresa sale del número de WhatsApp (app) que recibió el mensaje; la sesión es solo el último recurso. */
     private function resolverIdEmpresaConversacion(array $datos): int
     {
         $id = (int) ($datos['id_empresa'] ?? 0);

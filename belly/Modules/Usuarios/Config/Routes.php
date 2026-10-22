@@ -36,6 +36,13 @@ $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static fun
         $routes->delete('(:num)', 'UsuarioController::eliminar/$1', ['as' => 'apiv1_usuarios_delete']);
     });
 
+    $routes->group('asesores', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
+        $routes->get('/', 'AsesorControllerApi::listar', ['as' => 'apiv1_asesores']);
+        $routes->post('/', 'AsesorControllerApi::crear', ['as' => 'apiv1_asesores_crear']);
+        $routes->put('(:num)/estado', 'AsesorControllerApi::cambiarEstado/$1', ['as' => 'apiv1_asesores_estado']);
+        $routes->post('(:num)/foto', 'AsesorControllerApi::subirFoto/$1', ['as' => 'apiv1_asesores_foto']);
+    });
+
     $routes->group('acceso', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
         $routes->get('roles', 'AccesoController::roles');
         $routes->post('roles', 'AccesoController::crearRol');
@@ -54,10 +61,6 @@ $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static fun
 });
 
 $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
-    $routes->group('usuario-metricas', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
-        $routes->get('dashboard', 'UsuarioMetricaController::dashboard', ['as' => 'apiv1_usuario_metricas_dashboard']);
-    });
-
     $routes->group('acceso', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
         $routes->get('menu', 'AccesoController::menu');
     });
@@ -80,16 +83,6 @@ $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:operador']], static 
         $routes->post('crear', 'GrupoUsuarioRolController::crear', ['as' => 'apiv1_grupo_usuario_rol_create']);
         $routes->put('(:num)', 'GrupoUsuarioRolController::editar/$1', ['as' => 'apiv1_grupo_usuario_rol_update']);
         $routes->delete('(:num)', 'GrupoUsuarioRolController::eliminar/$1', ['as' => 'apiv1_grupo_usuario_rol_delete']);
-    });
-
-    $routes->group('horario_grupo_usuario_rol', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
-        $routes->get('/', 'HorarioGrupoUsuarioRolController::listar', ['as' => 'apiv1_horario_grupo_usuario_rol_list']);
-        $routes->get('roles-sin-horario', 'HorarioGrupoUsuarioRolController::listarRolesSinHorario', ['as' => 'apiv1_horario_grupo_usuario_rol_roles_sin_horario']);
-        $routes->get('por-rol/(:num)', 'HorarioGrupoUsuarioRolController::listarPorRol/$1', ['as' => 'apiv1_horario_grupo_usuario_rol_por_rol']);
-        $routes->get('(:num)', 'HorarioGrupoUsuarioRolController::ver/$1', ['as' => 'apiv1_horario_grupo_usuario_rol_read']);
-        $routes->post('crear', 'HorarioGrupoUsuarioRolController::crear', ['as' => 'apiv1_horario_grupo_usuario_rol_create']);
-        $routes->put('(:num)', 'HorarioGrupoUsuarioRolController::editar/$1', ['as' => 'apiv1_horario_grupo_usuario_rol_update']);
-        $routes->delete('(:num)', 'HorarioGrupoUsuarioRolController::eliminar/$1', ['as' => 'apiv1_horario_grupo_usuario_rol_delete']);
     });
 
     $routes->group('grupo_usuario_usuario', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {

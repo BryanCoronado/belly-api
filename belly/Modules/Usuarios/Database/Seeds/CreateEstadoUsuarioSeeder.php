@@ -3,17 +3,6 @@
 namespace Belly\Usuarios\Database\Seeds;
 
 use CodeIgniter\Database\Seeder;
-use Belly\Usuarios\Database\Seeds\CreateUsuariosPerfilSeeder;
-use Belly\Usuarios\Database\Seeds\TiposDocumentosSeeder;
-use Belly\Usuarios\Database\Seeds\CreateGruposUsuariosSeeder;
-use Belly\Usuarios\Database\Seeds\CreateRolesSeeder;
-use Belly\Usuarios\Database\Seeds\AsignarUsuarioGrupoSeeder;
-use Belly\Modulos\Database\Seeds\CreateModulosSeeder;
-use Belly\Permisos\Database\Seeds\CreatePermisosGruposSeeder;
-use Belly\Permisos\Database\Seeds\CreatePermisosSeeder;
-use Belly\Usuarios\Database\Seeds\ConcederAccesoSeeder;
-use Belly\Modulos\Database\Seeds\CreateGruposModulosSeeder;
-use Belly\Database\Seeds\ModuloEmpresaSeeder;
 
 class CreateEstadoUsuarioSeeder extends Seeder
 {

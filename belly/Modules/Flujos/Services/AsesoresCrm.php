@@ -3,6 +3,7 @@
 namespace Belly\Flujos\Services;
 
 use Belly\Flujos\Domain\CatalogoAsesores;
+use Belly\Usuarios\Services\ConsultaAsesores;
 
 /** Lista las personas de la empresa que pueden atender chats. */
 class AsesoresCrm implements CatalogoAsesores

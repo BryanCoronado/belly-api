@@ -291,13 +291,17 @@ class PlantillaMensajeUseCase {
             $opcionesTodas = $opciones;
             $opcionesTodas['per_page'] = 1000;
             $opcionesTodas['page'] = 1;
+            $opcionesTodas['fields'] = $opciones['fields'] ?? 'id,name,status,category,language,components';
             
             $resultadoCompleto = $this->obtenerPlantillasTodas($opcionesTodas);
             $todas = $resultadoCompleto['data'] ?? [];
 
-            // Filtrar solo activas (id_estado_sistema = 1)
-            $filtradas = array_values(array_filter($todas, function($plantilla) {
-                return isset($plantilla['id_estado_sistema']) && (int)$plantilla['id_estado_sistema'] === 1;
+            // Vienen de la API de Meta. Si no hay marca interna, basta con que Meta las haya aprobado
+            // (hello_world y las creadas en Business Manager no están en plantilla_meta).
+            $filtradas = array_values(array_filter($todas, static function ($plantilla) {
+                return is_array($plantilla)
+                    && strtoupper((string) ($plantilla['status'] ?? '')) === 'APPROVED'
+                    && in_array($plantilla['id_estado_sistema'] ?? null, [null, 1, '1'], true);
             }));
             
             return [

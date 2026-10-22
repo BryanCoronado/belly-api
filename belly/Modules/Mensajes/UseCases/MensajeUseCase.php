@@ -51,6 +51,7 @@ class MensajeUseCase {
         $mensaje_entity->id_estado = $datos['id_estado'] ?? null;
         $mensaje_entity->mensaje = $datos['mensaje'] ?? null;
         $mensaje_entity->contesta = $datos['contesta'] ?? null;
+        $mensaje_entity->id_usuario = $this->resolverIdUsuarioMensaje($datos);
         $mensaje_entity->id_mensaje_whatsapp = $datos['id_mensaje_whatsapp'] ?? null;
         $mensaje_entity->id_mensaje_responde = $datos['id_mensaje_responde'] ?? null;
         $mensaje_entity->cod_error = $datos['cod_error'] ?? null;
@@ -95,6 +96,7 @@ class MensajeUseCase {
                 'mensaje' => $mensaje_entity->mensaje,
                 'id_estado' => $mensaje_entity->id_estado,
                 'contesta' => $mensaje_entity->contesta,
+                'id_usuario' => $mensaje_entity->id_usuario,
                 'id_mensaje_whatsapp' => $mensaje_entity->id_mensaje_whatsapp,
                 'id_mensaje_responde' => $mensaje_entity->id_mensaje_responde,
                 'cod_error' => $mensaje_entity->cod_error,
@@ -556,7 +558,7 @@ class MensajeUseCase {
             $mensajes_procesados[] = $mensaje_data;
         }
 
-        return $mensajes_procesados;
+        return $this->enriquecerAutoresMensajes($mensajes_procesados);
     }
 
     /**
@@ -867,6 +869,7 @@ class MensajeUseCase {
                     'cod_error' => $responseData['error']['code'] ?? null,
                     'id_mensaje_responde' => $datos['id_mensaje_responde'] ?? null,
                     'contesta' => 'usuario',
+                    'id_usuario' => $datos['id_usuario'] ?? null,
                     'media_type' => $mediaTipoGuardar,
                 ];
                 
@@ -1366,5 +1369,76 @@ class MensajeUseCase {
         }
 
         return $id;
+    }
+
+    /** Quién del equipo escribió el mensaje (solo cuando contesta = usuario). */
+    private function resolverIdUsuarioMensaje(array $datos): ?int
+    {
+        $contesta = (string) ($datos['contesta'] ?? '');
+        if ($contesta !== 'usuario') {
+            return null;
+        }
+
+        $id = (int) ($datos['id_usuario'] ?? 0);
+        if ($id > 0) {
+            return $id;
+        }
+
+        try {
+            $usuario = auth()->getUsuario();
+            $id = (int) ($usuario->id ?? 0);
+
+            return $id > 0 ? $id : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $mensajes
+     * @return list<array<string, mixed>>
+     */
+    private function enriquecerAutoresMensajes(array $mensajes): array
+    {
+        $ids = [];
+        foreach ($mensajes as $mensaje) {
+            $id = (int) ($mensaje['id_usuario'] ?? 0);
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+        if ($ids === []) {
+            return $mensajes;
+        }
+
+        $filas = db_connect()->table('usuario u')
+            ->select('u.id, u.usuario, p.nombres, p.apellidos, p.foto_url')
+            ->join('usuario_perfil p', 'p.id_usuario = u.id AND p.deleted_at IS NULL', 'left')
+            ->whereIn('u.id', array_keys($ids))
+            ->get()
+            ->getResultArray();
+
+        $porId = [];
+        foreach ($filas as $fila) {
+            $nombre = trim(trim((string) ($fila['nombres'] ?? '')) . ' ' . trim((string) ($fila['apellidos'] ?? '')));
+            if ($nombre === '') {
+                $nombre = (string) $fila['usuario'];
+            }
+            $porId[(int) $fila['id']] = [
+                'id' => (int) $fila['id'],
+                'nombre' => $nombre,
+                'foto' => $fila['foto_url'] ?: null,
+            ];
+        }
+
+        foreach ($mensajes as &$mensaje) {
+            $id = (int) ($mensaje['id_usuario'] ?? 0);
+            if ($id > 0 && isset($porId[$id])) {
+                $mensaje['autor'] = $porId[$id];
+            }
+        }
+        unset($mensaje);
+
+        return $mensajes;
     }
 }

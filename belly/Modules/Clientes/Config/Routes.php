@@ -25,8 +25,4 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
         $routes->put('(:num)', 'ListaNegraControllerApi::actualizar/$1', ['as' => 'apiv1_lista_negra_actualizar'] );
         $routes->delete('(:num)', 'ListaNegraControllerApi::eliminar/$1', ['as' => 'apiv1_lista_negra_eliminar'] );
     });
-
-    $routes->group('metricas', ['namespace' => 'Belly\Clientes\Controllers\Api'], static function ($routes) {
-        $routes->get('atencion', 'ClienteMetricaControllerApi::obtenerMetricasAtencion', ['as' => 'apiv1_metricas_atencion'] );
-    });
 });

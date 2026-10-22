@@ -55,12 +55,11 @@ class ClienteUseCase {
             'cp.nombre',
             'cp.apellido', 
             'cp.nombre_completo',
-            'cp.marca',
-            'cp.modelo',
-            'cp.placa',
             'cp.correo',
             'cp.distrito',
-            'cp.tipo'
+            'cliente.id_etapa',
+            'cliente.id_tipo',
+            'cliente.notas',
         ]);
         $cliente_model->join('cliente_perfil as cp', 'cp.id_cliente = cliente.id', 'left');
         $cliente = $cliente_model->find($id);
@@ -602,29 +601,34 @@ class ClienteUseCase {
         ]);
     }
 
-    public function listarClientes($page = 1, $perPage = 10, $search = null){
+    /**
+     * @param int|null $idUsuario Solo los clientes con alguna conversación de ese usuario.
+     */
+    public function listarClientes($page = 1, $perPage = 10, $search = null, ?int $idUsuario = null)
+    {
         $cliente_model = $this->getClienteProvider();
-        
-        $cliente_model->select([
-            'cliente.id',
-            'cliente.telefono', 
-            'cliente.created_at',
-            'cliente.updated_at',
-            'cp.nombre',
-            'cp.apellido', 
-            'cp.nombre_completo',
-            'cp.marca',
-            'cp.modelo',
-            'cp.placa',
-            'cp.correo',
-            'cp.distrito',
-            'cp.tipo'
-        ]);
-        
+
+        $cliente_model->select(
+            'cliente.id, cliente.telefono, cliente.created_at, cliente.updated_at,
+            cp.nombre, cp.apellido, cp.nombre_completo, cp.correo, cp.distrito,
+            (SELECT up.nombres FROM conversacion c2
+                JOIN usuario_perfil up ON up.id_usuario = c2.id_usuario AND up.deleted_at IS NULL
+                WHERE c2.id_cliente = cliente.id AND c2.deleted_at IS NULL
+                ORDER BY c2.id DESC LIMIT 1) AS asesor_nombre',
+            false
+        );
         $cliente_model->join('cliente_perfil as cp', 'cp.id_cliente = cliente.id', 'left');
-        
+
+        if ($idUsuario !== null) {
+            $cliente_model->where(
+                'cliente.id IN (SELECT c3.id_cliente FROM conversacion c3 WHERE c3.deleted_at IS NULL AND c3.id_usuario = ' . (int) $idUsuario . ')',
+                null,
+                false
+            );
+        }
+
         $cliente_model->orderBy('cliente.id', 'ASC');
-        
+
         if (!empty($search)) {
             $cliente_model->groupStart();
             $cliente_model->like('cliente.id', $search);
@@ -681,77 +685,7 @@ class ClienteUseCase {
             throw new \Exception('No se pudo obtener el usuario autenticado');
         }
 
-        $cliente_model = $this->getClienteProvider();
-        $cliente_model->select([
-            'cliente.id',
-            'cliente.telefono',
-            'cliente.created_at',
-            'cliente.updated_at',
-            'cp.nombre',
-            'cp.apellido',
-            'cp.nombre_completo',
-            'cp.marca',
-            'cp.modelo',
-            'cp.placa',
-            'cp.correo',
-            'cp.distrito',
-            'cp.tipo'
-        ]);
-        $cliente_model->join('cliente_perfil as cp', 'cp.id_cliente = cliente.id', 'left');
-        // Unir con conversacion para filtrar por usuario
-        $cliente_model->join('conversacion as conv', 'conv.id_cliente = cliente.id AND conv.deleted_at IS NULL', 'inner');
-        $cliente_model->where('conv.id_usuario', $usuario->id);
-        $cliente_model->orderBy('cliente.id', 'ASC');
-
-        if (!empty($search)) {
-            $cliente_model->groupStart();
-            $cliente_model->like('cliente.id', $search);
-            $cliente_model->orLike('cliente.telefono', $search);
-            $cliente_model->orLike('cp.nombre', $search);
-            $cliente_model->orLike('cp.apellido', $search);
-            $cliente_model->orLike('cp.nombre_completo', $search);
-            $cliente_model->orLike('cp.correo', $search);
-            $cliente_model->groupEnd();
-        }
-
-        $cliente_model->groupBy('cliente.id'); // Evitar duplicados si hay varias conversaciones
-
-        if ($perPage == 'all') {
-            $clientes = $cliente_model->findAll();
-            $total = count($clientes);
-            return [
-                'data' => $clientes,
-                'pagination' => [
-                    'total' => $total,
-                    'currentPage' => 1,
-                    'from' => $total > 0 ? 1 : 0,
-                    'to' => $total,
-                    'hasNext' => false,
-                    'hasPrev' => false,
-                ]
-            ];
-        }
-
-        $result = $cliente_model->paginate($perPage, 'default', $page);
-        $pager = $cliente_model->pager;
-        $total = $pager->getTotal('default');
-        $currentPage = $pager->getCurrentPage('default');
-        $perPage = $pager->getPerPage('default');
-        $lastPage = $pager->getPageCount('default');
-        $from = ($total > 0) ? (($currentPage - 1) * $perPage) + 1 : 0;
-        $to = ($from + count($result)) - 1;
-
-        return [
-            'data' => $result,
-            'pagination' => [
-                'total' => $total,
-                'currentPage' => $currentPage,
-                'from' => $from,
-                'to' => $to,
-                'hasNext' => $currentPage < $lastPage,
-                'hasPrev' => $currentPage > 1,
-            ],
-        ];
+        return $this->listarClientes($page, $perPage, $search, (int) $usuario->id);
     }
 
     /**
@@ -899,7 +833,7 @@ class ClienteUseCase {
         }
         
         // Campos del perfil
-        $campos_perfil = ['nombre', 'apellido', 'nombre_completo', 'marca', 'modelo', 'placa', 'correo', 'distrito', 'tipo'];
+        $campos_perfil = ['nombre', 'apellido', 'nombre_completo', 'correo', 'distrito'];
         foreach ($campos_perfil as $campo) {
             if (isset($datos[$campo])) {
                 $datos_perfil[$campo] = $datos[$campo];

@@ -132,15 +132,21 @@ class WebhookUseCase
         try {
             $conversacion = $this->obtenerConversacionActivaWhatsapp($idCliente, $idApp, $db);
             $conversacionNueva = false;
+            $agenteInicial = null;
 
             if ($conversacion) {
                 $idConversacion = (int) $conversacion->id;
                 $idUsuario = (int) $conversacion->id_usuario;
             } else {
-                $idUsuario = $this->resolverAsignacion($app, $idApp, $idCliente);
+                $decision = $this->resolverAsignacion($idEmpresa, $idApp, $idCliente, $message);
+                $idUsuario = $decision['tipo'] === 'asesor' ? $decision['id_usuario'] : null;
+                if ($decision['tipo'] === 'agente') {
+                    $idUsuario = atencion_ia()->usuarioAsistente($idEmpresa);
+                    $agenteInicial = ['id' => (int) $decision['id_agente'], 'nodo' => $decision['nodo']];
+                }
                 if ($idUsuario === null) {
                     $db->transRollback();
-                    log_message('error', '[WEBHOOK WA] Sin asesor disponible. app=' . $idApp . ' cliente=' . $idCliente);
+                    log_message('error', '[WEBHOOK WA] La empresa no tiene a quién asignarle el chat. app=' . $idApp . ' cliente=' . $idCliente);
 
                     return;
                 }
@@ -193,16 +199,42 @@ class WebhookUseCase
             log_message('info', '[WEBHOOK WA] Conversación nueva id=' . $idConversacion . ' usuario=' . $idUsuario);
         }
 
-        $this->responderConBot($idConversacion, $message, $mensajeData, $conversacionNueva);
+        $texto = trim((string) ($mensajeData['mensaje'] ?? ''));
+        if ($this->responderConAsistente($idEmpresa, $idConversacion, $texto, $agenteInicial)) {
+            return;
+        }
+
+        $this->responderConBot($idConversacion, $message, $texto, $conversacionNueva);
+    }
+
+    /**
+     * Si el chat lo atiende un asistente de IA, él contesta (y los flujos de mensajes no).
+     *
+     * @param array{id: int, nodo: ?string}|null $agenteInicial el reparto acaba de elegir a este asistente
+     */
+    private function responderConAsistente(int $idEmpresa, int $idConversacion, string $texto, ?array $agenteInicial): bool
+    {
+        try {
+            if ($agenteInicial !== null) {
+                atencion_ia()->iniciar($idEmpresa, $idConversacion, $agenteInicial['id'], $agenteInicial['nodo'], $texto);
+
+                return true;
+            }
+
+            return atencion_ia()->alRecibirMensaje($idEmpresa, $idConversacion, $texto);
+        } catch (\Throwable $e) {
+            log_message('error', '[IA] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+
+            return $agenteInicial !== null;
+        }
     }
 
     /**
      * Pasa el mensaje al bot de flujos. Nunca debe tumbar el procesamiento del webhook.
      *
      * @param array<string, mixed> $message
-     * @param array<string, mixed> $mensajeData
      */
-    private function responderConBot(int $idConversacion, array $message, array $mensajeData, bool $conversacionNueva): void
+    private function responderConBot(int $idConversacion, array $message, string $texto, bool $conversacionNueva): void
     {
         try {
             $respuestaId = (string) (
@@ -211,12 +243,7 @@ class WebhookUseCase
                 ?? ''
             );
 
-            bot_flujos()->alRecibirMensaje(
-                $idConversacion,
-                trim((string) ($mensajeData['mensaje'] ?? '')),
-                $respuestaId,
-                $conversacionNueva
-            );
+            bot_flujos()->alRecibirMensaje($idConversacion, $texto, $respuestaId, $conversacionNueva);
         } catch (\Throwable $e) {
             log_message('error', '[BOT] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
         }
@@ -280,19 +307,27 @@ class WebhookUseCase
     }
 
     /**
-     * Cliente recurrente conserva su asesor si sigue disponible.
-     * Si no, reparto equitativo del día entre el personal de la app.
+     * A quién llega el chat nuevo: lo decide el lienzo «Cómo llegan los chats» de la empresa
+     * (un asesor, un grupo, una persona fija o un asistente de IA).
+     *
+     * @param array<string, mixed> $message
+     * @return array{tipo: string, id_usuario: ?int, id_agente: ?int, nodo: ?string}
      */
-    private function resolverAsignacion(object $app, int $idApp, int $idCliente): ?int
+    private function resolverAsignacion(int $idEmpresa, int $idApp, int $idCliente, array $message): array
     {
-        $asignacion = conversaciones()->resolverAsignacionClienteRecurrente($idCliente, $idApp, $app);
-        if (! empty($asignacion['id_usuario'])) {
-            return (int) $asignacion['id_usuario'];
-        }
+        $asesorPrevio = conversaciones()->obtenerUltimoAsesorHumanoCliente($idCliente, $idApp);
+        $texto = $message['text']['body']
+            ?? $message['interactive']['button_reply']['title']
+            ?? $message['interactive']['list_reply']['title']
+            ?? $message['button']['text']
+            ?? '';
 
-        $idEquitativo = app()->obtenerUsuarioParaApp($app);
-
-        return $idEquitativo ? (int) $idEquitativo : null;
+        return asignador_chats()->decidir($idEmpresa, [
+            'recurrente' => $asesorPrevio !== null,
+            'asesor_previo' => $asesorPrevio,
+            'anuncio' => $this->referralDelMensaje($message)['source_id'] !== null,
+            'texto' => (string) $texto,
+        ]);
     }
 
     private function obtenerConversacionActivaWhatsapp(int $idCliente, int $idApp, $db): ?object

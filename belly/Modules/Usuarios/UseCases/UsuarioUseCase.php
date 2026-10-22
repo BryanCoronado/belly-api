@@ -197,6 +197,7 @@ class UsuarioUseCase {
         $usuario_model->join('grupo_usuario_usuario as guu', 'guu.id_usuario = usuario.id AND guu.deleted_at IS NULL', 'left');
         $usuario_model->join('grupo_usuario_rol as gur', 'gur.id = guu.id_grupo_usuario_rol AND gur.deleted_at IS NULL', 'left');
         $usuario_model->join('grupo_usuario as gu', 'gu.id = guu.id_grupo_usuario AND gu.deleted_at IS NULL', 'left');
+        $usuario_model->where('usuario.es_bot', 0);
         
         // Filtro de búsqueda
         if (!empty($search)) {

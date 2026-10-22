@@ -30,6 +30,7 @@ class MensajeController extends BaseController
                     'request_id' => $requestId,
                 ])->setStatusCode(400);
             }
+            conversaciones()->exigirAcceso((int) $idConversacion);
 
             $file = $request->getFile('file');
             $datos = [
@@ -133,9 +134,10 @@ class MensajeController extends BaseController
                 ])->setStatusCode(400);
             }
 
-            // Si una persona escribe, el bot automático deja de contestar en esa conversación.
+            // Si una persona escribe, el bot automático y el asistente de IA dejan de contestar en esa conversación.
             try {
                 bot_flujos()->pausarPorAsesor((int) ($datos['id_conversacion'] ?? 0));
+                atencion_ia()->pausarPorAsesor((int) ($datos['id_conversacion'] ?? 0));
             } catch (\Throwable $e) {
                 log_message('error', '[BOT] No se pudo pausar el bot: ' . $e->getMessage());
             }
@@ -163,6 +165,7 @@ class MensajeController extends BaseController
     {
         try {
             $idConversacion = (int) $id_conversacion;
+            conversaciones()->exigirAcceso($idConversacion);
             $mensajes = mensaje()->obtenerMensajesPorConversacion($idConversacion);
             $contextoApoyoRecurrente = conversaciones()->construirContextoApoyoRecurrente($idConversacion);
 
@@ -245,6 +248,8 @@ class MensajeController extends BaseController
                     'error' => 'El campo id_conversacion es obligatorio'
                 ])->setStatusCode(400);
             }
+
+            conversaciones()->exigirAcceso((int) $data['id_conversacion']);
 
             if (empty($data['template_id']) || empty($data['template_name'])) {
                 return $this->response->setJSON([

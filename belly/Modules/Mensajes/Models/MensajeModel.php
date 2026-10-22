@@ -21,6 +21,7 @@ class MensajeModel extends Model {
         'id_estado',
         'mensaje',
         'contesta',
+        'id_usuario',
         'id_mensaje_whatsapp',
         'id_mensaje_responde',
         'cod_error',
@@ -36,6 +37,7 @@ class MensajeModel extends Model {
         'id_empresa' => 'int',
         'id_conversacion' => 'int',
         'id_estado' => 'int',
+        'id_usuario' => '?int',
     ];
     protected array $castHandlers = [];
     // Dates

@@ -117,7 +117,6 @@ class AccesoUseCase
             'documentos_access',
             'camara_access',
             'plantillas_mensajes_access',
-            'catalogo_access',
         ];
         $operacion = [];
         foreach ($this->catalogo() as $modulo) {

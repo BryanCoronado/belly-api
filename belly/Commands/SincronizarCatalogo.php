@@ -9,7 +9,7 @@ use CodeIgniter\Database\BaseConnection;
 
 /**
  * Aplica CatalogoAcceso a una base existente sin borrar datos:
- * actualiza grupos, permisos y módulos por id y normaliza los permisos de los roles.
+ * actualiza grupos, permisos y módulos por id, retira los obsoletos y normaliza los permisos de los roles.
  */
 class SincronizarCatalogo extends BaseCommand
 {
@@ -38,6 +38,7 @@ class SincronizarCatalogo extends BaseCommand
             $this->guardar($db, 'modulo', $modulo, $ahora);
         }
 
+        $this->retirarObsoletos($db);
         $padres = $this->completarPadres($db, $ahora);
         $soloAdmin = $this->quitarSoloAdmin($db);
 
@@ -65,6 +66,20 @@ class SincronizarCatalogo extends BaseCommand
         }
 
         $db->table($tabla)->insert($fila + ['created_at' => $ahora]);
+    }
+
+    /** Elimina permisos y módulos que ya no existen en el producto, junto con lo que los referenciaba. */
+    private function retirarObsoletos(BaseConnection $db): void
+    {
+        $permisos = CatalogoAcceso::PERMISOS_RETIRADOS;
+        $modulos = CatalogoAcceso::MODULOS_RETIRADOS;
+
+        $db->table('modulo')->whereIn('id', $modulos)->delete();
+        foreach (['grupo_usuario_permiso_rol', 'grupo_usuario_permiso_usuario', 'usuario_permiso_especial', 'grupo_usuario_permiso'] as $tabla) {
+            $db->table($tabla)->whereIn('id_permiso', $permisos)->delete();
+        }
+        $db->table('modulo')->whereIn('id_permiso', $permisos)->delete();
+        $db->table('permiso')->whereIn('id', $permisos)->delete();
     }
 
     /** Si un rol tiene un subpermiso, también debe tener acceso a su módulo padre. */

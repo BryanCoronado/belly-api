@@ -77,11 +77,6 @@ class CreateConversacionTable extends Migration
                 'unsigned'   => true,
                 'null'       => true,
             ],
-            'tipo' => [
-                'type' => 'ENUM',
-                'constraint' => ['contact_center', 'customer_success'],
-                'null' => true,
-            ],
             'servicio' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 100,
@@ -137,7 +132,6 @@ class CreateConversacionTable extends Migration
         $this->forge->addForeignKey('id_motivo','motivo_conversacion','id','CASCADE','CASCADE');
         $this->forge->addForeignKey('id_etiqueta','etiqueta','id','CASCADE','CASCADE');
         $this->forge->addKey('deleted_at');
-        $this->forge->addKey('tipo');
         $this->forge->addKey(['id_usuario', 'id_estado', 'deleted_at'], false, false, 'idx_conv_usuario_estado');
 
         $this->forge->createTable('conversacion');

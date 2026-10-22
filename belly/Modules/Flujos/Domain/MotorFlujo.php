@@ -26,7 +26,7 @@ use DateTimeImmutable;
  *   espera     {segundos}   espera larga; el flujo se retoma después (solo informativo)
  *
  * Acciones (no se envían al cliente; las ejecuta quien corre el flujo):
- *   asignar      {modo, asesor_id, equipo}   pasar el chat a un asesor (ver Asignacion::pedido)
+ *   asignar      {modo, asesor_id}            pasar el chat a un asesor (ver Asignacion::pedido)
  *   temperatura  {valor}                      marcar frío / tibio / caliente
  *
  * En el texto de «Pasar a un asesor» se puede usar {{asesor}}: llega como MARCA_ASESOR
@@ -44,6 +44,10 @@ final class MotorFlujo
 
     public const PALABRAS_ASESOR = ['asesor', 'agente', 'humano', 'persona', 'operador'];
     public const MENSAJE_ASESOR = 'Perfecto, un asesor te atenderá en breve. 🙌';
+
+    public function __construct(private readonly ?TurnosEquipo $turnos = null)
+    {
+    }
 
     /** @return array{mensajes:list<array>, estado:array} */
     public function iniciar(array $definicion, array $variables, DateTimeImmutable $ahora): array
@@ -180,7 +184,7 @@ final class MotorFlujo
                     break;
 
                 case TiposNodo::HORARIO:
-                    $siguiente = $grafo->destino($id, Horario::dentro($datos, $ahora) ? 'abierto' : 'cerrado');
+                    $siguiente = $grafo->destino($id, $this->hayTurno($ahora) ? 'abierto' : 'cerrado');
                     break;
 
                 case TiposNodo::ESPERA:
@@ -226,7 +230,7 @@ final class MotorFlujo
                     break;
 
                 case TiposNodo::ASESOR:
-                    $mensajes[] = Asignacion::pedido($datos, (array) ($grafo->inicio()['datos'] ?? []));
+                    $mensajes[] = Asignacion::pedido($datos);
                     array_push($mensajes, ...$this->mensajeFinal($datos, $vars + ['asesor' => self::MARCA_ASESOR]));
 
                     return $this->cerrar($estado, $mensajes, 'derivada');
@@ -321,7 +325,7 @@ final class MotorFlujo
     {
         $datos = (array) ($grafo->inicio()['datos'] ?? []);
         $texto = trim(Texto::plantilla((string) ($datos['mensaje_asesor'] ?? ''), $estado['variables'] + ['asesor' => self::MARCA_ASESOR]));
-        $mensajes[] = Asignacion::pedido([], $datos);
+        $mensajes[] = Asignacion::pedido([]);
         $mensajes[] = ['tipo' => 'texto', 'texto' => $texto !== '' ? $texto : self::MENSAJE_ASESOR];
 
         return $this->cerrar($estado, $mensajes, 'derivada');
@@ -522,6 +526,22 @@ final class MotorFlujo
     private function variablesDeReloj(DateTimeImmutable $ahora): array
     {
         return ['fecha' => $ahora->format('d/m/Y'), 'hora' => $ahora->format('H:i')];
+    }
+
+    /** Sin grupos tipo turno se considera que siempre hay atención, para no responder «estamos cerrados» por error. */
+    private function hayTurno(DateTimeImmutable $ahora): bool
+    {
+        $turnos = $this->turnos?->listar() ?? [];
+        if ($turnos === []) {
+            return true;
+        }
+        foreach ($turnos as $turno) {
+            if (Horario::dentro($turno, $ahora)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function terminar(array $estado, array $mensajes): array

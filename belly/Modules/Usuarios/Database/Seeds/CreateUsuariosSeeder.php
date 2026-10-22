@@ -2,94 +2,87 @@
 
 namespace Belly\Usuarios\Database\Seeds;
 
-use CodeIgniter\Database\Seeder;
-use Belly\Usuarios\Database\Seeds\CreateUsuariosPerfilSeeder;
-use Belly\Usuarios\Database\Seeds\TiposDocumentosSeeder;
-use Belly\Usuarios\Database\Seeds\CreateGruposUsuariosSeeder;
-use Belly\Usuarios\Database\Seeds\CreateRolesSeeder;
-use Belly\Usuarios\Database\Seeds\AsignarUsuarioGrupoSeeder;
+use Belly\Modulos\Database\Seeds\CreateGruposModulosSeeder;
 use Belly\Modulos\Database\Seeds\CreateModulosSeeder;
 use Belly\Permisos\Database\Seeds\CreatePermisosGruposSeeder;
 use Belly\Permisos\Database\Seeds\CreatePermisosSeeder;
-use Belly\Usuarios\Database\Seeds\ConcederAccesoSeeder;
-use Belly\Modulos\Database\Seeds\CreateGruposModulosSeeder;
+use CodeIgniter\Database\Seeder;
+
+/**
+ * Instalación base: empresa principal, catálogo de acceso, roles (Administrador y Asesor)
+ * y los dos usuarios administradores iniciales.
+ *
+ * php spark db:seed "Belly\Usuarios\Database\Seeds\CreateUsuariosSeeder"
+ */
 class CreateUsuariosSeeder extends Seeder
 {
-    /*
-     * php spark db:seed \\Belly\\Usuarios\\Database\\Seeds\\CreateUsuariosSeeder
-     */
-
-
-
-
-         //['id' => 3,'usuario' => 'lzagaceta','password' => '$2y$12$ZLH56Glc.QkKtqXMGNVOb.z/uDaEplnpHW995KpOeZiJzU6vjjGgG','activo' => 1,'id_estado_usuario' => 1,'sudo' => 1,'es_bot' => 0,'created_at' => date('Y-m-d H:i:s'),],
+    private const ID_EMPRESA = 1;
 
     public function run()
     {
         $this->asegurarEmpresaPrincipal();
 
-        $data = [
-            ['usuario' => 'developer', 'password' => password_hash('Dev.123', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 1, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'administrador', 'password' => password_hash('Admin.123', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 1, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-
-
-
-            
-            //jefe asesores
-            ['usuario' => 'jasesores', 'password' => password_hash('jasesores', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            //asesores
-            ['usuario' => 'gcastaneda', 'password' => password_hash('74239464', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'mcuray', 'password' => password_hash('74839143', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'blainez', 'password' => password_hash('70644439', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'ediaz', 'password' => password_hash('71929889', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'ccahuachi', 'password' => password_hash('73955766', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'mochoa', 'password' => password_hash('43780077', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'ecaldas', 'password' => password_hash('72439364', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-
-
-
-
-            //jefe marketing
-            ['usuario' => 'jmarketing', 'password' => password_hash('jmarketing', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            //marketing
-            ['usuario' => 'jcastillo', 'password' => password_hash('74044468', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'alino', 'password' => password_hash('7528415', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'rochoa', 'password' => password_hash('123456', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'ssanchez', 'password' => password_hash('72528633', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'marimuya', 'password' => password_hash('61266725', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-            ['usuario' => 'pvazquez', 'password' => password_hash('74826045', PASSWORD_DEFAULT), 'activo' => 1, 'id_estado_usuario' => 1, 'sudo' => 0, 'es_bot' => 0, 'created_at' => date('Y-m-d H:i:s')],
-        ];
-
-        foreach ($data as &$fila) {
-            $fila['id_empresa'] = 1;
-        }
-        unset($fila);
-
-        $this->db->table('usuario')->insertBatch($data);
-
         $this->call(TiposDocumentosSeeder::class);
-        $this->call(CreateUsuariosPerfilSeeder::class);
-        $this->call(CreateGruposUsuariosSeeder::class);
-        $this->call(CreateRolesSeeder::class);
-        $this->call(AsignarUsuarioGrupoSeeder::class);
         $this->call(CreateGruposModulosSeeder::class);
         $this->call(CreatePermisosGruposSeeder::class);
         $this->call(CreatePermisosSeeder::class);
         $this->call(CreateModulosSeeder::class);
-        $this->call(ConcederAccesoSeeder::class);
+
+        helper('vip2system');
+        $roles = acceso()->crearRolesIniciales(self::ID_EMPRESA);
+
+        $administradores = [
+            ['usuario' => 'developer', 'password' => 'Dev.123', 'nombres' => 'Developer', 'apellidos' => 'Belly'],
+            ['usuario' => 'administrador', 'password' => 'Admin.123', 'nombres' => 'Administrador', 'apellidos' => 'Belly'],
+        ];
+        foreach ($administradores as $datos) {
+            $this->crearUsuario($datos, $roles['admin'], true);
+        }
     }
 
-    private function asegurarEmpresaPrincipal(): void
+    /** @param array{usuario:string, password:string, nombres:string, apellidos:string} $datos */
+    private function crearUsuario(array $datos, int $idRol, bool $esAdmin): void
     {
-        $existe = $this->db->table('empresa')->where('id', 1)->countAllResults();
+        $existe = $this->db->table('usuario')
+            ->where('id_empresa', self::ID_EMPRESA)
+            ->where('usuario', $datos['usuario'])
+            ->countAllResults();
         if ($existe > 0) {
             return;
         }
 
+        $this->db->table('usuario')->insert([
+            'id_empresa' => self::ID_EMPRESA,
+            'usuario' => $datos['usuario'],
+            'password' => password_hash($datos['password'], PASSWORD_DEFAULT),
+            'activo' => 1,
+            'id_estado_usuario' => 1,
+            'sudo' => $esAdmin ? 1 : 0,
+            'es_bot' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        $idUsuario = (int) $this->db->insertID();
+
+        $this->db->table('usuario_perfil')->insert([
+            'id_usuario' => $idUsuario,
+            'nombres' => $datos['nombres'],
+            'apellidos' => $datos['apellidos'],
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        acceso()->asignarUsuarioARol($idUsuario, $idRol, self::ID_EMPRESA);
+    }
+
+    private function asegurarEmpresaPrincipal(): void
+    {
+        if ($this->db->table('empresa')->where('id', self::ID_EMPRESA)->countAllResults() > 0) {
+            return;
+        }
+
         $this->db->table('empresa')->insert([
-            'id' => 1,
-            'nombre' => 'Empresa principal',
-            'slug' => 'principal',
+            'id' => self::ID_EMPRESA,
+            'nombre' => 'Empresa demo',
+            'slug' => 'demo',
             'plan' => 'base',
             'estado' => 1,
             'created_at' => date('Y-m-d H:i:s'),

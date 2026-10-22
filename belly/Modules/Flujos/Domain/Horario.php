@@ -38,6 +38,61 @@ final class Horario
         return true;
     }
 
+    /** @param array{dias: list<int>, desde: string, hasta: string} $a @param array{dias: list<int>, desde: string, hasta: string} $b */
+    public static function seSolapan(array $a, array $b): bool
+    {
+        return self::cruces([
+            ['nombre' => 'a', 'dias' => $a['dias'], 'desde' => $a['desde'], 'hasta' => $a['hasta']],
+            ['nombre' => 'b', 'dias' => $b['dias'], 'desde' => $b['desde'], 'hasta' => $b['hasta']],
+        ]) !== [];
+    }
+
+    /**
+     * Pares de horarios que comparten algún minuto de la semana (mismo criterio que dentro()).
+     *
+     * @param list<array{nombre: string, dias: list<int>, desde: string, hasta: string}> $tramos
+     * @return list<array{0: string, 1: string}>
+     */
+    public static function cruces(array $tramos): array
+    {
+        $rangos = [];
+        foreach ($tramos as $i => $t) {
+            if (! self::valido($t) || $t['desde'] === $t['hasta']) {
+                continue;
+            }
+            [$hd, $md] = array_map('intval', explode(':', $t['desde']));
+            [$hh, $mh] = array_map('intval', explode(':', $t['hasta']));
+            $desde = $hd * 60 + $md;
+            $hasta = $hh * 60 + $mh;
+            foreach ($t['dias'] as $dia) {
+                $base = ($dia - 1) * 1440;
+                if ($desde < $hasta) {
+                    $rangos[$i][] = [$base + $desde, $base + $hasta];
+                } else {
+                    $rangos[$i][] = [$base, $base + $hasta];
+                    $rangos[$i][] = [$base + $desde, $base + 1440];
+                }
+            }
+        }
+
+        $cruces = [];
+        $indices = array_keys($rangos);
+        foreach ($indices as $x => $a) {
+            foreach (array_slice($indices, $x + 1) as $b) {
+                foreach ($rangos[$a] as [$a1, $a2]) {
+                    foreach ($rangos[$b] as [$b1, $b2]) {
+                        if ($a1 < $b2 && $b1 < $a2) {
+                            $cruces[] = [$tramos[$a]['nombre'] ?: 'sin nombre', $tramos[$b]['nombre'] ?: 'sin nombre'];
+                            continue 3;
+                        }
+                    }
+                }
+            }
+        }
+
+        return $cruces;
+    }
+
     private static function minutos(string $hora): int
     {
         if (! preg_match('/^(\d{1,2}):(\d{2})$/', $hora, $m)) {

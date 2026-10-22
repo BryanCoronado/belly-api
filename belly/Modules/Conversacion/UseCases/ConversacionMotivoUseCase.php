@@ -3,7 +3,6 @@ namespace Belly\Conversacion\UseCases;
 
 use Belly\Conversacion\Config\ConversacionConfig;
 use Belly\Conversacion\Models\MotivoConversacionModel;
-use Belly\Conversacion\Entities\MotivoConversacionEntity;
 
 class ConversacionMotivoUseCase {
     protected ConversacionConfig $config;
@@ -28,84 +27,46 @@ class ConversacionMotivoUseCase {
 
     public function crearMotivoConversacion(array $datos)
     {
-        $motivo_model = $this->getMotivoConversacionProvider();
+        $lista = crm_ajustes()->guardarMotivo(null, $datos);
 
-        $motivo_entity = new MotivoConversacionEntity();
-        $motivo_entity->nombre = $datos['nombre'] ?? null;
-
-        if ($motivo_model->save($motivo_entity)) {
-            $motivo_entity->id = $motivo_model->insertID;
-            
-            // Obtener el motivo completo de la base de datos
-            $motivo_completo = $motivo_model->find($motivo_entity->id);
-
-            return $motivo_completo;
-        } else {
-            throw new \Exception(json_encode($motivo_model->errors()));
-        }
+        return $lista[array_key_last($lista)] ?? $lista;
     }
 
     public function editarMotivoConversacion(int $id, array $datos)
     {
-        $motivo_model = $this->getMotivoConversacionProvider();
-        $motivo_entity = $motivo_model->find($id);
-        
-        if (!$motivo_entity) {
-            throw new \Exception('Motivo de conversación no encontrado');
+        $lista = crm_ajustes()->guardarMotivo($id, $datos);
+        foreach ($lista as $motivo) {
+            if ((int) $motivo['id'] === $id) {
+                return $motivo;
+            }
         }
 
-        $motivo_entity->id = $id;
-        if (isset($datos['nombre'])) {
-            $motivo_entity->nombre = $datos['nombre'];
-        }
-
-        if ($motivo_model->save($motivo_entity)) {
-            // Obtener el motivo actualizado
-            return $motivo_model->find($id);
-        } else {
-            throw new \Exception(json_encode($motivo_model->errors()));
-        }
+        return $lista;
     }
 
     public function eliminarMotivoConversacion(int $id): array
     {
-        $motivo_model = $this->getMotivoConversacionProvider();
-        $motivo_entity = $motivo_model->find($id);
-        
-        if (!$motivo_entity) {
-            throw new \Exception('Motivo de conversación no encontrado');
-        }
+        crm_ajustes()->eliminarMotivo($id);
 
-        // Soft delete usando delete()
-        if ($motivo_model->delete($id)) {
-            return [
-                'message' => 'Motivo de conversación eliminado correctamente',
-                'id' => $id
-            ];
-        } else {
-            throw new \Exception('Error al eliminar el motivo de conversación');
-        }
+        return [
+            'message' => 'Motivo de conversación eliminado correctamente',
+            'id' => $id,
+        ];
     }
 
     public function listarMotivoConversacion(): array
     {
-        $motivo_model = $this->getMotivoConversacionProvider();
-
-        return $motivo_model
-            ->where('deleted_at', null)
-            ->orderBy('nombre', 'ASC')
-            ->findAll();
+        return crm_ajustes()->motivos();
     }
 
     public function obtenerMotivoConversacion(int $id)
     {
-        $motivo_model = $this->getMotivoConversacionProvider();
-        $motivo = $motivo_model->find($id);
-        
-        if (!$motivo) {
-            throw new \Exception('Motivo de conversación no encontrado');
+        foreach (crm_ajustes()->motivos() as $motivo) {
+            if ((int) $motivo['id'] === $id) {
+                return $motivo;
+            }
         }
 
-        return $motivo;
+        throw new \Exception('Motivo de conversación no encontrado');
     }
 }

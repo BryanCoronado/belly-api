@@ -3,6 +3,7 @@
 namespace Belly\Clientes\Controllers\Api;
 
 use App\Controllers\BaseController;
+use Belly\Services\Autorizacion;
 
 class ClienteControllerApi extends BaseController{
     
@@ -28,7 +29,9 @@ class ClienteControllerApi extends BaseController{
         $search = $this->request->getGet('search') ?? null;
         $search = ($search && strlen($search) > 2) ? $search : null;
 
-        $clientes = clientes()->listarClientes($page, $perPage, $search);
+        $clientes = Autorizacion::esAdministradorEmpresa()
+            ? clientes()->listarClientes($page, $perPage, $search)
+            : clientes()->listarMisClientes($page, $perPage, $search);
 
         return $this->response->setJSON([
             'success' => true,

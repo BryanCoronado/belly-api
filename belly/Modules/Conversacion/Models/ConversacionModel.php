@@ -24,7 +24,6 @@ class ConversacionModel extends Model {
         'id_estado',
         'id_motivo',
         'id_etiqueta',
-        'tipo',
         'origen',
         'temperatura',
         'registro',

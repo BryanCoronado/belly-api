@@ -12,7 +12,6 @@ use Belly\Usuarios\Models\GrupoUsuarioRolModel;
 use Belly\Usuarios\Models\GrupoUsuarioUsuarioModel;
 use Belly\Usuarios\Models\UsuarioPermisoEspecialModel;
 use Belly\Usuarios\Models\EstadoUsuarioModel;
-use Belly\Usuarios\Models\HorarioGrupoUsuarioRolModel;
 
 use CodeIgniter\Config\BaseConfig;
     
@@ -29,5 +28,4 @@ class UsuarioConfig extends BaseConfig
     public string $grupo_usuario_permiso_user_provider = GrupoUsuarioPermisoUsuarioModel::class;
     public string $grupo_usuario_permiso_rol_provider = GrupoUsuarioPermisoRolModel::class;
     public string $estado_usuario_provider = EstadoUsuarioModel::class;
-    public string $horario_grupo_usuario_rol_provider = HorarioGrupoUsuarioRolModel::class;
 }

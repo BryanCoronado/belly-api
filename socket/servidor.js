@@ -44,27 +44,34 @@ servidor.listen(config.puerto, config.host, () => {
 })
 
 // Cada pocos segundos le pide al API que retome los flujos del bot cuyo tiempo de espera ya terminó.
-let retomando = false
-setInterval(async () => {
-  if (retomando) {
-    return
-  }
-  retomando = true
-  try {
-    const respuesta = await fetch(`${config.apiUrl}/v1/interno/flujos/procesar`, {
-      method: 'POST',
-      headers: { 'X-Socket-Clave': config.clave },
-      signal: AbortSignal.timeout(60000),
-    })
-    if (!respuesta.ok) {
-      console.error(`[socket] No se pudieron retomar los flujos (HTTP ${respuesta.status})`)
+tareaPeriodica('/v1/interno/flujos/procesar', 'retomar los flujos', 10_000)
+// Y que mande la siguiente tanda de los envíos masivos en curso.
+tareaPeriodica('/v1/interno/envios/procesar', 'avanzar los envíos masivos', 5_000)
+
+/** Nunca corre dos veces a la vez: si el API tarda, se salta ese turno. */
+function tareaPeriodica(ruta, descripcion, cada) {
+  let enCurso = false
+  setInterval(async () => {
+    if (enCurso) {
+      return
     }
-  } catch (error) {
-    console.error('[socket] No se pudieron retomar los flujos:', error.message)
-  } finally {
-    retomando = false
-  }
-}, 10_000)
+    enCurso = true
+    try {
+      const respuesta = await fetch(`${config.apiUrl}${ruta}`, {
+        method: 'POST',
+        headers: { 'X-Socket-Clave': config.clave },
+        signal: AbortSignal.timeout(120_000),
+      })
+      if (!respuesta.ok) {
+        console.error(`[socket] No se pudo ${descripcion} (HTTP ${respuesta.status})`)
+      }
+    } catch (error) {
+      console.error(`[socket] No se pudo ${descripcion}:`, error.message)
+    } finally {
+      enCurso = false
+    }
+  }, cada)
+}
 
 /** Solo el API conoce la clave: es el único que puede publicar eventos. */
 async function recibirDelApi(peticion, respuesta) {

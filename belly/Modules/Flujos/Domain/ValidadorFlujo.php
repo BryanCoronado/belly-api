@@ -153,15 +153,6 @@ final class ValidadorFlujo
                 if (($d['repetir'] ?? '') === 'cada_horas' && ((int) ($d['repetir_horas'] ?? 0) < 1 || (int) $d['repetir_horas'] > 8760)) {
                     $this->error($id, 'Indica cada cuántas horas puede repetirse (entre 1 y 8760).');
                 }
-                if (is_array($d['horario_activo'] ?? null) && ! empty($d['horario_activo']['activo']) && ! Horario::valido($d['horario_activo'])) {
-                    $this->error($id, 'El horario en que funciona el flujo está incompleto.');
-                }
-                if (isset($d['reparto']) && ! in_array($d['reparto'], Asignacion::REPARTOS, true)) {
-                    $this->error($id, 'Elige cómo se reparten los chats entre tus asesores.');
-                }
-                if (! Asignacion::listaValida($d['equipo'] ?? null)) {
-                    $this->error($id, 'La lista de asesores del flujo no es válida.');
-                }
                 if (isset($d['max_intentos']) && ((int) $d['max_intentos'] < 1 || (int) $d['max_intentos'] > TiposNodo::MAX_INTENTOS_PERMITIDOS)) {
                     $this->error($id, 'Los intentos antes de pasar con un asesor deben estar entre 1 y ' . TiposNodo::MAX_INTENTOS_PERMITIDOS . '.');
                 }
@@ -220,14 +211,6 @@ final class ValidadorFlujo
                 }
                 break;
 
-            case TiposNodo::HORARIO:
-                if ((array) ($d['dias'] ?? []) === []) {
-                    $this->error($id, 'Marca al menos un día de atención.');
-                } elseif (! Horario::valido($d)) {
-                    $this->error($id, 'Las horas de atención no son válidas.');
-                }
-                break;
-
             case TiposNodo::ESPERA:
                 $cantidad = (int) ($d['cantidad'] ?? 0);
                 if (! in_array($d['unidad'] ?? 'segundos', self::UNIDADES, true) || $cantidad < 1) {
@@ -265,14 +248,8 @@ final class ValidadorFlujo
                 break;
 
             case TiposNodo::ASESOR:
-                $modo = $d['asignar'] ?? Asignacion::DEL_FLUJO;
-                if (! in_array($modo, Asignacion::MODOS_PASO, true)) {
-                    $this->error($id, 'Elige a qué asesor pasa la conversación.');
-                } elseif ($modo === Asignacion::ELEGIR && (int) ($d['asesor_id'] ?? 0) < 1) {
+                if (($d['asignar'] ?? null) === Asignacion::ELEGIR && (int) ($d['asesor_id'] ?? 0) < 1) {
                     $this->error($id, 'Elige el asesor que atenderá esta conversación.');
-                }
-                if (! Asignacion::listaValida($d['asesores'] ?? null)) {
-                    $this->error($id, 'La lista de asesores de este paso no es válida.');
                 }
                 if (mb_strlen($texto) > 4000) {
                     $this->error($id, 'El mensaje es demasiado largo.');

@@ -2,8 +2,6 @@
 
 namespace Belly\Flujos\Domain;
 
-use DateTimeImmutable;
-
 /** Decide si un flujo debe arrancar con el mensaje que acaba de llegar. */
 final class Disparador
 {
@@ -28,12 +26,12 @@ final class Disparador
      *
      * @param array{primer_mensaje?:bool, sin_bot?:bool, contacto_nuevo?:bool, veces?:int, horas_desde_ultimo?:?float} $contexto
      */
-    public static function prioridad(array $definicion, string $texto, array $contexto, DateTimeImmutable $ahora): int
+    public static function prioridad(array $definicion, string $texto, array $contexto): int
     {
         $datos = (array) ((new Grafo($definicion))->inicio()['datos'] ?? []);
         $tipo = (string) ($datos['disparador'] ?? self::PRIMER_MENSAJE);
 
-        if (! self::dentroDeHorario($datos, $ahora) || ! self::audienciaPermitida($datos, $tipo, $contexto) || ! self::repeticionPermitida($datos, $tipo, $contexto)) {
+        if (! self::audienciaPermitida($datos, $tipo, $contexto) || ! self::repeticionPermitida($datos, $tipo, $contexto)) {
             return 0;
         }
 
@@ -59,16 +57,6 @@ final class Disparador
         $valor = (string) ($datos['repetir'] ?? '');
 
         return in_array($valor, self::REPETICIONES, true) ? $valor : ($tipo === self::PALABRA_CLAVE ? 'siempre' : 'una_vez');
-    }
-
-    private static function dentroDeHorario(array $datos, DateTimeImmutable $ahora): bool
-    {
-        $horario = $datos['horario_activo'] ?? null;
-        if (! is_array($horario) || empty($horario['activo'])) {
-            return true;
-        }
-
-        return Horario::dentro($horario, $ahora);
     }
 
     private static function audienciaPermitida(array $datos, string $tipo, array $contexto): bool

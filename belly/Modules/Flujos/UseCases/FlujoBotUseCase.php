@@ -12,6 +12,7 @@ use Belly\Flujos\Models\FlujoModel;
 use Belly\Flujos\Models\FlujoSesionModel;
 use Belly\Flujos\Services\AccionesCrm;
 use Belly\Flujos\Services\EnviadorWhatsapp;
+use Belly\Flujos\Services\TurnosCrm;
 use Belly\Services\ContextoEmpresa;
 use CodeIgniter\Database\RawSql;
 use DateTimeImmutable;
@@ -45,7 +46,7 @@ class FlujoBotUseCase
     ) {
         $this->flujos = $flujos ?? new FlujoModel();
         $this->sesiones = $sesiones ?? new FlujoSesionModel();
-        $this->motor = $motor ?? new MotorFlujo();
+        $this->motor = $motor ?? new MotorFlujo(new TurnosCrm());
         $this->enviador = $enviador ?? new EnviadorWhatsapp();
         $this->acciones = $acciones ?? new AccionesCrm();
     }
@@ -129,7 +130,7 @@ class FlujoBotUseCase
             }
 
             $contexto = $this->contexto($idConversacion, $esPrimerMensaje, $ultima === null);
-            $flujo = $this->elegirParaIniciar($activos, $texto, $contexto, $ahora);
+            $flujo = $this->elegirParaIniciar($activos, $texto, $contexto);
             if ($flujo === null) {
                 return;
             }
@@ -288,7 +289,7 @@ class FlujoBotUseCase
     }
 
     /** @param list<FlujoEntity> $activos */
-    private function elegirParaIniciar(array $activos, string $texto, array $contexto, DateTimeImmutable $ahora): ?FlujoEntity
+    private function elegirParaIniciar(array $activos, string $texto, array $contexto): ?FlujoEntity
     {
         $elegido = null;
         $mejor = 0;
@@ -300,7 +301,7 @@ class FlujoBotUseCase
                 'contacto_nuevo' => $contexto['contacto_nuevo'],
                 'veces' => $propio['veces'],
                 'horas_desde_ultimo' => $propio['horas'],
-            ], $ahora);
+            ]);
             if ($prioridad > $mejor) {
                 $mejor = $prioridad;
                 $elegido = $flujo;

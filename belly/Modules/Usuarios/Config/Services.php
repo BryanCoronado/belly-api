@@ -5,18 +5,15 @@ namespace Belly\Usuarios\Config;
 use Belly\Usuarios\Config\UsuarioConfig;
 use Belly\Usuarios\UseCases\AccesoUseCase;
 use Belly\Usuarios\UseCases\UsuarioUseCase;
-use Belly\Usuarios\UseCases\GrupoUsuarioPermisoGrupoUsuarioRolUseCase;
+use Belly\Usuarios\UseCases\AsesorUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioPermisoRolUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioPermisoUsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioRolUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioUseCase;
 use Belly\Usuarios\UseCases\GrupoUsuarioUsuarioUseCase;
-use Belly\Usuarios\UseCases\HorarioGrupoUsuarioRolUseCase;
 
 use Belly\Usuarios\UseCases\UsuarioPermisoEspecialUseCase;
 use Belly\Usuarios\UseCases\EstadoUsuarioUseCase;
-use Belly\Usuarios\UseCases\UsuarioMetricaUseCase;
-
 
 
 use CodeIgniter\Config\BaseService;
@@ -31,6 +28,15 @@ class Services extends BaseService
         }
 
         return new AccesoUseCase();
+    }
+
+    public static function AsesorUseCase(bool $getShared = true): AsesorUseCase
+    {
+        if ($getShared) {
+            return self::getSharedInstance('AsesorUseCase');
+        }
+
+        return new AsesorUseCase();
     }
 
     public static function UsuarioUseCase($config = null, bool $getShared = true): UsuarioUseCase
@@ -123,27 +129,5 @@ class Services extends BaseService
         $config = config('UsuarioConfig');
 
         return new EstadoUsuarioUseCase($config);
-    }
-
-    public static function UsuarioMetricaUseCase(bool $getShared = true): UsuarioMetricaUseCase
-    {
-        if ($getShared) {
-            return self::getSharedInstance('UsuarioMetricaUseCase');
-        }
-        $config = config('UsuarioConfig');
-
-        return new UsuarioMetricaUseCase($config);
-    }
-
-    public static function HorarioGrupoUsuarioRolUseCase(bool $getShared = true): HorarioGrupoUsuarioRolUseCase
-    {
-        if ($getShared) {
-            return self::getSharedInstance('HorarioGrupoUsuarioRolUseCase');
-        }
-
-        /** @var UsuarioConfig $config */
-        $config = config('UsuarioConfig');
-
-        return new HorarioGrupoUsuarioRolUseCase($config);
     }
 }

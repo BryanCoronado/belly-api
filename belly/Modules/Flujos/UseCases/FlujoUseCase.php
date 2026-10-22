@@ -13,6 +13,7 @@ use Belly\Flujos\Entities\FlujoEntity;
 use Belly\Flujos\Models\FlujoModel;
 use Belly\Flujos\Models\FlujoSesionModel;
 use Belly\Flujos\Services\AsesoresCrm;
+use Belly\Flujos\Services\TurnosCrm;
 use DateTimeImmutable;
 use DateTimeZone;
 use DomainException;
@@ -36,7 +37,7 @@ class FlujoUseCase
         $this->flujos = $flujos ?? new FlujoModel();
         $this->sesiones = $sesiones ?? new FlujoSesionModel();
         $this->validador = $validador ?? new ValidadorFlujo();
-        $this->motor = $motor ?? new MotorFlujo();
+        $this->motor = $motor ?? new MotorFlujo(new TurnosCrm());
         $this->asesores = $asesores ?? new AsesoresCrm();
     }
 
@@ -82,7 +83,6 @@ class FlujoUseCase
                     'derivadas' => $totales[(int) $flujo->id]['derivada'] ?? 0,
                     'terminadas' => $totales[(int) $flujo->id]['terminada'] ?? 0,
                 ],
-                'equipo' => $this->resumenEquipo((array) $flujo->definicion),
                 'actualizado' => $flujo->updated_at?->format('c') ?? $flujo->created_at?->format('c'),
             ];
         }
@@ -196,11 +196,31 @@ class FlujoUseCase
         $definicion = $this->limpiarDefinicion($definicion);
         $resultado = $this->validador->validar($definicion);
 
-        return $this->avisarAsesoresInexistentes($definicion, $resultado);
+        return $this->avisarSinTurnos($definicion, $this->avisarAsesoresInexistentes($definicion, $resultado));
     }
 
     /**
-     * Avisa si el flujo menciona asesores que ya no están (se dieron de baja o cambiaron de rol).
+     * @param array{errores:list<array>, avisos:list<array>} $resultado
+     * @return array{errores:list<array>, avisos:list<array>}
+     */
+    private function avisarSinTurnos(array $definicion, array $resultado): array
+    {
+        $pasos = array_filter($definicion['nodos'], static fn (array $n): bool => $n['tipo'] === TiposNodo::HORARIO);
+        if ($pasos === [] || (new TurnosCrm())->listar() !== []) {
+            return $resultado;
+        }
+        foreach ($pasos as $nodo) {
+            $resultado['avisos'][] = [
+                'nodo' => is_string($nodo['id']) ? $nodo['id'] : null,
+                'mensaje' => 'Aún no tienes grupos tipo turno en Asesores → Grupos: este paso siempre irá por «En turno».',
+            ];
+        }
+
+        return $resultado;
+    }
+
+    /**
+     * Avisa si un paso «Pasar a un asesor» apunta a alguien que ya no está (baja o cambio de rol).
      * No es un error: en ese caso el bot deja el chat con quien ya lo tenía.
      *
      * @param array{errores:list<array>, avisos:list<array>} $resultado
@@ -208,23 +228,18 @@ class FlujoUseCase
      */
     private function avisarAsesoresInexistentes(array $definicion, array $resultado): array
     {
-        $conAsesores = array_filter($definicion['nodos'], static fn (array $n): bool => in_array($n['tipo'], [TiposNodo::INICIO, TiposNodo::ASESOR], true)
-            && (($n['datos']['equipo'] ?? []) !== [] || ($n['datos']['asesores'] ?? []) !== [] || ! empty($n['datos']['asesor_id'])));
-        if ($conAsesores === []) {
+        $conAsesor = array_filter($definicion['nodos'], static fn (array $n): bool => $n['tipo'] === TiposNodo::ASESOR
+            && (int) ($n['datos']['asesor_id'] ?? 0) > 0);
+        if ($conAsesor === []) {
             return $resultado;
         }
 
-        $vigentes = array_column($this->asesores->listar(), 'id');
-        foreach ($conAsesores as $nodo) {
-            $d = $nodo['datos'];
-            $mencionados = [...Asignacion::ids($d['equipo'] ?? []), ...Asignacion::ids($d['asesores'] ?? [])];
-            if ((int) ($d['asesor_id'] ?? 0) > 0) {
-                $mencionados[] = (int) $d['asesor_id'];
-            }
-            if (array_diff($mencionados, $vigentes) !== []) {
+        $vigentes = array_map('intval', array_column($this->asesores->listar(), 'id'));
+        foreach ($conAsesor as $nodo) {
+            if (! in_array((int) $nodo['datos']['asesor_id'], $vigentes, true)) {
                 $resultado['avisos'][] = [
                     'nodo' => is_string($nodo['id']) ? $nodo['id'] : null,
-                    'mensaje' => 'Hay un asesor elegido que ya no puede recibir chats. Revisa la lista.',
+                    'mensaje' => 'El asesor elegido ya no puede recibir chats. Elige otro o deja que siga con quien lo asignó Reparto de chats.',
                 ];
             }
         }
@@ -352,12 +367,23 @@ class FlujoUseCase
             if (! is_array($n)) {
                 continue;
             }
+            $datos = is_array($n['datos'] ?? null) ? $n['datos'] : [];
+            $tipo = $n['tipo'] ?? null;
+            if ($tipo === TiposNodo::INICIO) {
+                unset($datos['reparto'], $datos['equipo'], $datos['horario_activo']);
+            }
+            if ($tipo === TiposNodo::HORARIO) {
+                $datos = [];
+            }
+            if ($tipo === TiposNodo::ASESOR) {
+                $datos = Asignacion::limpiarPaso($datos);
+            }
             $nodos[] = [
                 'id' => $n['id'] ?? null,
-                'tipo' => $n['tipo'] ?? null,
+                'tipo' => $tipo,
                 'x' => is_numeric($n['x'] ?? null) ? round((float) $n['x'], 1) : 0,
                 'y' => is_numeric($n['y'] ?? null) ? round((float) $n['y'], 1) : 0,
-                'datos' => is_array($n['datos'] ?? null) ? $n['datos'] : [],
+                'datos' => $datos,
             ];
         }
         foreach (is_array($definicion['conexiones'] ?? null) ? $definicion['conexiones'] : [] as $c) {
@@ -395,18 +421,6 @@ class FlujoUseCase
             'conexiones' => [
                 ['id' => 'c1', 'desde' => 'inicio', 'salida' => TiposNodo::SALIDA_SIGUIENTE, 'hacia' => 'saludo'],
             ],
-        ];
-    }
-
-    /** @return array{reparto:string, asesores:int} */
-    private function resumenEquipo(array $definicion): array
-    {
-        $datos = (array) ((new Grafo($definicion))->inicio()['datos'] ?? []);
-        $reparto = (string) ($datos['reparto'] ?? Asignacion::MANTENER);
-
-        return [
-            'reparto' => in_array($reparto, Asignacion::REPARTOS, true) ? $reparto : Asignacion::MANTENER,
-            'asesores' => count(Asignacion::ids($datos['equipo'] ?? [])),
         ];
     }
 

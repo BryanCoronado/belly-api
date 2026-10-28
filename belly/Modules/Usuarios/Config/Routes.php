@@ -21,6 +21,15 @@ $routes->group('v1', ['filter' => ['authFilter', 'permisosFilter:mod_sistemas_ac
     });
 });
 
+$routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
+    $routes->group('perfil', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {
+        $routes->get('/', 'PerfilControllerApi::ver', ['as' => 'apiv1_perfil']);
+        $routes->put('/', 'PerfilControllerApi::actualizar', ['as' => 'apiv1_perfil_actualizar']);
+        $routes->post('foto', 'PerfilControllerApi::foto', ['as' => 'apiv1_perfil_foto']);
+        $routes->put('empresa', 'PerfilControllerApi::empresa', ['as' => 'apiv1_perfil_empresa']);
+    });
+});
+
 // Cada usuario puede cambiar su propia disponibilidad; el caso de uso valida que sea él o un administrador.
 $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
     $routes->group('usuario', ['namespace' => 'Belly\Usuarios\Controllers\Api'], static function ($routes) {

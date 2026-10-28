@@ -30,6 +30,17 @@ class EmpresaUseCase
         return $empresa instanceof EmpresaEntity ? $empresa : null;
     }
 
+    public function buscarActivaPorId(int $id): ?EmpresaEntity
+    {
+        if ($id <= 0) {
+            return null;
+        }
+
+        $empresa = $this->modelo()->where('id', $id)->where('estado', 1)->first();
+
+        return $empresa instanceof EmpresaEntity ? $empresa : null;
+    }
+
     /** @return array<int, array<string, mixed>> */
     public function listar(): array
     {
@@ -62,15 +73,16 @@ class EmpresaUseCase
     private function guardarEmpresa(array $datos): array
     {
         $nombre = trim((string) ($datos['nombre'] ?? ''));
-        $slug = $this->normalizarSlug((string) ($datos['slug'] ?? $nombre));
+        $slugPedido = trim((string) ($datos['slug'] ?? ''));
+        $slug = $this->slugDisponible($slugPedido !== '' ? $slugPedido : $nombre);
         $plan = trim((string) ($datos['plan'] ?? 'base'));
         $admin = $datos['admin'] ?? null;
 
         if ($nombre === '' || $slug === '') {
-            throw new \Exception('El nombre y el slug de la empresa son obligatorios.');
+            throw new \Exception('El nombre de la empresa es obligatorio.');
         }
         if (mb_strlen($nombre) > 120 || mb_strlen($slug) > 80) {
-            throw new \Exception('El nombre o el slug superan el tamaño permitido.');
+            throw new \Exception('El nombre de la empresa supera el tamaño permitido.');
         }
         if ($plan === '') {
             $plan = 'base';
@@ -81,10 +93,6 @@ class EmpresaUseCase
         if (! is_array($admin)) {
             throw new \Exception('El administrador de la empresa es obligatorio.');
         }
-        if ($this->modelo()->where('slug', $slug)->first() !== null) {
-            throw new \Exception('Ya existe una empresa con ese slug.');
-        }
-
         $db = db_connect();
         $db->transStart();
 
@@ -154,6 +162,28 @@ class EmpresaUseCase
             'plan' => $empresa->plan,
             'estado' => (int) $empresa->estado,
         ];
+    }
+
+    private function slugDisponible(string $origen): string
+    {
+        $base = $this->normalizarSlug($origen);
+        if ($base === '') {
+            $base = 'empresa';
+        }
+        $base = substr($base, 0, 70);
+
+        $slug = $base;
+        $n = 2;
+        while ($this->modelo()->where('slug', $slug)->first() !== null) {
+            $slug = $base . '-' . $n;
+            $n++;
+            if ($n > 80) {
+                $slug = $base . '-' . bin2hex(random_bytes(2));
+                break;
+            }
+        }
+
+        return $slug;
     }
 
     private function normalizarSlug(string $slug): string

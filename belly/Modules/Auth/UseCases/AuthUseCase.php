@@ -47,6 +47,44 @@ class AuthUseCase
         return (isset($this->usuario) && !empty($this->usuario)) ? $this->usuario->toArray() : [];
     }
 
+    /** Entra con correo o, si no se cruza, con el usuario. */
+    public function validarUsuarioPorIdentificador(string $identificador): array
+    {
+        $identificador = trim($identificador);
+        $this->usuario = null;
+        if ($identificador === '') {
+            return [];
+        }
+
+        $db = db_connect();
+        $modelo = $this->getUsuarioProvider();
+
+        if (str_contains($identificador, '@')) {
+            $fila = $db->table('usuario_perfil p')
+                ->select('p.id_usuario')
+                ->join('usuario u', 'u.id = p.id_usuario')
+                ->where('p.correo', strtolower($identificador))
+                ->where('p.deleted_at', null)
+                ->where('u.deleted_at', null)
+                ->get()
+                ->getRow();
+            $this->usuario = $fila ? $modelo->find((int) $fila->id_usuario) : null;
+        } else {
+            $filas = $db->table('usuario')
+                ->select('id')
+                ->where('usuario', $identificador)
+                ->where('deleted_at', null)
+                ->get()
+                ->getResult();
+            if (count($filas) > 1) {
+                throw new \RuntimeException('VARIAS_CUENTAS');
+            }
+            $this->usuario = $filas !== [] ? $modelo->find((int) $filas[0]->id) : null;
+        }
+
+        return $this->usuario ? $this->usuario->toArray() : [];
+    }
+
     public function validarPassword(string $password)
     {
         return password_verify($password, $this->usuario->password);

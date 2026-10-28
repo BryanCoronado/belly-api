@@ -15,6 +15,7 @@ class EmpresaModel extends Model
     protected $protectFields = true;
     protected $allowedFields = [
         'nombre',
+        'correo',
         'slug',
         'plan',
         'estado',

@@ -19,15 +19,29 @@ class AuthController extends BaseController
         }
 
         try {
+            $correo = strtolower(trim((string) ($datos['correo'] ?? '')));
+            if ($correo === '' || ! filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+                return $this->fail('El correo es obligatorio.', 400);
+            }
+            if ($this->correoYaUsado($correo)) {
+                return $this->fail('Ese correo ya tiene una cuenta. Entra con él.', 400);
+            }
+
+            $usuario = trim((string) ($datos['username'] ?? ''));
+            if ($usuario === '') {
+                $usuario = $this->usuarioDesdeCorreo($correo);
+            }
+
             $creada = empresa()->registrar([
                 'nombre' => $datos['nombre'] ?? '',
-                'slug' => $datos['empresa'] ?? '',
+                'slug' => '',
                 'admin' => [
-                    'usuario' => $datos['username'] ?? '',
+                    'usuario' => $usuario,
                     'password' => $datos['password'] ?? '',
                     'nombres' => $datos['nombres'] ?? '',
                     'apellidos' => $datos['apellidos'] ?? '',
-                    'correo' => $datos['correo'] ?? '',
+                    'correo' => $correo,
+                    'celular' => $this->celularRegistro($datos),
                     'nro_documento' => $datos['nro_documento'] ?? '',
                     'id_tipo_documento' => 1,
                 ],
@@ -52,19 +66,37 @@ class AuthController extends BaseController
 
         $slug = trim((string) ($datos['empresa'] ?? ''));
         $username = trim((string) ($datos['username'] ?? ''));
-        if ($slug === '' || $username === '') {
-            return $this->failUnauthorized('La empresa y el usuario son obligatorios.', 'Auth');
+        $correo = trim((string) ($datos['correo'] ?? ''));
+
+        try {
+            if ($slug !== '' && $username !== '') {
+                $empresa = empresa()->buscarActivaPorSlug($slug);
+                if ($empresa === null) {
+                    return $this->failUnauthorized('No encontramos esa cuenta.', 'Auth');
+                }
+                $usuario = auth()->validarUsuarioRegistrado($username, (int) $empresa->id);
+            } else {
+                $identificador = $correo !== '' ? $correo : $username;
+                if ($identificador === '') {
+                    return $this->failUnauthorized('El correo y la contraseña son obligatorios.', 'Auth');
+                }
+                $usuario = auth()->validarUsuarioPorIdentificador($identificador);
+                $empresa = $usuario !== []
+                    ? empresa()->buscarActivaPorId((int) ($usuario['id_empresa'] ?? 0))
+                    : null;
+                if ($empresa === null && $usuario !== []) {
+                    return $this->failUnauthorized('Empresa no encontrada o inactiva.', 'Auth');
+                }
+            }
+        } catch (\RuntimeException $exc) {
+            if ($exc->getMessage() === 'VARIAS_CUENTAS') {
+                return $this->failUnauthorized('Hay más de una cuenta con ese usuario. Entra con tu correo.', 'Auth');
+            }
+            throw $exc;
         }
 
-        $empresa = empresa()->buscarActivaPorSlug($slug);
-        if ($empresa === null) {
-            return $this->failUnauthorized('Empresa no encontrada o inactiva.', 'Auth');
-        }
-
-        $usuario = auth()->validarUsuarioRegistrado($username, (int) $empresa->id);
-
-        if (empty($usuario)) {
-            return $this->failUnauthorized(lang('Auth.noRegistrado', [$datos['username']]), 'Auth');
+        if (empty($usuario) || ! isset($empresa)) {
+            return $this->failUnauthorized('No encontramos esa cuenta.', 'Auth');
         }
 
         if (intval($usuario['activo']) === 0) {
@@ -99,9 +131,11 @@ class AuthController extends BaseController
                     'id' => (int) $usuario->id,
                     'id_empresa' => (int) ($usuario->id_empresa ?? 0),
                     'empresa' => $empresa->slug,
+                    'empresa_nombre' => $empresa->nombre,
                     'usuario' => $usuario->usuario,
                     'nombres' => $perfil->nombres ?? null,
                     'apellidos' => $perfil->apellidos ?? null,
+                    'foto' => $perfil->foto_url ?? null,
                     'sudo' => (int) ($usuario->sudo ?? 0),
                 ],
             ];
@@ -267,5 +301,39 @@ class AuthController extends BaseController
         } catch (\Exception $exc) {
             return $this->failServerError($exc->getMessage(), 'Auth');
         }
+    }
+
+    private function correoYaUsado(string $correo): bool
+    {
+        return db_connect()->table('usuario_perfil')
+            ->where('correo', $correo)
+            ->where('deleted_at', null)
+            ->countAllResults() > 0;
+    }
+
+    private function usuarioDesdeCorreo(string $correo): string
+    {
+        $base = strtolower((string) strstr($correo, '@', true));
+        $base = preg_replace('/[^a-z0-9]+/', '', $base) ?? '';
+        $base = substr($base, 0, 20);
+
+        return $base !== '' ? $base : 'admin';
+    }
+
+    /** Deja el celular con código de país, solo dígitos. */
+    private function celularRegistro(array $datos): ?string
+    {
+        $codigo = preg_replace('/\D/', '', (string) ($datos['codigo_pais'] ?? '')) ?? '';
+        $numero = preg_replace('/\D/', '', (string) ($datos['celular'] ?? '')) ?? '';
+        if ($numero === '') {
+            return null;
+        }
+        if ($codigo !== '' && ! str_starts_with($numero, $codigo)) {
+            $numero = $codigo . ltrim($numero, '0');
+        }
+
+        $largo = strlen($numero);
+
+        return $largo >= 8 && $largo <= 15 ? $numero : null;
     }
 }

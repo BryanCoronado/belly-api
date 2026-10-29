@@ -257,6 +257,10 @@ class MensajeUseCase {
                 $this->asegurarAudioCompatibleWhatsapp($datos);
                 $tipo = $datos['media_type'] ?? $tipo;
             }
+            if ($tipo === 'video') {
+                $this->asegurarVideoCompatibleWhatsapp($datos);
+                $tipo = $datos['media_type'] ?? $tipo;
+            }
 
             if (in_array($tipo, ['image', 'video', 'document', 'audio', 'sticker'], true)) {
                 $this->prepararMediaIdWhatsapp($datos, $phone_number_id, $access_token);
@@ -1262,6 +1266,71 @@ class MensajeUseCase {
         }
 
         log_message('error', '[WhatsApp] ffmpeg audio: ' . implode("\n", $salida));
+        if (is_file($destino)) {
+            @unlink($destino);
+        }
+
+        return null;
+    }
+
+    /**
+     * WhatsApp Cloud solo entrega MP4 (H.264). Chrome graba WebM.
+     *
+     * @param array<string, mixed> $datos
+     */
+    private function asegurarVideoCompatibleWhatsapp(array &$datos): void
+    {
+        $referencia = (string) ($datos['media_path'] ?? $datos['media_url'] ?? '');
+        $rel = media()->rutaMediaDesdeAlmacenado($referencia);
+        if ($rel === null) {
+            return;
+        }
+
+        $disco = media()->rutaDiscoUploads($rel);
+        if (! is_file($disco)) {
+            return;
+        }
+
+        $mime = $this->mimeArchivoLocal($disco);
+        if (in_array($mime, ['video/mp4', 'video/3gpp'], true)) {
+            return;
+        }
+
+        $mp4 = $this->convertirVideoMp4Whatsapp($disco);
+        if ($mp4 === null) {
+            log_message('error', '[WhatsApp] No se pudo convertir video a MP4: ' . $disco . ' mime=' . $mime);
+
+            return;
+        }
+
+        $this->actualizarRutaMediaLocal($datos, $mp4);
+        $datos['media_type'] = 'video';
+        unset($datos['whatsapp_media_id']);
+    }
+
+    private function convertirVideoMp4Whatsapp(string $origen): ?string
+    {
+        $ffmpeg = $this->binarioFfmpeg();
+        if ($ffmpeg === null) {
+            log_message('error', '[WhatsApp] Falta ffmpeg para convertir el video.');
+
+            return null;
+        }
+
+        $destino = preg_replace('/\.[^.]+$/', '-wa.mp4', $origen) ?: ($origen . '-wa.mp4');
+        $intentos = [
+            ' -y -i ' . escapeshellarg($origen) . ' -c:v libx264 -preset veryfast -pix_fmt yuv420p -c:a aac -b:a 96k -movflags +faststart ' . escapeshellarg($destino),
+            ' -y -i ' . escapeshellarg($origen) . ' -c:v libx264 -preset veryfast -pix_fmt yuv420p -an -movflags +faststart ' . escapeshellarg($destino),
+        ];
+        foreach ($intentos as $args) {
+            $salida = [];
+            $codigo = 1;
+            exec(escapeshellarg($ffmpeg) . $args . ' 2>&1', $salida, $codigo);
+            if ($codigo === 0 && is_file($destino) && filesize($destino) > 0) {
+                return $destino;
+            }
+        }
+
         if (is_file($destino)) {
             @unlink($destino);
         }

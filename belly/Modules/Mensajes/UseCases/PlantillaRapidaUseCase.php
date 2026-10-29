@@ -250,9 +250,7 @@ class PlantillaRapidaUseCase
         }
 
         if ((int) ($usuario->sudo ?? 0) !== 1) {
-
-            throw new \Exception('No tienes permisos para listar todas las plantillas rápidas.');
-
+            return $this->listarPlantillasRapidasPorUsuario($page, $perPage, $search);
         }
 
 

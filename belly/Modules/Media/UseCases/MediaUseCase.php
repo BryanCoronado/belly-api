@@ -286,8 +286,14 @@ class MediaUseCase {
             if ($forzado === 'sticker' && in_array($mimeType, ['image/webp', 'image/png'], true)) {
                 $tipo = 'sticker';
             }
-            if ($forzado === 'audio' && str_starts_with($mimeType, 'audio/')) {
+            if ($forzado === 'audio' && (str_starts_with($mimeType, 'audio/') || $mimeType === 'video/webm')) {
                 $tipo = 'audio';
+                if ($mimeType === 'video/webm') {
+                    $mimeType = 'audio/webm';
+                }
+            }
+            if ($forzado === 'video' && str_starts_with($mimeType, 'video/')) {
+                $tipo = 'video';
             }
             $maxBytes = in_array($tipo, ['video', 'document'], true) ? (16 * 1024 * 1024) : (10 * 1024 * 1024);
             if ($size > $maxBytes) {

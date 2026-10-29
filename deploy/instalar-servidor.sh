@@ -1,7 +1,11 @@
 #!/bin/bash
-# Corre en el VPS como root, Ubuntu 22/24, sin Docker.
-#   chmod +x /var/www/belly/api/deploy/instalar-servidor.sh
+# En el VPS, como root:
+#   apt-get update && apt-get install -y git
+#   git clone https://github.com/BryanCoronado/belly-api.git /var/www/belly/api
 #   /var/www/belly/api/deploy/instalar-servidor.sh
+#
+# Si el repo es privado:
+#   git clone https://USUARIO:TOKEN@github.com/BryanCoronado/belly-api.git /var/www/belly/api
 
 set -euo pipefail
 
@@ -9,6 +13,10 @@ if [[ "$(id -u)" -ne 0 ]]; then
   echo "Corre este script como root."
   exit 1
 fi
+
+REPO_API="${REPO_API:-https://github.com/BryanCoronado/belly-api.git}"
+REPO_FRONT="${REPO_FRONT:-https://github.com/BryanCoronado/belly-front.git}"
+RAMA="${RAMA:-main}"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -32,11 +40,22 @@ if ! command -v node >/dev/null; then
   apt-get install -y nodejs
 fi
 
-mkdir -p /var/www/belly/api /var/www/belly/front
+mkdir -p /var/www/belly
 
 if [[ ! -f /var/www/belly/api/spark ]]; then
-  echo "Sube el API a /var/www/belly/api y vuelve a correr este script."
-  exit 1
+  git clone --branch "$RAMA" "$REPO_API" /var/www/belly/api
+else
+  git -C /var/www/belly/api fetch origin
+  git -C /var/www/belly/api checkout "$RAMA"
+  git -C /var/www/belly/api pull --ff-only origin "$RAMA"
+fi
+
+if [[ ! -d /var/www/belly/front-src/.git ]]; then
+  git clone --branch "$RAMA" "$REPO_FRONT" /var/www/belly/front-src
+else
+  git -C /var/www/belly/front-src fetch origin
+  git -C /var/www/belly/front-src checkout "$RAMA"
+  git -C /var/www/belly/front-src pull --ff-only origin "$RAMA"
 fi
 
 cd /var/www/belly/api
@@ -65,12 +84,19 @@ php spark migrate --all
 php spark db:seed "Belly\\Database\\Seeds\\InitSeeder"
 
 mkdir -p writable/uploads writable/cache writable/logs writable/session
-chown -R www-data:www-data /var/www/belly
-find /var/www/belly/api/writable -type d -exec chmod 775 {} \;
-
 if [[ ! -L public/uploads ]]; then
   ln -sfn /var/www/belly/api/writable/uploads /var/www/belly/api/public/uploads
 fi
+
+cd /var/www/belly/front-src
+npm ci
+npm run build
+mkdir -p /var/www/belly/front
+rm -rf /var/www/belly/front/*
+cp -r dist/. /var/www/belly/front/
+
+chown -R www-data:www-data /var/www/belly
+find /var/www/belly/api/writable -type d -exec chmod 775 {} \;
 
 SOCK="$(ls /run/php/php8.3-fpm.sock /run/php/php*-fpm.sock 2>/dev/null | head -n1)"
 if [[ -z "${SOCK}" ]]; then
@@ -78,18 +104,19 @@ if [[ -z "${SOCK}" ]]; then
   exit 1
 fi
 
-cp deploy/nginx-belly.conf /etc/nginx/sites-available/belly
+cp /var/www/belly/api/deploy/nginx-belly.conf /etc/nginx/sites-available/belly
 sed -i "s#unix:/run/php/php8.3-fpm.sock#unix:${SOCK}#" /etc/nginx/sites-available/belly
 ln -sfn /etc/nginx/sites-available/belly /etc/nginx/sites-enabled/belly
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl reload nginx
 
-cp deploy/belly-socket.service /etc/systemd/system/belly-socket.service
+cp /var/www/belly/api/deploy/belly-socket.service /etc/systemd/system/belly-socket.service
 systemctl daemon-reload
 systemctl enable --now belly-socket
+systemctl restart belly-socket
 
 echo
 echo "Listo. Edita /var/www/belly/api/.env y pon tu dominio en app.baseURL y SOCKET_ORIGENES."
-echo "El front compilado va en /var/www/belly/front"
-echo "Cuando tengas dominio: certbot --nginx -d TU_DOMINIO"
+echo "Para actualizar después: git pull en api y front-src, composer/npm, build, y reinicia belly-socket."
+echo "Cuando tengas dominio: apt-get install -y certbot python3-certbot-nginx && certbot --nginx -d TU_DOMINIO"

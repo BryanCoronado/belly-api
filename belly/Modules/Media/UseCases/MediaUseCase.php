@@ -239,12 +239,28 @@ class MediaUseCase {
                 'image/gif',
                 'video/mp4',
                 'video/quicktime',
-                'video/3gpp'
-                // temporal pdf , word, excel, powerpoint, texto
-                
+                'video/3gpp',
+                'audio/aac',
+                'audio/mp4',
+                'audio/mpeg',
+                'audio/mp3',
+                'audio/amr',
+                'audio/ogg',
+                'audio/opus',
+                'audio/webm',
+                'application/ogg',
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-powerpoint',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'text/plain',
+                'text/csv',
             ];
-            if (!in_array($mimeType, $mimePermitidos, true)) {
-                throw new \Exception("Formato no permitido: {$mimeType}. Usa JPG, PNG, WEBP, GIF o videos MP4/MOV.");
+            if (! in_array($mimeType, $mimePermitidos, true)) {
+                throw new \Exception("Ese archivo no se puede mandar por WhatsApp ({$mimeType}).");
             }
 
             if ($size <= 0) {
@@ -252,7 +268,11 @@ class MediaUseCase {
             }
 
             $tipo = \detectarTipoMedia($mimeType);
-            $maxBytes = $tipo === 'video' ? (16 * 1024 * 1024) : (10 * 1024 * 1024);
+            $forzado = strtolower(trim((string) (service('request')->getPost('media_type') ?? '')));
+            if ($forzado === 'sticker' && in_array($mimeType, ['image/webp', 'image/png'], true)) {
+                $tipo = 'sticker';
+            }
+            $maxBytes = in_array($tipo, ['video', 'document'], true) ? (16 * 1024 * 1024) : (10 * 1024 * 1024);
             if ($size > $maxBytes) {
                 throw new \Exception("El archivo excede el tamaño permitido (" . ($tipo === 'video' ? '16' : '10') . " MB).");
             }

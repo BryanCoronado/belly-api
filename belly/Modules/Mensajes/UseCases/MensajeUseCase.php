@@ -249,13 +249,8 @@ class MensajeUseCase {
             ];
 
             $tipo = $datos['media_type'] ?? 'text';
-            if ($tipo === 'audio' && str_contains($datos['media_url'] ?? '', '.webm')) {
-                $datos['media_type'] = 'video';
-                $tipo = 'video';
-                log_message('debug', "Audio WebM detectado, cambiando media_type a video para WhatsApp");
-            }
 
-            if (in_array($tipo, ['image', 'video', 'document'], true)) {
+            if (in_array($tipo, ['image', 'video', 'document', 'audio', 'sticker'], true)) {
                 $this->prepararMediaIdWhatsapp($datos, $phone_number_id, $access_token);
             }
 
@@ -1060,7 +1055,7 @@ class MensajeUseCase {
         }
 
         $tipo = (string) ($datos['media_type'] ?? '');
-        if (! in_array($tipo, ['image', 'video', 'document'], true)) {
+        if (! in_array($tipo, ['image', 'video', 'document', 'audio', 'sticker'], true)) {
             return;
         }
 

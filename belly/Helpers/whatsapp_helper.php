@@ -501,20 +501,20 @@ if (!function_exists('procesarMensajeWhatsappSaliente')) {
             case 'audio':
                 $mensaje_bd = (isset($datos['mensaje']) && trim((string) $datos['mensaje']) !== '')
                     ? trim((string) $datos['mensaje'])
-                    : '[Sin texto]';
+                    : '[Audio]';
                 $payload['type'] = 'audio';
-                $payload['audio'] = [
-                    'link' => $datos['media_url']
-                ];
+                $payload['audio'] = ! empty($datos['whatsapp_media_id'])
+                    ? ['id' => $datos['whatsapp_media_id']]
+                    : ['link' => $datos['media_url']];
                 $addContext($payload, $datos);
                 break;
 
             case 'sticker':
-                $mensaje_bd = "Se envió sticker";
+                $mensaje_bd = 'Se envió sticker';
                 $payload['type'] = 'sticker';
-                $payload['sticker'] = [
-                    'link' => $datos['media_url']
-                ];
+                $payload['sticker'] = ! empty($datos['whatsapp_media_id'])
+                    ? ['id' => $datos['whatsapp_media_id']]
+                    : ['link' => $datos['media_url']];
                 $addContext($payload, $datos);
                 break;
 

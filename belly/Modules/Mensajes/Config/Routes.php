@@ -8,6 +8,7 @@ $routes->group('v1', ['filter' => ['authFilter', 'whatsappFilter']], static func
         $routes->post('enviar-plantilla', 'MensajeController::enviarPlantilla');
         $routes->get('listar-conversacion/(:num)', 'MensajeController::listarPorConversacion/$1');
         $routes->post('subir-archivo', 'MensajeController::subirArchivo');
+        $routes->get('stickers', 'StickerController::listar');
     });
     
     $routes->group('plantilla', ['namespace' => 'Belly\Mensajes\Controllers\Api'], static function ($routes) {

@@ -54,6 +54,7 @@ class MensajeController extends BaseController
                 $datos['media_type'] = $resultadoMedia['media_type'] ?? 'image';
                 $datos['media_url']  = $resultadoMedia['media_url'] ?? null;
                 $datos['media_path'] = $resultadoMedia['media_path'] ?? null;
+                $datos['filename']   = $resultadoMedia['original_name'] ?? null;
 
                 // Opcional: caption
                 $mensajePost = $request->getPost('mensaje') ?? ($bodyJson['mensaje'] ?? null);

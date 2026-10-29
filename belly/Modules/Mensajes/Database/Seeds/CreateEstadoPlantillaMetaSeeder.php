@@ -2,15 +2,16 @@
 
 namespace Belly\Mensajes\Database\Seeds;
 
+use Belly\Database\Seeds\AseguraCatalogo;
 use CodeIgniter\Database\Seeder;
 
 class CreateEstadoPlantillaMetaSeeder extends Seeder
 {
-
+    use AseguraCatalogo;
 
     public function run()
     {
-        $data = [
+        $this->asegurarPorId('estado_plantilla_meta', [
             [
                 'id' => 1,
                 'nombre' => 'Activo',
@@ -23,9 +24,6 @@ class CreateEstadoPlantillaMetaSeeder extends Seeder
                 'alias' => 'desactivado',
                 'descripcion' => 'indica que la plantilla está desactivada y no puede ser utilizada',
             ],
-        ];
-
-        $this->db->table('estado_plantilla_meta')->insertBatch($data);
-
+        ]);
     }
 }

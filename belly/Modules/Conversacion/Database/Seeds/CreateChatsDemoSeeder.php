@@ -37,29 +37,29 @@ class CreateChatsDemoSeeder extends Seeder
     private function chats(): array
     {
         return [
-            ['telefono' => '51999000101', 'nombre' => 'Andrea', 'apellido' => 'Quispe', 'distrito' => 'Miraflores', 'estado' => self::ESTADO_SIN_ABRIR, 'temperatura' => 'tibio', 'etiqueta' => 'Nuevo cliente', 'mensajes' => [
+            ['telefono' => '51999000101', 'nombre' => 'Andrea', 'apellido' => 'Quispe', 'distrito' => 'Miraflores', 'estado' => self::ESTADO_SIN_ABRIR, 'temperatura' => 'tibio', 'etiqueta' => 'Nuevo cliente', 'etapa' => 'Nuevo', 'tipo' => 'Prospecto', 'mensajes' => [
                 ['cliente', 'Hola, buenas tardes. ¿Qué precio tiene el plan mensual?', 12],
             ]],
-            ['telefono' => '51999000102', 'nombre' => 'Carlos', 'apellido' => 'Mendoza', 'distrito' => 'San Isidro', 'estado' => self::ESTADO_EN_ATENCION, 'temperatura' => 'caliente', 'etiqueta' => 'Interesado', 'mensajes' => [
+            ['telefono' => '51999000102', 'nombre' => 'Carlos', 'apellido' => 'Mendoza', 'distrito' => 'San Isidro', 'estado' => self::ESTADO_EN_ATENCION, 'temperatura' => 'caliente', 'etiqueta' => 'Interesado', 'etapa' => 'Interesado', 'tipo' => 'Cliente', 'mensajes' => [
                 ['cliente', 'Quiero comprar las zapatillas urbanas, ¿tienen talla 42?', 95],
                 ['usuario', 'Hola Carlos, sí tenemos la talla 42. ¿Te las enviamos hoy?', 90],
                 ['cliente', 'Sí, por favor. ¿Cuánto es el envío?', 75],
             ]],
-            ['telefono' => '51999000103', 'nombre' => 'Lucía', 'apellido' => 'Fernández', 'distrito' => 'Surco', 'estado' => self::ESTADO_EN_ATENCION, 'temperatura' => 'tibio', 'etiqueta' => 'Seguimiento', 'mensajes' => [
+            ['telefono' => '51999000103', 'nombre' => 'Lucía', 'apellido' => 'Fernández', 'distrito' => 'Surco', 'estado' => self::ESTADO_EN_ATENCION, 'temperatura' => 'tibio', 'etiqueta' => 'Seguimiento', 'etapa' => 'Contactado', 'tipo' => 'Prospecto', 'mensajes' => [
                 ['cliente', 'Me interesa la instalación a domicilio.', 300],
                 ['usuario', 'Claro Lucía, ¿qué día te queda mejor?', 290],
                 ['cliente', 'Déjame confirmarlo con mi esposo y te aviso.', 280],
             ]],
-            ['telefono' => '51999000104', 'nombre' => 'Marco', 'apellido' => 'Rojas', 'distrito' => 'La Molina', 'estado' => self::ESTADO_FINALIZADO, 'temperatura' => 'venta', 'etiqueta' => 'Venta cerrada', 'motivo' => 2, 'mensajes' => [
+            ['telefono' => '51999000104', 'nombre' => 'Marco', 'apellido' => 'Rojas', 'distrito' => 'La Molina', 'estado' => self::ESTADO_FINALIZADO, 'temperatura' => 'venta', 'etiqueta' => 'Venta cerrada', 'etapa' => 'Ganado', 'tipo' => 'Cliente', 'motivo' => 'Quiere agendar', 'mensajes' => [
                 ['cliente', 'Buenos días, quisiera agendar una consulta inicial.', 1500],
                 ['usuario', 'Buenos días Marco, te agendo para mañana a las 10:00.', 1490],
                 ['cliente', 'Perfecto, gracias.', 1480],
             ]],
-            ['telefono' => '51999000105', 'nombre' => 'Valeria', 'apellido' => 'Campos', 'distrito' => 'Jesús María', 'estado' => self::ESTADO_SIN_ABRIR, 'temperatura' => 'frio', 'etiqueta' => 'Nuevo cliente', 'mensajes' => [
+            ['telefono' => '51999000105', 'nombre' => 'Valeria', 'apellido' => 'Campos', 'distrito' => 'Jesús María', 'estado' => self::ESTADO_SIN_ABRIR, 'temperatura' => 'frio', 'etiqueta' => 'Nuevo cliente', 'etapa' => 'Nuevo', 'tipo' => 'Prospecto', 'mensajes' => [
                 ['cliente', 'Hola', 40],
                 ['cliente', '¿Tienen mochilas?', 39],
             ]],
-            ['telefono' => '51999000106', 'nombre' => 'Renzo', 'apellido' => 'Huamán', 'distrito' => 'Callao', 'estado' => self::ESTADO_FINALIZADO, 'temperatura' => 'frio', 'etiqueta' => null, 'motivo' => 3, 'mensajes' => [
+            ['telefono' => '51999000106', 'nombre' => 'Renzo', 'apellido' => 'Huamán', 'distrito' => 'Callao', 'estado' => self::ESTADO_FINALIZADO, 'temperatura' => 'frio', 'etiqueta' => null, 'etapa' => 'Perdido', 'tipo' => 'Prospecto', 'motivo' => 'No le interesó por el precio', 'mensajes' => [
                 ['cliente', '¿Cuánto cuesta el polo básico?', 3000],
                 ['usuario', 'Cuesta S/ 39.90, Renzo.', 2990],
                 ['cliente', 'Muy caro, gracias.', 2980],
@@ -81,6 +81,9 @@ class CreateChatsDemoSeeder extends Seeder
         }
 
         $etiquetas = $this->etiquetas($idEmpresa);
+        $etapas = $this->idsPorNombre('embudo_etapa', $idEmpresa);
+        $tipos = $this->idsPorNombre('cliente_tipo', $idEmpresa);
+        $motivos = $this->idsPorNombre('motivo_conversacion', $idEmpresa);
 
         foreach ($this->chats() as $i => $chat) {
             $existe = $this->db->table('cliente')->where('id_empresa', $idEmpresa)->where('telefono', $chat['telefono'])->countAllResults();
@@ -88,9 +91,9 @@ class CreateChatsDemoSeeder extends Seeder
                 continue;
             }
 
-            $idCliente = $this->crearCliente($idEmpresa, $chat);
             $idUsuario = $asesores[$i % count($asesores)];
-            $this->crearConversacion($idEmpresa, (int) $app['id'], $idCliente, $idUsuario, $chat, $etiquetas);
+            $idCliente = $this->crearCliente($idEmpresa, $chat, $idUsuario, $etapas, $tipos);
+            $this->crearConversacion($idEmpresa, (int) $app['id'], $idCliente, $idUsuario, $chat, $etiquetas, $motivos);
         }
     }
 
@@ -111,13 +114,23 @@ class CreateChatsDemoSeeder extends Seeder
         return $ids;
     }
 
-    /** @param array<string, mixed> $chat */
-    private function crearCliente(int $idEmpresa, array $chat): int
+    /**
+     * @param array<string, mixed> $chat
+     * @param array<string, int> $etapas
+     * @param array<string, int> $tipos
+     */
+    private function crearCliente(int $idEmpresa, array $chat, int $idUsuario, array $etapas, array $tipos): int
     {
+        $ahora = date('Y-m-d H:i:s');
         $this->db->table('cliente')->insert([
             'id_empresa' => $idEmpresa,
             'telefono' => $chat['telefono'],
-            'created_at' => date('Y-m-d H:i:s'),
+            'id_etapa' => $etapas[$chat['etapa'] ?? ''] ?? null,
+            'etapa_at' => $ahora,
+            'id_tipo' => $tipos[$chat['tipo'] ?? ''] ?? null,
+            'id_responsable' => $idUsuario,
+            'origen' => null,
+            'created_at' => $ahora,
         ]);
         $idCliente = (int) $this->db->insertID();
 
@@ -127,7 +140,7 @@ class CreateChatsDemoSeeder extends Seeder
             'apellido' => $chat['apellido'],
             'nombre_completo' => $chat['nombre'] . ' ' . $chat['apellido'],
             'distrito' => $chat['distrito'],
-            'created_at' => date('Y-m-d H:i:s'),
+            'created_at' => $ahora,
         ]);
 
         return $idCliente;
@@ -136,9 +149,11 @@ class CreateChatsDemoSeeder extends Seeder
     /**
      * @param array<string, mixed> $chat
      * @param array<string, int> $etiquetas
+     * @param array<string, int> $motivos
      */
-    private function crearConversacion(int $idEmpresa, int $idApp, int $idCliente, int $idUsuario, array $chat, array $etiquetas): void
+    private function crearConversacion(int $idEmpresa, int $idApp, int $idCliente, int $idUsuario, array $chat, array $etiquetas, array $motivos): void
     {
+        $idEtiqueta = $chat['etiqueta'] !== null ? ($etiquetas[$chat['etiqueta']] ?? null) : null;
         $primero = max(array_column($chat['mensajes'], 2));
         $this->db->table('conversacion')->insert([
             'id_empresa' => $idEmpresa,
@@ -146,14 +161,23 @@ class CreateChatsDemoSeeder extends Seeder
             'id_usuario' => $idUsuario,
             'id_estado' => $chat['estado'],
             'origen' => 'WhatsApp',
-            'id_motivo' => $chat['motivo'] ?? null,
-            'id_etiqueta' => $chat['etiqueta'] !== null ? ($etiquetas[$chat['etiqueta']] ?? null) : null,
+            'id_motivo' => isset($chat['motivo']) ? ($motivos[$chat['motivo']] ?? null) : null,
+            'id_etiqueta' => $idEtiqueta,
             'temperatura' => $chat['temperatura'],
             'id_app' => $idApp,
             'asignado_at' => $this->haceMinutos($primero),
             'created_at' => $this->haceMinutos($primero),
         ]);
         $idConversacion = (int) $this->db->insertID();
+
+        if ($idEtiqueta !== null && $this->db->tableExists('cliente_etiqueta')) {
+            $this->db->table('cliente_etiqueta')->insert([
+                'id_empresa' => $idEmpresa,
+                'id_cliente' => $idCliente,
+                'id_etiqueta' => $idEtiqueta,
+                'created_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
 
         foreach ($chat['mensajes'] as [$quien, $texto, $minutos]) {
             $this->db->table('mensaje')->insert([
@@ -162,9 +186,25 @@ class CreateChatsDemoSeeder extends Seeder
                 'id_estado' => $quien === 'cliente' ? self::MENSAJE_RECIBIDO : self::MENSAJE_LEIDO,
                 'mensaje' => $texto,
                 'contesta' => $quien,
+                'id_usuario' => $quien === 'usuario' ? $idUsuario : null,
                 'created_at' => $this->haceMinutos($minutos),
             ]);
         }
+    }
+
+    /** @return array<string, int> */
+    private function idsPorNombre(string $tabla, int $idEmpresa): array
+    {
+        if (! $this->db->tableExists($tabla)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($this->db->table($tabla)->select('id, nombre')->where('id_empresa', $idEmpresa)->where('deleted_at', null)->get()->getResultArray() as $fila) {
+            $ids[(string) $fila['nombre']] = (int) $fila['id'];
+        }
+
+        return $ids;
     }
 
     private function haceMinutos(int $minutos): string

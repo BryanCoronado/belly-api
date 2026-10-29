@@ -4,6 +4,7 @@ namespace Belly\Crm\UseCases;
 
 use Belly\Conversacion\Models\EtiquetaModel;
 use Belly\Conversacion\Models\MotivoConversacionModel;
+use Belly\Crm\Catalogo\CatalogoCrm;
 use Belly\Crm\Models\ClienteTipoModel;
 use Belly\Crm\Models\EmbudoEtapaModel;
 use Belly\Crm\Services\ConsultaClientes;
@@ -13,32 +14,6 @@ use DomainException;
 /** Etapas del embudo, tipos de cliente, etiquetas y motivos de cierre: cada empresa arma las suyas. */
 class AjustesCrmUseCase
 {
-    private const ETAPAS_INICIALES = [
-        ['Nuevo', '#64748b', 'abierta'],
-        ['Contactado', '#0ea5e9', 'abierta'],
-        ['Interesado', '#8b5cf6', 'abierta'],
-        ['Negociación', '#f59e0b', 'abierta'],
-        ['Ganado', '#10b981', 'ganada'],
-        ['Perdido', '#f43f5e', 'perdida'],
-    ];
-
-    private const TIPOS_INICIALES = [
-        ['Prospecto', '#64748b'],
-        ['Cliente', '#0ea5e9'],
-        ['Frecuente', '#10b981'],
-        ['VIP', '#f59e0b'],
-    ];
-
-    private const MOTIVOS_INICIALES = [
-        ['Venta cerrada', '#10b981'],
-        ['No le interesó', '#f43f5e'],
-        ['Precio', '#f59e0b'],
-        ['No respondió', '#64748b'],
-        ['Volver a contactar', '#0ea5e9'],
-        ['Gestionado por otro medio', '#8b5cf6'],
-        ['Otro', '#94a3b8'],
-    ];
-
     private const RESULTADOS = ['abierta', 'ganada', 'perdida'];
 
     private BaseConnection $db;
@@ -67,7 +42,7 @@ class AjustesCrmUseCase
     public function etapas(): array
     {
         $this->sembrarSiHaceFalta('embudo_etapa', function (int $idEmpresa) {
-            foreach (self::ETAPAS_INICIALES as $orden => [$nombre, $color, $resultado]) {
+            foreach (CatalogoCrm::etapas() as $orden => [$nombre, $color, $resultado]) {
                 $this->db->table('embudo_etapa')->insert([
                     'id_empresa' => $idEmpresa, 'nombre' => $nombre, 'color' => $color, 'orden' => $orden + 1,
                     'resultado' => $resultado, 'created_at' => date('Y-m-d H:i:s'),
@@ -166,7 +141,7 @@ class AjustesCrmUseCase
     public function tipos(): array
     {
         $this->sembrarSiHaceFalta('cliente_tipo', function (int $idEmpresa) {
-            foreach (self::TIPOS_INICIALES as $orden => [$nombre, $color]) {
+            foreach (CatalogoCrm::tipos() as $orden => [$nombre, $color]) {
                 $this->db->table('cliente_tipo')->insert([
                     'id_empresa' => $idEmpresa, 'nombre' => $nombre, 'color' => $color, 'orden' => $orden + 1,
                     'created_at' => date('Y-m-d H:i:s'),
@@ -401,7 +376,7 @@ class AjustesCrmUseCase
                 ->getResultArray();
             $fuente = $globales !== []
                 ? $globales
-                : array_map(static fn (array $m) => ['nombre' => $m[0], 'color' => $m[1]], self::MOTIVOS_INICIALES);
+                : array_map(static fn (array $m) => ['nombre' => $m[0], 'color' => $m[1]], CatalogoCrm::motivos());
 
             foreach ($fuente as $orden => $fila) {
                 $this->db->table('motivo_conversacion')->insert([

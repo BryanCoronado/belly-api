@@ -10,6 +10,10 @@ class CreateClienteEtiquetaTable extends Migration
 {
     public function up()
     {
+        if ($this->db->tableExists('cliente_etiqueta')) {
+            return;
+        }
+
         $this->forge->addField([
             'id' => [
                 'type'           => 'INT',

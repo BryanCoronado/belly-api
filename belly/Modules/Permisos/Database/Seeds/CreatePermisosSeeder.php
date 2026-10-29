@@ -3,10 +3,13 @@
 namespace Belly\Permisos\Database\Seeds;
 
 use Belly\Database\Catalogo\CatalogoAcceso;
+use Belly\Database\Seeds\AseguraCatalogo;
 use CodeIgniter\Database\Seeder;
 
 class CreatePermisosSeeder extends Seeder
 {
+    use AseguraCatalogo;
+
     /*
      * php spark db:seed \\Belly\\Permisos\\Database\\Seeds\\CreatePermisosSeeder
      */
@@ -19,6 +22,6 @@ class CreatePermisosSeeder extends Seeder
         // Primero los padres: la FK id_permiso_padre exige que existan.
         usort($data, static fn (array $a, array $b) => ($a['id_permiso_padre'] === null ? 0 : 1) <=> ($b['id_permiso_padre'] === null ? 0 : 1));
 
-        $this->db->table('permiso')->insertBatch($data);
+        $this->asegurarPorId('permiso', $data);
     }
 }

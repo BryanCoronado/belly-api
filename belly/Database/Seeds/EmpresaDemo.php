@@ -8,8 +8,12 @@ namespace Belly\Database\Seeds;
  */
 trait EmpresaDemo
 {
+    use SoloDesarrollo;
+
     private function idEmpresaDemo(): int
     {
+        $this->exigirDesarrollo();
+
         $id = (int) (env('SEED_EMPRESA_ID') ?: 1);
         if ($this->db->table('empresa')->where('id', $id)->countAllResults() === 0) {
             throw new \RuntimeException("La empresa {$id} no existe; no se pueden sembrar datos de prueba.");

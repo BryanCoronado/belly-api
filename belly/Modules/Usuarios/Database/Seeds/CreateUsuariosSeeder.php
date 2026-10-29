@@ -2,45 +2,38 @@
 
 namespace Belly\Usuarios\Database\Seeds;
 
-use Belly\Modulos\Database\Seeds\CreateGruposModulosSeeder;
-use Belly\Modulos\Database\Seeds\CreateModulosSeeder;
-use Belly\Permisos\Database\Seeds\CreatePermisosGruposSeeder;
-use Belly\Permisos\Database\Seeds\CreatePermisosSeeder;
+use Belly\Database\Seeds\SoloDesarrollo;
 use CodeIgniter\Database\Seeder;
 
 /**
- * Instalación base: empresa principal, catálogo de acceso, roles (Administrador y Asesor)
- * y los dos usuarios administradores iniciales.
+ * Solo desarrollo: empresa demo y los dos administradores de prueba.
  *
  * php spark db:seed "Belly\Usuarios\Database\Seeds\CreateUsuariosSeeder"
  */
 class CreateUsuariosSeeder extends Seeder
 {
+    use SoloDesarrollo;
+
     private const ID_EMPRESA = 1;
 
     public function run()
     {
+        $this->exigirDesarrollo();
         $this->asegurarEmpresaPrincipal();
-
-        $this->call(TiposDocumentosSeeder::class);
-        $this->call(CreateGruposModulosSeeder::class);
-        $this->call(CreatePermisosGruposSeeder::class);
-        $this->call(CreatePermisosSeeder::class);
-        $this->call(CreateModulosSeeder::class);
 
         helper('vip2system');
         $roles = acceso()->crearRolesIniciales(self::ID_EMPRESA);
 
         $administradores = [
-            ['usuario' => 'developer', 'password' => 'Dev.123', 'nombres' => 'Developer', 'apellidos' => 'Belly'],
-            ['usuario' => 'administrador', 'password' => 'Admin.123', 'nombres' => 'Administrador', 'apellidos' => 'Belly'],
+            ['usuario' => 'developer', 'password' => 'Dev.123', 'nombres' => 'Developer', 'apellidos' => 'Belly', 'correo' => 'developer@demo.belly.test'],
+            ['usuario' => 'administrador', 'password' => 'Admin.123', 'nombres' => 'Administrador', 'apellidos' => 'Belly', 'correo' => 'administrador@demo.belly.test'],
         ];
         foreach ($administradores as $datos) {
             $this->crearUsuario($datos, $roles['admin'], true);
         }
     }
 
-    /** @param array{usuario:string, password:string, nombres:string, apellidos:string} $datos */
+    /** @param array{usuario:string, password:string, nombres:string, apellidos:string, correo:string} $datos */
     private function crearUsuario(array $datos, int $idRol, bool $esAdmin): void
     {
         $existe = $this->db->table('usuario')
@@ -67,6 +60,7 @@ class CreateUsuariosSeeder extends Seeder
             'id_usuario' => $idUsuario,
             'nombres' => $datos['nombres'],
             'apellidos' => $datos['apellidos'],
+            'correo' => $datos['correo'],
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -79,13 +73,17 @@ class CreateUsuariosSeeder extends Seeder
             return;
         }
 
-        $this->db->table('empresa')->insert([
+        $fila = [
             'id' => self::ID_EMPRESA,
             'nombre' => 'Empresa demo',
             'slug' => 'demo',
             'plan' => 'base',
             'estado' => 1,
             'created_at' => date('Y-m-d H:i:s'),
-        ]);
+        ];
+        if ($this->db->fieldExists('correo', 'empresa')) {
+            $fila['correo'] = 'contacto@demo.belly.test';
+        }
+        $this->db->table('empresa')->insert($fila);
     }
 }

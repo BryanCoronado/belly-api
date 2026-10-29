@@ -10,6 +10,16 @@ class CreateEnvioMasivoTables extends Migration
 {
     public function up()
     {
+        if (! $this->db->tableExists('envio_masivo')) {
+            $this->crearEnvioMasivo();
+        }
+        if (! $this->db->tableExists('envio_masivo_destinatario')) {
+            $this->crearDestinatarios();
+        }
+    }
+
+    private function crearEnvioMasivo(): void
+    {
         $this->forge->addField([
             'id' => [
                 'type'           => 'INT',
@@ -84,7 +94,10 @@ class CreateEnvioMasivoTables extends Migration
         $this->forge->addKey(['estado'], false, false, 'idx_envio_masivo_estado');
         $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_envio_masivo_empresa');
         $this->forge->createTable('envio_masivo');
+    }
 
+    private function crearDestinatarios(): void
+    {
         $this->forge->addField([
             'id' => [
                 'type'           => 'INT',

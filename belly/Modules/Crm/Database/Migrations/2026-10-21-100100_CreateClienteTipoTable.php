@@ -10,6 +10,10 @@ class CreateClienteTipoTable extends Migration
 {
     public function up()
     {
+        if ($this->db->tableExists('cliente_tipo')) {
+            return;
+        }
+
         $this->forge->addField([
             'id' => [
                 'type'           => 'INT',

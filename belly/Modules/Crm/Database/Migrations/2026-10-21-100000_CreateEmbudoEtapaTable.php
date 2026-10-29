@@ -10,6 +10,10 @@ class CreateEmbudoEtapaTable extends Migration
 {
     public function up()
     {
+        if ($this->db->tableExists('embudo_etapa')) {
+            return;
+        }
+
         $this->forge->addField([
             'id' => [
                 'type'           => 'INT',

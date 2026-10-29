@@ -8,6 +8,10 @@ class AddResponsableToCliente extends Migration
 {
     public function up()
     {
+        if ($this->db->fieldExists('id_responsable', 'cliente')) {
+            return;
+        }
+
         $this->forge->addColumn('cliente', [
             'id_responsable' => [
                 'type'       => 'INT',
@@ -30,6 +34,9 @@ class AddResponsableToCliente extends Migration
 
     public function down()
     {
+        if (! $this->db->fieldExists('id_responsable', 'cliente')) {
+            return;
+        }
         $this->db->query('DROP INDEX idx_cliente_empresa_responsable ON cliente');
         $this->forge->dropColumn('cliente', ['id_responsable', 'origen']);
     }

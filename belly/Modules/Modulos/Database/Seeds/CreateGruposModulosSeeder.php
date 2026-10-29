@@ -3,10 +3,13 @@
 namespace Belly\Modulos\Database\Seeds;
 
 use Belly\Database\Catalogo\CatalogoAcceso;
+use Belly\Database\Seeds\AseguraCatalogo;
 use CodeIgniter\Database\Seeder;
 
 class CreateGruposModulosSeeder extends Seeder
 {
+    use AseguraCatalogo;
+
     /*
      * php spark db:seed \\Belly\\Modulos\\Database\\Seeds\\CreateGruposModulosSeeder
      */
@@ -19,6 +22,6 @@ class CreateGruposModulosSeeder extends Seeder
             CatalogoAcceso::grupos(),
         );
 
-        $this->db->table('modulo_grupo')->insertBatch($data);
+        $this->asegurarPorId('modulo_grupo', $data);
     }
 }

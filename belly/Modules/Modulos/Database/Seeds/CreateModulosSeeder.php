@@ -3,10 +3,13 @@
 namespace Belly\Modulos\Database\Seeds;
 
 use Belly\Database\Catalogo\CatalogoAcceso;
+use Belly\Database\Seeds\AseguraCatalogo;
 use CodeIgniter\Database\Seeder;
 
 class CreateModulosSeeder extends Seeder
 {
+    use AseguraCatalogo;
+
     /*
      * php spark db:seed \\Belly\\Modulos\\Database\\Seeds\\CreateModulosSeeder
      */
@@ -16,6 +19,6 @@ class CreateModulosSeeder extends Seeder
         $ahora = date('Y-m-d H:i:s');
         $data = array_map(static fn (array $m) => $m + ['created_at' => $ahora], CatalogoAcceso::modulos());
 
-        $this->db->table('modulo')->insertBatch($data);
+        $this->asegurarPorId('modulo', $data);
     }
 }

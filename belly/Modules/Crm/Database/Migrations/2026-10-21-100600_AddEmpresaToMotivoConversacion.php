@@ -9,6 +9,10 @@ class AddEmpresaToMotivoConversacion extends Migration
 {
     public function up()
     {
+        if ($this->db->fieldExists('id_empresa', 'motivo_conversacion')) {
+            return;
+        }
+
         $this->forge->addColumn('motivo_conversacion', [
             'id_empresa' => [
                 'type'       => 'INT',
@@ -37,6 +41,9 @@ class AddEmpresaToMotivoConversacion extends Migration
 
     public function down()
     {
+        if (! $this->db->fieldExists('id_empresa', 'motivo_conversacion')) {
+            return;
+        }
         $this->db->query('ALTER TABLE motivo_conversacion DROP FOREIGN KEY fk_motivo_conversacion_empresa');
         $this->db->query('ALTER TABLE motivo_conversacion DROP INDEX idx_motivo_conversacion_empresa');
         $this->forge->dropColumn('motivo_conversacion', ['id_empresa', 'color', 'orden']);

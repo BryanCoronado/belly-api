@@ -226,9 +226,23 @@ class MediaUseCase {
                 \helper('file_helper');
             }
 
-            $mimeType = $file->getMimeType();
-            $mimeType = strtolower((string) $mimeType);
+            $mimeType = strtolower((string) $file->getMimeType());
+            $mimeCliente = strtolower((string) (method_exists($file, 'getClientMimeType') ? $file->getClientMimeType() : ''));
+            $nombreCliente = strtolower((string) $file->getClientName());
+            $forzado = strtolower(trim((string) (service('request')->getPost('media_type') ?? '')));
             $size = (int) $file->getSize();
+
+            // Chrome graba notas de voz en contenedor WebM y finfo lo marca como video/webm.
+            if (
+                in_array($mimeType, ['video/webm', 'application/octet-stream'], true)
+                && (
+                    $forzado === 'audio'
+                    || str_starts_with($mimeCliente, 'audio/')
+                    || str_contains($nombreCliente, 'nota-de-voz')
+                )
+            ) {
+                $mimeType = 'audio/webm';
+            }
 
             // Validaciones de seguridad/compatibilidad para móvil
             $mimePermitidos = [
@@ -240,6 +254,7 @@ class MediaUseCase {
                 'video/mp4',
                 'video/quicktime',
                 'video/3gpp',
+                'video/webm',
                 'audio/aac',
                 'audio/mp4',
                 'audio/mpeg',
@@ -268,9 +283,11 @@ class MediaUseCase {
             }
 
             $tipo = \detectarTipoMedia($mimeType);
-            $forzado = strtolower(trim((string) (service('request')->getPost('media_type') ?? '')));
             if ($forzado === 'sticker' && in_array($mimeType, ['image/webp', 'image/png'], true)) {
                 $tipo = 'sticker';
+            }
+            if ($forzado === 'audio' && str_starts_with($mimeType, 'audio/')) {
+                $tipo = 'audio';
             }
             $maxBytes = in_array($tipo, ['video', 'document'], true) ? (16 * 1024 * 1024) : (10 * 1024 * 1024);
             if ($size > $maxBytes) {

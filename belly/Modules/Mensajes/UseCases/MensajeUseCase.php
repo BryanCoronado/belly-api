@@ -253,6 +253,10 @@ class MensajeUseCase {
                 $this->asegurarImagenCompatibleWhatsapp($datos);
                 $tipo = $datos['media_type'] ?? $tipo;
             }
+            if ($tipo === 'audio') {
+                $this->asegurarAudioCompatibleWhatsapp($datos);
+                $tipo = $datos['media_type'] ?? $tipo;
+            }
 
             if (in_array($tipo, ['image', 'video', 'document', 'audio', 'sticker'], true)) {
                 $this->prepararMediaIdWhatsapp($datos, $phone_number_id, $access_token);
@@ -1200,6 +1204,84 @@ class MensajeUseCase {
         }
 
         return false;
+    }
+
+    /**
+     * WhatsApp Cloud acepta AAC, MP3, MP4, AMR u OGG/Opus. Chrome manda WebM.
+     *
+     * @param array<string, mixed> $datos
+     */
+    private function asegurarAudioCompatibleWhatsapp(array &$datos): void
+    {
+        $referencia = (string) ($datos['media_path'] ?? $datos['media_url'] ?? '');
+        $rel = media()->rutaMediaDesdeAlmacenado($referencia);
+        if ($rel === null) {
+            return;
+        }
+
+        $disco = media()->rutaDiscoUploads($rel);
+        if (! is_file($disco)) {
+            return;
+        }
+
+        $mime = $this->mimeArchivoLocal($disco);
+        if (in_array($mime, ['audio/ogg', 'audio/opus', 'application/ogg', 'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/aac', 'audio/amr'], true)) {
+            return;
+        }
+
+        $ogg = $this->convertirAudioOggWhatsapp($disco);
+        if ($ogg === null) {
+            log_message('error', '[WhatsApp] No se pudo convertir audio a OGG: ' . $disco . ' mime=' . $mime);
+
+            return;
+        }
+
+        $this->actualizarRutaMediaLocal($datos, $ogg);
+        $datos['media_type'] = 'audio';
+        unset($datos['whatsapp_media_id']);
+    }
+
+    private function convertirAudioOggWhatsapp(string $origen): ?string
+    {
+        $ffmpeg = $this->binarioFfmpeg();
+        if ($ffmpeg === null) {
+            log_message('error', '[WhatsApp] Falta ffmpeg para convertir la nota de voz.');
+
+            return null;
+        }
+
+        $destino = preg_replace('/\.[^.]+$/', '-wa.ogg', $origen) ?: ($origen . '-wa.ogg');
+        $cmd = escapeshellarg($ffmpeg)
+            . ' -y -i ' . escapeshellarg($origen)
+            . ' -vn -c:a libopus -b:a 48k -ac 1 '
+            . escapeshellarg($destino)
+            . ' 2>&1';
+        exec($cmd, $salida, $codigo);
+        if ($codigo === 0 && is_file($destino) && filesize($destino) > 0) {
+            return $destino;
+        }
+
+        log_message('error', '[WhatsApp] ffmpeg audio: ' . implode("\n", $salida));
+        if (is_file($destino)) {
+            @unlink($destino);
+        }
+
+        return null;
+    }
+
+    private function binarioFfmpeg(): ?string
+    {
+        foreach (['ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'] as $binario) {
+            $cmd = escapeshellarg($binario) . ' -version';
+            $salida = [];
+            $codigo = 1;
+            exec($cmd . ' 2>&1', $salida, $codigo);
+            if ($codigo === 0) {
+                return $binario;
+            }
+        }
+
+        return null;
     }
 
     /**

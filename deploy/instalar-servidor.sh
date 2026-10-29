@@ -21,7 +21,7 @@ RAMA="${RAMA:-main}"
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update
-apt-get install -y nginx mysql-server unzip curl git software-properties-common
+apt-get install -y nginx mysql-server unzip curl git software-properties-common ffmpeg
 
 if ! apt-cache show php8.3-fpm >/dev/null 2>&1; then
   add-apt-repository -y ppa:ondrej/php

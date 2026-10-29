@@ -90,7 +90,7 @@ fi
 
 cd /var/www/belly/front-src
 npm ci
-npm run build
+VITE_API_URL=https://api.micrm.space VITE_SOCKET_URL=https://api.micrm.space npm run build
 mkdir -p /var/www/belly/front
 rm -rf /var/www/belly/front/*
 cp -r dist/. /var/www/belly/front/
@@ -117,6 +117,7 @@ systemctl enable --now belly-socket
 systemctl restart belly-socket
 
 echo
-echo "Listo. Edita /var/www/belly/api/.env y pon tu dominio en app.baseURL y SOCKET_ORIGENES."
-echo "Para actualizar después: git pull en api y front-src, composer/npm, build, y reinicia belly-socket."
-echo "Cuando tengas dominio: apt-get install -y certbot python3-certbot-nginx && certbot --nginx -d TU_DOMINIO"
+echo "Listo."
+echo "Panel: https://app.micrm.space"
+echo "API:   https://api.micrm.space"
+echo "Certificados: apt-get install -y certbot python3-certbot-nginx && certbot --nginx -d api.micrm.space -d app.micrm.space"

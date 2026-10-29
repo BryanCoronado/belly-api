@@ -510,7 +510,7 @@ if (!function_exists('procesarMensajeWhatsappSaliente')) {
                 break;
 
             case 'sticker':
-                $mensaje_bd = 'Se envió sticker';
+                $mensaje_bd = '[Sticker]';
                 $payload['type'] = 'sticker';
                 $payload['sticker'] = ! empty($datos['whatsapp_media_id'])
                     ? ['id' => $datos['whatsapp_media_id']]

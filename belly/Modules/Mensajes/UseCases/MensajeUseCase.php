@@ -249,6 +249,10 @@ class MensajeUseCase {
             ];
 
             $tipo = $datos['media_type'] ?? 'text';
+            if ($tipo === 'sticker') {
+                $this->asegurarStickerCompatible($datos);
+                $tipo = $datos['media_type'] ?? 'sticker';
+            }
 
             if (in_array($tipo, ['image', 'video', 'document', 'audio', 'sticker'], true)) {
                 $this->prepararMediaIdWhatsapp($datos, $phone_number_id, $access_token);
@@ -1040,6 +1044,113 @@ class MensajeUseCase {
         }
 
         return $principal . "\n\n— Plantilla: {$templateName}";
+    }
+
+    /**
+     * WhatsApp solo acepta sticker WebP 512×512 y ≤100 KB. Giphy casi nunca cumple:
+     * recortamos si se puede; si no, se manda como imagen (así sí llega).
+     *
+     * @param array<string, mixed> $datos
+     */
+    private function asegurarStickerCompatible(array &$datos): void
+    {
+        $referencia = (string) ($datos['media_path'] ?? $datos['media_url'] ?? '');
+        $rel = media()->rutaMediaDesdeAlmacenado($referencia);
+        if ($rel === null) {
+            $datos['media_type'] = 'image';
+            $datos['mensaje'] = '';
+
+            return;
+        }
+
+        $disco = media()->rutaDiscoUploads($rel);
+        if (! is_file($disco)) {
+            $datos['media_type'] = 'image';
+            $datos['mensaje'] = '';
+
+            return;
+        }
+
+        $info = @getimagesize($disco);
+        $ancho = (int) ($info[0] ?? 0);
+        $alto = (int) ($info[1] ?? 0);
+        $peso = (int) filesize($disco);
+        $mime = (string) ($info['mime'] ?? '');
+
+        if ($mime === 'image/webp' && $ancho === 512 && $alto === 512 && $peso > 0 && $peso <= 100 * 1024) {
+            return;
+        }
+
+        $convertido = $this->convertirWebpSticker($disco);
+        if ($convertido !== null) {
+            $nuevoRel = 'uploads/' . ltrim(str_replace('\\', '/', substr($convertido, strlen(WRITEPATH . 'uploads/'))), '/');
+            $datos['media_path'] = $nuevoRel;
+            $datos['media_url'] = media()->construirUrlPublicaUploads($nuevoRel);
+            unset($datos['whatsapp_media_id']);
+
+            return;
+        }
+
+        $datos['media_type'] = 'image';
+        $datos['mensaje'] = '';
+        unset($datos['whatsapp_media_id']);
+    }
+
+    private function convertirWebpSticker(string $origen): ?string
+    {
+        if (! function_exists('imagecreatetruecolor') || ! function_exists('imagewebp')) {
+            return null;
+        }
+
+        $crudo = @file_get_contents($origen);
+        if ($crudo === false || $crudo === '') {
+            return null;
+        }
+
+        $fuente = @imagecreatefromstring($crudo);
+        if ($fuente === false) {
+            return null;
+        }
+
+        $origenAncho = imagesx($fuente);
+        $origenAlto = imagesy($fuente);
+        if ($origenAncho < 1 || $origenAlto < 1) {
+            imagedestroy($fuente);
+
+            return null;
+        }
+
+        $lienzo = imagecreatetruecolor(512, 512);
+        imagealphablending($lienzo, false);
+        imagesavealpha($lienzo, true);
+        $transparente = imagecolorallocatealpha($lienzo, 0, 0, 0, 127);
+        imagefilledrectangle($lienzo, 0, 0, 511, 511, $transparente);
+
+        $escala = min(512 / $origenAncho, 512 / $origenAlto);
+        $nuevoAncho = max(1, (int) round($origenAncho * $escala));
+        $nuevoAlto = max(1, (int) round($origenAlto * $escala));
+        $x = (int) ((512 - $nuevoAncho) / 2);
+        $y = (int) ((512 - $nuevoAlto) / 2);
+        imagecopyresampled($lienzo, $fuente, $x, $y, 0, 0, $nuevoAncho, $nuevoAlto, $origenAncho, $origenAlto);
+        imagedestroy($fuente);
+
+        $destino = preg_replace('/\.[^.]+$/', '-wa.webp', $origen) ?: ($origen . '-wa.webp');
+        foreach ([80, 60, 40] as $calidad) {
+            if (! @imagewebp($lienzo, $destino, $calidad)) {
+                continue;
+            }
+            if (is_file($destino) && filesize($destino) > 0 && filesize($destino) <= 100 * 1024) {
+                imagedestroy($lienzo);
+
+                return $destino;
+            }
+        }
+        imagedestroy($lienzo);
+        if (is_file($destino)) {
+            @unlink($destino);
+        }
+
+        return null;
     }
 
     /**

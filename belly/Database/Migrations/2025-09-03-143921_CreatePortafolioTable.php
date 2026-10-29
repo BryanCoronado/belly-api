@@ -36,6 +36,17 @@ class CreateConfiguracionMetaTable extends Migration
                 'type'       => 'VARCHAR',
                 'constraint' => '120',
             ],
+            'correo' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '120',
+                'null'       => true,
+            ],
+            'id_aviso_ia' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'unsigned'   => true,
+                'null'       => true,
+            ],
             'slug' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '80',

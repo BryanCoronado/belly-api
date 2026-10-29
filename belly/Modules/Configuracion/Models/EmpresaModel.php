@@ -16,6 +16,7 @@ class EmpresaModel extends Model
     protected $allowedFields = [
         'nombre',
         'correo',
+        'id_aviso_ia',
         'slug',
         'plan',
         'estado',

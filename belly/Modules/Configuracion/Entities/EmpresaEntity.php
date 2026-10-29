@@ -11,5 +11,6 @@ class EmpresaEntity extends Entity
     protected $casts = [
         'id' => 'int',
         'estado' => 'int',
+        'id_aviso_ia' => '?int',
     ];
 }

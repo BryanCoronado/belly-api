@@ -28,7 +28,11 @@ class PerfilUseCase
             'empresa' => [
                 'nombre' => (string) ($empresa->nombre ?? ''),
                 'correo' => (string) ($empresa->correo ?? ''),
+                'id_aviso_ia' => $this->idAvisoIa($empresa),
             ],
+            'destinos_aviso' => Autorizacion::esAdministradorEmpresa()
+                ? $this->destinosAviso((int) $usuario->id_empresa)
+                : [],
         ];
     }
 
@@ -131,11 +135,17 @@ class PerfilUseCase
             throw new DomainException('El correo de la empresa no es válido.');
         }
 
-        $modelo = model(EmpresaModel::class);
-        $modelo->update((int) $usuario->id_empresa, [
+        $cambios = [
             'nombre' => $nombre,
             'correo' => $correo !== '' ? $correo : null,
-        ]);
+        ];
+
+        if (array_key_exists('id_aviso_ia', $datos) && db_connect()->fieldExists('id_aviso_ia', 'empresa')) {
+            $cambios['id_aviso_ia'] = $this->destinoAvisoValido((int) $usuario->id_empresa, $datos['id_aviso_ia']);
+        }
+
+        $modelo = model(EmpresaModel::class);
+        $modelo->update((int) $usuario->id_empresa, $cambios);
 
         return $this->ver();
     }
@@ -197,5 +207,66 @@ class PerfilUseCase
         }
 
         return $empresa;
+    }
+
+    private function idAvisoIa(object $empresa): ?int
+    {
+        if (! db_connect()->fieldExists('id_aviso_ia', 'empresa')) {
+            return null;
+        }
+
+        $id = (int) ($empresa->id_aviso_ia ?? 0);
+
+        return $id > 0 ? $id : null;
+    }
+
+    /** @return list<array{id:int, nombre:string, foto:?string, admin:bool}> */
+    private function destinosAviso(int $idEmpresa): array
+    {
+        $filas = db_connect()->table('usuario u')
+            ->select('u.id, u.sudo, u.usuario, p.nombres, p.apellidos, p.foto_url')
+            ->join('usuario_perfil p', 'p.id_usuario = u.id AND p.deleted_at IS NULL', 'left')
+            ->where('u.id_empresa', $idEmpresa)
+            ->where('u.es_bot', 0)
+            ->where('u.deleted_at', null)
+            ->where('u.activo', 1)
+            ->orderBy('u.sudo', 'DESC')
+            ->orderBy('p.nombres', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $lista = [];
+        foreach ($filas as $fila) {
+            $nombre = trim((string) ($fila['nombres'] ?? '') . ' ' . (string) ($fila['apellidos'] ?? ''));
+            $lista[] = [
+                'id' => (int) $fila['id'],
+                'nombre' => $nombre !== '' ? $nombre : (string) $fila['usuario'],
+                'foto' => $fila['foto_url'] ?: null,
+                'admin' => (int) ($fila['sudo'] ?? 0) === 1,
+            ];
+        }
+
+        return $lista;
+    }
+
+    private function destinoAvisoValido(int $idEmpresa, mixed $valor): ?int
+    {
+        $id = (int) $valor;
+        if ($id <= 0) {
+            return null;
+        }
+
+        $existe = db_connect()->table('usuario')
+            ->where('id', $id)
+            ->where('id_empresa', $idEmpresa)
+            ->where('es_bot', 0)
+            ->where('deleted_at', null)
+            ->countAllResults() > 0;
+
+        if (! $existe) {
+            throw new DomainException('Elige a alguien de tu equipo para los avisos de la IA.');
+        }
+
+        return $id;
     }
 }

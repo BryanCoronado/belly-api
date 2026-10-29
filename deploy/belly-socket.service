@@ -1,0 +1,16 @@
+[Unit]
+Description=Belly socket (chats y envíos)
+After=network.target mysql.service php8.3-fpm.service nginx.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/belly/api/socket
+ExecStart=/usr/bin/node servidor.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

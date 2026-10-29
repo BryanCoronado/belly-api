@@ -52,7 +52,6 @@ class Filters extends BaseFilters
     public array $required = [
         'before' => [
             'cors',        // CORS must be first
-            'forcehttps', // Force Global Secure Requests
             'pagecache',  // Web Page Caching
         ],
         'after' => [

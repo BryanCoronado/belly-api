@@ -83,9 +83,12 @@ fi
 php spark migrate --all
 php spark db:seed "Belly\\Database\\Seeds\\InitSeeder"
 
-mkdir -p writable/uploads writable/cache writable/logs writable/session
+mkdir -p writable/uploads writable/downloads writable/cache writable/logs writable/session
 if [[ ! -L public/uploads ]]; then
   ln -sfn /var/www/belly/api/writable/uploads /var/www/belly/api/public/uploads
+fi
+if [[ ! -L public/downloads ]]; then
+  ln -sfn /var/www/belly/api/writable/downloads /var/www/belly/api/public/downloads
 fi
 
 cd /var/www/belly/front-src

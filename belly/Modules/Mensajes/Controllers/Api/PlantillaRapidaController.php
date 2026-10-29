@@ -22,7 +22,7 @@ class PlantillaRapidaController extends BaseController
 
             $data = $this->datosDesdeRequest();
 
-            $imagen = $this->request->getFile('imagen');
+            $imagen = $this->archivoImagen();
 
             $plantilla_rapida = plantilla_rapida()->crearPlantillaRapida($data, $imagen);
 
@@ -196,7 +196,7 @@ class PlantillaRapidaController extends BaseController
 
             $data = $this->datosDesdeRequest();
 
-            $imagen = $this->request->getFile('imagen');
+            $imagen = $this->archivoImagen();
 
             $plantilla_rapida = plantilla_rapida()->editarPlantillaRapida($data, $id, $imagen);
 
@@ -314,6 +314,18 @@ class PlantillaRapidaController extends BaseController
             'contenido'       => $this->request->getPost('contenido'),
             'eliminar_imagen' => $this->request->getPost('eliminar_imagen'),
         ];
+    }
+
+    private function archivoImagen(): ?\CodeIgniter\HTTP\Files\UploadedFile
+    {
+        foreach (['imagen', 'file'] as $campo) {
+            $archivo = $this->request->getFile($campo);
+            if ($archivo && $archivo->isValid() && ! $archivo->hasMoved()) {
+                return $archivo;
+            }
+        }
+
+        return null;
     }
 
 }

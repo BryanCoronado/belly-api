@@ -164,6 +164,15 @@ class MediaUseCase {
             }
 
             $mimeType = strtolower((string) $file->getMimeType());
+            $extension = strtolower((string) ($file->getClientExtension() ?: pathinfo($file->getClientName(), PATHINFO_EXTENSION)));
+            if ($mimeType === 'application/octet-stream' && in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+                $mimeType = match ($extension) {
+                    'png' => 'image/png',
+                    'webp' => 'image/webp',
+                    'gif' => 'image/gif',
+                    default => 'image/jpeg',
+                };
+            }
             $permitidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
             if (! in_array($mimeType, $permitidos, true)) {
                 throw new \Exception('Formato no permitido. Use JPG, PNG, WEBP o GIF.');
@@ -179,18 +188,13 @@ class MediaUseCase {
 
             $mediaId = uniqid('pr_', true);
             $carpetaAsesor = 'plantillas-rapidas/' . max(1, $idUsuario);
-            $filename = \generarNombreArchivoMedia($mediaId, 'image', $carpetaAsesor, $mimeType, 'downloads');
-            $contenido = file_get_contents($file->getTempName());
-            if ($contenido === false) {
-                throw new \Exception('No se pudo leer la imagen.');
-            }
-
-            $this->guardarEnDownloads($contenido, $filename);
+            $filename = \generarNombreArchivoMedia($mediaId, 'image', $carpetaAsesor, $mimeType, 'uploads');
+            $this->guardarEnUploads($file->getTempName(), $filename);
 
             return [
                 'success'    => true,
                 'media_path' => $filename,
-                'media_url'  => $this->construirUrlPublicaDownloads($filename),
+                'media_url'  => $this->construirUrlPublicaUploads($filename),
                 'media_type' => 'image',
                 'size'       => $size,
                 'mime_type'  => $mimeType,

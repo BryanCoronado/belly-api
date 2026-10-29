@@ -249,9 +249,9 @@ class MensajeUseCase {
             ];
 
             $tipo = $datos['media_type'] ?? 'text';
-            if ($tipo === 'sticker') {
-                $this->asegurarStickerCompatible($datos);
-                $tipo = $datos['media_type'] ?? 'sticker';
+            if ($tipo === 'sticker' || $tipo === 'image') {
+                $this->asegurarImagenCompatibleWhatsapp($datos);
+                $tipo = $datos['media_type'] ?? $tipo;
             }
 
             if (in_array($tipo, ['image', 'video', 'document', 'audio', 'sticker'], true)) {
@@ -1047,110 +1047,159 @@ class MensajeUseCase {
     }
 
     /**
-     * WhatsApp solo acepta sticker WebP 512×512 y ≤100 KB. Giphy casi nunca cumple:
-     * recortamos si se puede; si no, se manda como imagen (así sí llega).
+     * WhatsApp Cloud solo entrega JPEG/PNG como imagen, y WebP estático 512×512 ≤100 KB
+     * como sticker. Giphy casi nunca cumple: lo pasamos a JPEG para que sí llegue.
      *
      * @param array<string, mixed> $datos
      */
-    private function asegurarStickerCompatible(array &$datos): void
+    private function asegurarImagenCompatibleWhatsapp(array &$datos): void
     {
         $referencia = (string) ($datos['media_path'] ?? $datos['media_url'] ?? '');
         $rel = media()->rutaMediaDesdeAlmacenado($referencia);
         if ($rel === null) {
-            $datos['media_type'] = 'image';
-            $datos['mensaje'] = '';
-
             return;
         }
 
         $disco = media()->rutaDiscoUploads($rel);
         if (! is_file($disco)) {
-            $datos['media_type'] = 'image';
-            $datos['mensaje'] = '';
-
             return;
         }
 
+        $tipo = (string) ($datos['media_type'] ?? 'image');
+        $mime = $this->mimeArchivoLocal($disco);
+        $peso = (int) filesize($disco);
         $info = @getimagesize($disco);
         $ancho = (int) ($info[0] ?? 0);
         $alto = (int) ($info[1] ?? 0);
-        $peso = (int) filesize($disco);
-        $mime = (string) ($info['mime'] ?? '');
 
-        if ($mime === 'image/webp' && $ancho === 512 && $alto === 512 && $peso > 0 && $peso <= 100 * 1024) {
+        if (
+            $tipo === 'sticker'
+            && $mime === 'image/webp'
+            && $ancho === 512
+            && $alto === 512
+            && $peso > 0
+            && $peso <= 100 * 1024
+        ) {
             return;
         }
 
-        $convertido = $this->convertirWebpSticker($disco);
-        if ($convertido !== null) {
-            $nuevoRel = 'uploads/' . ltrim(str_replace('\\', '/', substr($convertido, strlen(WRITEPATH . 'uploads/'))), '/');
-            $datos['media_path'] = $nuevoRel;
-            $datos['media_url'] = media()->construirUrlPublicaUploads($nuevoRel);
-            unset($datos['whatsapp_media_id']);
+        if ($tipo === 'image' && in_array($mime, ['image/jpeg', 'image/jpg', 'image/png'], true)) {
+            return;
+        }
+
+        $jpeg = $this->convertirImagenJpegWhatsapp($disco);
+        if ($jpeg === null) {
+            log_message('error', '[WhatsApp] No se pudo convertir media a JPEG: ' . $disco);
+            $datos['media_type'] = 'image';
 
             return;
         }
 
+        $this->actualizarRutaMediaLocal($datos, $jpeg);
         $datos['media_type'] = 'image';
-        $datos['mensaje'] = '';
+        if (trim((string) ($datos['mensaje'] ?? '')) === '' || preg_match('/^(\[Sticker\]|Se envió sticker)$/i', (string) $datos['mensaje'])) {
+            $datos['mensaje'] = '';
+        }
         unset($datos['whatsapp_media_id']);
     }
 
-    private function convertirWebpSticker(string $origen): ?string
+    private function mimeArchivoLocal(string $ruta): string
     {
-        if (! function_exists('imagecreatetruecolor') || ! function_exists('imagewebp')) {
-            return null;
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = $finfo ? (string) finfo_file($finfo, $ruta) : '';
+        if ($finfo) {
+            finfo_close($finfo);
         }
 
-        $crudo = @file_get_contents($origen);
-        if ($crudo === false || $crudo === '') {
-            return null;
-        }
+        return strtolower($mime);
+    }
 
-        $fuente = @imagecreatefromstring($crudo);
+    private function actualizarRutaMediaLocal(array &$datos, string $disco): void
+    {
+        $raiz = WRITEPATH . 'uploads/';
+        $rel = ltrim(str_replace('\\', '/', substr($disco, strlen($raiz))), '/');
+        $datos['media_path'] = 'uploads/' . $rel;
+        $datos['media_url'] = media()->construirUrlPublicaUploads($rel);
+    }
+
+    private function convertirImagenJpegWhatsapp(string $origen): ?string
+    {
+        $fuente = $this->abrirImagenGd($origen);
         if ($fuente === false) {
             return null;
         }
 
-        $origenAncho = imagesx($fuente);
-        $origenAlto = imagesy($fuente);
-        if ($origenAncho < 1 || $origenAlto < 1) {
+        $ancho = imagesx($fuente);
+        $alto = imagesy($fuente);
+        if ($ancho < 1 || $alto < 1) {
             imagedestroy($fuente);
 
             return null;
         }
 
-        $lienzo = imagecreatetruecolor(512, 512);
-        imagealphablending($lienzo, false);
-        imagesavealpha($lienzo, true);
-        $transparente = imagecolorallocatealpha($lienzo, 0, 0, 0, 127);
-        imagefilledrectangle($lienzo, 0, 0, 511, 511, $transparente);
+        $max = 1600;
+        $escala = min(1, $max / max($ancho, $alto));
+        $nuevoAncho = max(1, (int) round($ancho * $escala));
+        $nuevoAlto = max(1, (int) round($alto * $escala));
 
-        $escala = min(512 / $origenAncho, 512 / $origenAlto);
-        $nuevoAncho = max(1, (int) round($origenAncho * $escala));
-        $nuevoAlto = max(1, (int) round($origenAlto * $escala));
-        $x = (int) ((512 - $nuevoAncho) / 2);
-        $y = (int) ((512 - $nuevoAlto) / 2);
-        imagecopyresampled($lienzo, $fuente, $x, $y, 0, 0, $nuevoAncho, $nuevoAlto, $origenAncho, $origenAlto);
+        $lienzo = imagecreatetruecolor($nuevoAncho, $nuevoAlto);
+        $blanco = imagecolorallocate($lienzo, 255, 255, 255);
+        imagefilledrectangle($lienzo, 0, 0, $nuevoAncho, $nuevoAlto, $blanco);
+        imagecopyresampled($lienzo, $fuente, 0, 0, 0, 0, $nuevoAncho, $nuevoAlto, $ancho, $alto);
         imagedestroy($fuente);
 
-        $destino = preg_replace('/\.[^.]+$/', '-wa.webp', $origen) ?: ($origen . '-wa.webp');
-        foreach ([80, 60, 40] as $calidad) {
-            if (! @imagewebp($lienzo, $destino, $calidad)) {
+        $destino = preg_replace('/\.[^.]+$/', '-wa.jpg', $origen) ?: ($origen . '-wa.jpg');
+        $ok = @imagejpeg($lienzo, $destino, 82);
+        imagedestroy($lienzo);
+        if (! $ok || ! is_file($destino) || filesize($destino) <= 0) {
+            return null;
+        }
+
+        return $destino;
+    }
+
+    /**
+     * @return \GdImage|false
+     */
+    private function abrirImagenGd(string $ruta)
+    {
+        $crudo = @file_get_contents($ruta);
+        if (is_string($crudo) && $crudo !== '') {
+            $desdeString = @imagecreatefromstring($crudo);
+            if ($desdeString !== false) {
+                return $desdeString;
+            }
+        }
+
+        foreach (['imagecreatefromwebp', 'imagecreatefromgif', 'imagecreatefrompng', 'imagecreatefromjpeg'] as $fn) {
+            if (! function_exists($fn)) {
                 continue;
             }
-            if (is_file($destino) && filesize($destino) > 0 && filesize($destino) <= 100 * 1024) {
-                imagedestroy($lienzo);
-
-                return $destino;
+            $img = @$fn($ruta);
+            if ($img !== false) {
+                return $img;
             }
         }
-        imagedestroy($lienzo);
-        if (is_file($destino)) {
-            @unlink($destino);
+
+        if (class_exists(\Imagick::class)) {
+            try {
+                $im = new \Imagick();
+                $im->readImage($ruta);
+                $im->setIteratorIndex(0);
+                $im->setImageFormat('png');
+                $png = $im->getImageBlob();
+                $im->clear();
+                $im->destroy();
+                $desdeImagick = @imagecreatefromstring($png);
+                if ($desdeImagick !== false) {
+                    return $desdeImagick;
+                }
+            } catch (\Throwable $e) {
+                log_message('warning', '[WhatsApp] Imagick no pudo leer ' . $ruta . ': ' . $e->getMessage());
+            }
         }
 
-        return null;
+        return false;
     }
 
     /**

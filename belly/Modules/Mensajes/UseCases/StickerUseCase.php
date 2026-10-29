@@ -53,12 +53,16 @@ class StickerUseCase
                 continue;
             }
             $imagenes = $item['images'] ?? [];
-            $url = $imagenes['original']['webp']
-                ?? $imagenes['fixed_width']['webp']
+            // WhatsApp no entrega WebP animado: mandamos un fotograma estático (jpg/gif).
+            $url = $imagenes['original_still']['url']
+                ?? $imagenes['downsized_still']['url']
+                ?? $imagenes['fixed_width_still']['url']
+                ?? $imagenes['downsized']['url']
                 ?? $imagenes['original']['url']
                 ?? '';
-            $preview = $imagenes['fixed_width_small']['webp']
-                ?? $imagenes['preview_webp']['url']
+            $preview = $imagenes['fixed_width_small']['url']
+                ?? $imagenes['preview_gif']['url']
+                ?? $imagenes['fixed_width_still']['url']
                 ?? $url;
             if ($url === '') {
                 continue;

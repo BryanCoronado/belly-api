@@ -65,22 +65,26 @@ class SocketHelper
         ];
 
         if ($idConversacion <= 0) {
-            return $aviso;
+            return self::conDestinatarios($aviso);
         }
 
-        $fila = self::contextoConversacion($idConversacion);
-        if ($fila === null) {
-            return $aviso;
+        try {
+            $fila = self::contextoConversacion($idConversacion);
+        } catch (\Throwable $e) {
+            log_message('warning', '[SOCKET] No se pudo armar el aviso: ' . $e->getMessage());
+            $fila = null;
         }
 
-        $aviso['id_usuario'] = self::enteroONulo($fila['id_usuario'] ?? null);
-        $aviso['es_bot'] = (int) ($fila['es_bot'] ?? 0);
-        $aviso['id_aviso_ia'] = self::resolverAvisoIa((int) ($fila['id_empresa'] ?? 0), $fila['id_aviso_ia'] ?? null);
-        if ($aviso['nombre'] === null) {
-            $aviso['nombre'] = self::textoONulo($fila['nombre'] ?? null);
+        if ($fila !== null) {
+            $aviso['id_usuario'] = self::enteroONulo($fila['id_usuario'] ?? null);
+            $aviso['es_bot'] = (int) ($fila['es_bot'] ?? 0);
+            $aviso['id_aviso_ia'] = self::resolverAvisoIa((int) ($fila['id_empresa'] ?? 0), $fila['id_aviso_ia'] ?? null);
+            if ($aviso['nombre'] === null) {
+                $aviso['nombre'] = self::textoONulo($fila['nombre'] ?? null);
+            }
         }
 
-        return $aviso;
+        return self::conDestinatarios($aviso);
     }
 
     /** @return array<string, mixed>|null */
@@ -155,6 +159,17 @@ class SocketHelper
         }
 
         return mb_substr($texto, 0, 140);
+    }
+
+    /** @param array<string, mixed> $aviso */
+    private static function conDestinatarios(array $aviso): array
+    {
+        $destino = (int) ($aviso['es_bot'] ?? 0) === 1
+            ? (int) ($aviso['id_aviso_ia'] ?? 0)
+            : (int) ($aviso['id_usuario'] ?? 0);
+        $aviso['para'] = $destino > 0 ? [$destino] : [];
+
+        return $aviso;
     }
 
     private static function enteroONulo(mixed $valor): ?int

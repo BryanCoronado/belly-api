@@ -16,6 +16,11 @@ class IntegracionWhatsappControllerApi extends BaseController
         return $this->ejecutar(static fn () => ['conectado' => conexion_whatsapp()->estaConectada()]);
     }
 
+    public function costos()
+    {
+        return $this->ejecutar(static fn () => service('CostosWhatsappUseCase')->resumen());
+    }
+
     public function guardarAppMeta()
     {
         return $this->ejecutar(fn () => conexion_whatsapp()->guardarAppMeta($this->datos()));

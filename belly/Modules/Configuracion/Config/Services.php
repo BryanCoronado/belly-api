@@ -3,8 +3,10 @@
 namespace Belly\Configuracion\Config;
 use Belly\Configuracion\UseCases\AppUseCase;
 use Belly\Configuracion\UseCases\ConexionWhatsappUseCase;
+use Belly\Configuracion\UseCases\CostosWhatsappUseCase;
 use Belly\Configuracion\UseCases\EmpresaUseCase;
-use Belly\Configuracion\UseCases\PortafolioUseCase ;
+use Belly\Configuracion\UseCases\PortafolioUseCase;
+use Belly\Services\MetaGraph;
 
 
 use CodeIgniter\Config\BaseService;
@@ -41,6 +43,15 @@ class Services extends BaseService
 
         $config = $config ?? config('ConfiguracionConfig');
         return new ConexionWhatsappUseCase($config);
+    }
+
+    public static function CostosWhatsappUseCase($getShared = true): CostosWhatsappUseCase
+    {
+        if ($getShared) {
+            return self::getSharedInstance('CostosWhatsappUseCase');
+        }
+
+        return new CostosWhatsappUseCase(new MetaGraph());
     }
 
     public static function EmpresaUseCase($config = null, bool $getShared = true): EmpresaUseCase

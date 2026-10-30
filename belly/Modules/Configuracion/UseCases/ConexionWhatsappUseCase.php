@@ -228,6 +228,11 @@ class ConexionWhatsappUseCase
         return $this->estado();
     }
 
+    public function appVerificada(): ?AppEntity
+    {
+        return $this->numeroVerificadoDeEmpresa();
+    }
+
     /** Hay al menos un número verificado con Meta y activo. */
     public function estaConectada(?int $idEmpresa = null): bool
     {

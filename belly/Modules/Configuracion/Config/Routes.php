@@ -14,6 +14,7 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
 $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static function ($routes) {
     $routes->group('integraciones/whatsapp', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
         $routes->get('/', 'IntegracionWhatsappControllerApi::estado', ['as' => 'apiv1_whatsapp_estado']);
+        $routes->get('costos', 'IntegracionWhatsappControllerApi::costos', ['as' => 'apiv1_whatsapp_costos']);
         $routes->delete('/', 'IntegracionWhatsappControllerApi::desconectar', ['as' => 'apiv1_whatsapp_desconectar']);
         $routes->put('app-meta', 'IntegracionWhatsappControllerApi::guardarAppMeta', ['as' => 'apiv1_whatsapp_app_meta']);
         $routes->post('regenerar-token', 'IntegracionWhatsappControllerApi::regenerarToken', ['as' => 'apiv1_whatsapp_regenerar_token']);

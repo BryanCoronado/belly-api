@@ -9,7 +9,7 @@ namespace Belly\Services;
 class MetaGraph
 {
     private const BASE = 'https://graph.facebook.com/v21.0/';
-    private const TIMEOUT = 15;
+    private const TIMEOUT = 25;
 
     /**
      * @return array{display_phone_number:string, verified_name:string, quality_rating:?string}
@@ -41,6 +41,23 @@ class MetaGraph
     public function suscribirApp(string $wabaId, string $token): void
     {
         $this->solicitar('POST', rawurlencode($wabaId) . '/subscribed_apps', $token);
+    }
+
+    /**
+     * Mensajes entregados y costo según Meta (cupo de 1.000, cobrados, categorías).
+     *
+     * @return array<string, mixed>
+     */
+    public function analyticsPrecios(string $wabaId, string $token, int $inicio, int $fin, string $granularidad = 'DAILY'): array
+    {
+        $campos = sprintf(
+            'pricing_analytics.start(%d).end(%d).granularity(%s).dimensions(PRICING_TYPE,PRICING_CATEGORY,PHONE)',
+            $inicio,
+            $fin,
+            $granularidad
+        );
+
+        return $this->solicitar('GET', rawurlencode($wabaId) . '?fields=' . $campos, $token);
     }
 
     /**

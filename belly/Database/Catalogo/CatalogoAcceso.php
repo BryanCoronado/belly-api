@@ -67,6 +67,7 @@ final class CatalogoAcceso
             self::permiso(38, self::CATALOGO, null, 'mod_producto_access', 'Productos', 'Crear y ordenar los productos y sus familias.', admin: true, orden: 60),
 
             self::permiso(35, self::INTEGRACIONES, null, 'mod_configuracion_conversacion_access', 'WhatsApp', 'Conectar el número de WhatsApp de la empresa.', admin: true, orden: 80),
+            self::permiso(49, self::INTEGRACIONES, null, 'mod_costos_whatsapp_access', 'Costos WhatsApp', 'Cupo de 1.000 mensajes y lo que Meta cobra este mes.', wa: true, admin: true, orden: 81),
         ];
     }
 
@@ -95,6 +96,7 @@ final class CatalogoAcceso
             self::modulo(31, 38, self::CATALOGO, null, 'Productos', 'mod_producto', '/productos', 'store', 1),
 
             self::modulo(29, 35, self::INTEGRACIONES, null, 'WhatsApp', 'mod_configuracion', '/integraciones/whatsapp', 'whatsapp', 1),
+            self::modulo(41, 49, self::INTEGRACIONES, null, 'Costos WhatsApp', 'mod_costos_whatsapp', '/integraciones/costos', 'wallet', 2),
         ];
     }
 

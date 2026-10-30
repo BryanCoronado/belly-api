@@ -275,7 +275,15 @@ class WebhookUseCase
         }
 
         if ($nuevoEstado !== null && function_exists('mensaje')) {
-            mensaje()->actualizarEstadoMensajeWhatsapp($wamid, $nuevoEstado, null, $codError);
+            $precio = is_array($status['pricing'] ?? null) ? $status['pricing'] : [];
+            mensaje()->actualizarEstadoMensajeWhatsapp(
+                $wamid,
+                $nuevoEstado,
+                null,
+                $codError,
+                isset($precio['type']) ? strtolower((string) $precio['type']) : null,
+                isset($precio['category']) ? strtolower((string) $precio['category']) : null,
+            );
         }
 
         try {

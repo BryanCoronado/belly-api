@@ -12,5 +12,6 @@ class EmpresaEntity extends Entity
         'id' => 'int',
         'estado' => 'int',
         'id_aviso_ia' => '?int',
+        'modo_ahorro' => 'int',
     ];
 }

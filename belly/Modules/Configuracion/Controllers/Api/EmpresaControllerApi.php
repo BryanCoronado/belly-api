@@ -18,6 +18,32 @@ class EmpresaControllerApi extends BaseController
         }
     }
 
+    public function leerModo()
+    {
+        try {
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => empresa()->leerModo(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->responderError($e);
+        }
+    }
+
+    public function guardarModo()
+    {
+        try {
+            $datos = $this->request->getJSON(true);
+
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => empresa()->guardarModo(is_array($datos) ? $datos : []),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->responderError($e);
+        }
+    }
+
     public function crear()
     {
         try {
@@ -40,7 +66,9 @@ class EmpresaControllerApi extends BaseController
 
     private function responderError(\Throwable $e)
     {
-        $codigo = $e->getMessage() === 'No autorizado para administrar empresas.' ? 403 : 400;
+        $codigo = str_contains($e->getMessage(), 'No autorizado') || str_contains($e->getMessage(), 'Solo el administrador')
+            ? 403
+            : 400;
 
         return $this->response->setStatusCode($codigo)->setJSON([
             'success' => false,

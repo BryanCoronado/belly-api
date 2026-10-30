@@ -13,6 +13,8 @@ final class TiposNodo
     public const BOTONES = 'botones';
     public const LISTA = 'lista';
     public const PREGUNTA = 'pregunta';
+    /** Varios datos en un solo mensaje (el cliente responde todo junto). */
+    public const FORMULARIO = 'formulario';
     public const CONDICION = 'condicion';
     public const HORARIO = 'horario';
     public const VARIABLE = 'variable';
@@ -26,7 +28,7 @@ final class TiposNodo
     public const DIVIDIR = 'dividir';
 
     public const TODOS = [
-        self::INICIO, self::MENSAJE, self::BOTONES, self::LISTA, self::PREGUNTA,
+        self::INICIO, self::MENSAJE, self::BOTONES, self::LISTA, self::PREGUNTA, self::FORMULARIO,
         self::CONDICION, self::HORARIO, self::VARIABLE, self::ASESOR, self::FIN,
         self::ESPERA, self::UBICACION, self::TEMPERATURA, self::DIVIDIR,
     ];
@@ -37,6 +39,7 @@ final class TiposNodo
 
     public const MAX_BOTONES = 3;
     public const MAX_OPCIONES = 10;
+    public const MAX_CAMPOS_FORMULARIO = 8;
     public const SALIDA_SIGUIENTE = 'siguiente';
     public const SALIDA_OTRO = 'otro';
     public const SALIDA_SIN_RESPUESTA = 'sin_respuesta';
@@ -58,7 +61,7 @@ final class TiposNodo
         return match ($nodo['tipo'] ?? '') {
             self::INICIO, self::MENSAJE, self::VARIABLE, self::ESPERA, self::UBICACION, self::TEMPERATURA => [self::SALIDA_SIGUIENTE],
             self::DIVIDIR => ['a', 'b'],
-            self::PREGUNTA => [self::SALIDA_SIGUIENTE, ...self::salidaTiempo($datos)],
+            self::PREGUNTA, self::FORMULARIO => [self::SALIDA_SIGUIENTE, ...self::salidaTiempo($datos)],
             self::BOTONES => [...self::idsOpciones($datos['botones'] ?? []), self::SALIDA_OTRO, ...self::salidaTiempo($datos)],
             self::LISTA => [...self::idsOpciones($datos['opciones'] ?? []), self::SALIDA_OTRO, ...self::salidaTiempo($datos)],
             self::CONDICION => ['si', 'no'],
@@ -67,10 +70,32 @@ final class TiposNodo
         };
     }
 
+    /** Pasos que mandan un mensaje de WhatsApp. */
+    public const QUE_MANDAN = [
+        self::MENSAJE, self::BOTONES, self::LISTA, self::PREGUNTA,
+        self::FORMULARIO, self::UBICACION, self::ASESOR, self::FIN,
+    ];
+
+    /** En modo ahorro, más que esto pide confirmación para activar. */
+    public const TOPE_AHORRO = 2;
+
+    /** @param array<string, mixed> $definicion */
+    public static function cuentaMensajes(array $definicion): int
+    {
+        $cuenta = 0;
+        foreach ((array) ($definicion['nodos'] ?? []) as $nodo) {
+            if (is_array($nodo) && in_array($nodo['tipo'] ?? '', self::QUE_MANDAN, true)) {
+                $cuenta++;
+            }
+        }
+
+        return $cuenta;
+    }
+
     /** El paso se detiene a esperar lo que responda el cliente. */
     public static function esperaRespuesta(string $tipo): bool
     {
-        return in_array($tipo, [self::BOTONES, self::LISTA, self::PREGUNTA], true);
+        return in_array($tipo, [self::BOTONES, self::LISTA, self::PREGUNTA, self::FORMULARIO], true);
     }
 
     /** Segundos que se espera antes de seguir por «sin respuesta» (0 = no se usa). */

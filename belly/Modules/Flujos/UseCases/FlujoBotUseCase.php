@@ -368,6 +368,9 @@ class FlujoBotUseCase
                 }
                 continue;
             }
+            if (service('CostosWhatsappUseCase')->automaticoDebeCallar()) {
+                continue;
+            }
             if (! $this->enviador->enviar($idConversacion, $mensaje)) {
                 break;
             }

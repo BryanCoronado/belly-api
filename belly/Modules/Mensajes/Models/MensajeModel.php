@@ -25,6 +25,8 @@ class MensajeModel extends Model {
         'id_mensaje_whatsapp',
         'id_mensaje_responde',
         'cod_error',
+        'pricing_type',
+        'pricing_category',
         'media_type',
         'media_url',
         'media_path',

@@ -34,7 +34,13 @@ class FlujoControllerApi extends BaseController
 
     public function cambiarEstado(int $id)
     {
-        return $this->ejecutar(fn () => flujos()->cambiarEstado($id, (bool) ($this->datos()['activo'] ?? false)));
+        $datos = $this->datos();
+
+        return $this->ejecutar(fn () => flujos()->cambiarEstado(
+            $id,
+            (bool) ($datos['activo'] ?? false),
+            filter_var($datos['forzar'] ?? false, FILTER_VALIDATE_BOOLEAN)
+        ));
     }
 
     public function duplicar(int $id)

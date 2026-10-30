@@ -9,6 +9,15 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
     $routes->group('integraciones/whatsapp', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
         $routes->get('conectado', 'IntegracionWhatsappControllerApi::conectado', ['as' => 'apiv1_whatsapp_conectado']);
     });
+    $routes->group('empresa', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
+        $routes->get('modo', 'EmpresaControllerApi::leerModo', ['as' => 'apiv1_empresa_modo']);
+    });
+});
+
+$routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static function ($routes) {
+    $routes->group('empresa', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
+        $routes->put('modo', 'EmpresaControllerApi::guardarModo', ['as' => 'apiv1_empresa_modo_guardar']);
+    });
 });
 
 $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static function ($routes) {

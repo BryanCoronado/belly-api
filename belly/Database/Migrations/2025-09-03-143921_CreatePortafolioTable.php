@@ -61,6 +61,11 @@ class CreateConfiguracionMetaTable extends Migration
                 'constraint' => 1,
                 'default'    => 1,
             ],
+            'modo_ahorro' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 0,
+            ],
             'created_at' => [
                 'type' => 'DATETIME',
                 'default' => new RawSql('CURRENT_TIMESTAMP'),

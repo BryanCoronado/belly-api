@@ -438,7 +438,7 @@ class MensajeUseCase {
         return $this->obtenerDiagnosticoVentana24h($idConversacion);
     }
 
-    public function actualizarEstadoMensajeWhatsapp($id_mensaje_whatsapp, $nuevo_estado, $payload = null, $cod_error = null)
+    public function actualizarEstadoMensajeWhatsapp($id_mensaje_whatsapp, $nuevo_estado, $payload = null, $cod_error = null, ?string $pricingType = null, ?string $pricingCategory = null)
     {
         $mensaje_model = $this->getMensajeProvider();
         $mensaje = $mensaje_model->where('id_mensaje_whatsapp', $id_mensaje_whatsapp)->first();
@@ -457,6 +457,8 @@ class MensajeUseCase {
                 && $nuevo_estado_int > 0
                 && $nuevo_estado_int < $estado_anterior
             ) {
+                $this->guardarPrecioMensaje($mensaje_model, (int) $mensaje->id, $pricingType, $pricingCategory);
+
                 return true;
             }
 
@@ -466,6 +468,12 @@ class MensajeUseCase {
             }
             if ($cod_error) {
                 $updateData['cod_error'] = $cod_error;
+            }
+            if ($pricingType) {
+                $updateData['pricing_type'] = $pricingType;
+            }
+            if ($pricingCategory) {
+                $updateData['pricing_category'] = $pricingCategory;
             }
 
             if ($mensaje_model->update($mensaje->id, $updateData)) {
@@ -494,6 +502,25 @@ class MensajeUseCase {
         return false;
     }
 
+    private function guardarPrecioMensaje($modelo, int $id, ?string $tipo, ?string $categoria): void
+    {
+        if ($id <= 0 || ($tipo === null && $categoria === null)) {
+            return;
+        }
+        if (! $modelo->db->fieldExists('pricing_type', 'mensaje')) {
+            return;
+        }
+        $datos = [];
+        if ($tipo) {
+            $datos['pricing_type'] = $tipo;
+        }
+        if ($categoria) {
+            $datos['pricing_category'] = $categoria;
+        }
+        if ($datos !== []) {
+            $modelo->update($id, $datos);
+        }
+    }
 
     public function obtenerMensajesPorConversacion($id_conversacion)
     {

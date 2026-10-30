@@ -101,6 +101,7 @@ final class MotorFlujo
             TiposNodo::BOTONES => $this->responderOpciones($grafo, $nodo, 'botones', $estado, $texto, $respuestaId, $ahora),
             TiposNodo::LISTA => $this->responderOpciones($grafo, $nodo, 'opciones', $estado, $texto, $respuestaId, $ahora),
             TiposNodo::PREGUNTA => $this->responderPregunta($grafo, $nodo, $estado, $texto, $ahora),
+            TiposNodo::FORMULARIO => $this->responderFormulario($grafo, $nodo, $estado, $texto, $ahora),
             default => $this->recorrer($grafo, $nodo['id'], $estado, [], $ahora),
         };
     }
@@ -206,6 +207,7 @@ final class MotorFlujo
                 case TiposNodo::BOTONES:
                 case TiposNodo::LISTA:
                 case TiposNodo::PREGUNTA:
+                case TiposNodo::FORMULARIO:
                     array_push($mensajes, ...$this->pausa($datos));
                     $mensajes[] = $this->mensajeDeEspera($nodo, $vars);
                     $estado['nodo'] = $id;
@@ -301,6 +303,56 @@ final class MotorFlujo
         $estado['intentos'] = 0;
 
         return $this->recorrer($grafo, $grafo->destino($nodo['id'], TiposNodo::SALIDA_SIGUIENTE), $estado, [], $ahora);
+    }
+
+    private function responderFormulario(Grafo $grafo, array $nodo, array $estado, string $texto, DateTimeImmutable $ahora): array
+    {
+        if (trim($texto) === '') {
+            return $this->reintentar($grafo, $nodo, $estado, 'Necesito esos datos para seguir. ¿Los puedes escribir en un solo mensaje?', false);
+        }
+
+        $datos = (array) ($nodo['datos'] ?? []);
+        $variable = Texto::nombreVariable((string) ($datos['variable'] ?? 'formulario'));
+        if ($variable !== '') {
+            $estado['variables'][$variable] = $texto;
+        }
+        foreach ($this->camposFormulario($datos) as $i => $campo) {
+            $nombre = Texto::nombreVariable((string) ($campo['variable'] ?? ''));
+            if ($nombre === '') {
+                continue;
+            }
+            $estado['variables'][$nombre] = $this->valorCampoFormulario($campo, $texto, $i);
+        }
+        $estado['intentos'] = 0;
+
+        return $this->recorrer($grafo, $grafo->destino($nodo['id'], TiposNodo::SALIDA_SIGUIENTE), $estado, [], $ahora);
+    }
+
+    /** @return list<array{etiqueta?:string, variable?:string}> */
+    private function camposFormulario(array $datos): array
+    {
+        $campos = [];
+        foreach ((array) ($datos['campos'] ?? []) as $campo) {
+            if (is_array($campo)) {
+                $campos[] = $campo;
+            }
+        }
+
+        return array_slice($campos, 0, TiposNodo::MAX_CAMPOS_FORMULARIO);
+    }
+
+    /** @param array{etiqueta?:string, variable?:string} $campo */
+    private function valorCampoFormulario(array $campo, string $texto, int $indice): string
+    {
+        $etiqueta = trim((string) ($campo['etiqueta'] ?? ''));
+        if ($etiqueta !== '' && preg_match('/^' . preg_quote($etiqueta, '/') . '\s*[:\-]\s*(.+)$/im', $texto, $m)) {
+            return trim($m[1]);
+        }
+
+        $lineas = preg_split('/\R+/', trim($texto)) ?: [];
+        $lineas = array_values(array_filter(array_map('trim', $lineas)));
+
+        return $lineas[$indice] ?? $texto;
     }
 
     /** Repite el paso; tras varios intentos fallidos pasa la conversación a un asesor. */
@@ -476,7 +528,28 @@ final class MotorFlujo
             return ['tipo' => 'lista', 'texto' => $texto, 'boton' => (string) ($datos['boton'] ?? 'Ver opciones'), 'opciones' => $opciones];
         }
 
+        if ($nodo['tipo'] === TiposNodo::FORMULARIO) {
+            return ['tipo' => 'texto', 'texto' => $this->textoFormulario($datos, $vars)];
+        }
+
         return ['tipo' => 'texto', 'texto' => $texto];
+    }
+
+    private function textoFormulario(array $datos, array $vars): string
+    {
+        $intro = trim(Texto::plantilla((string) ($datos['texto'] ?? ''), $vars));
+        if ($intro === '') {
+            $intro = 'Para atenderte, respondé todo en un solo mensaje:';
+        }
+        $lineas = [$intro, ''];
+        foreach ($this->camposFormulario($datos) as $campo) {
+            $etiqueta = trim((string) ($campo['etiqueta'] ?? ''));
+            if ($etiqueta !== '') {
+                $lineas[] = '• ' . $etiqueta;
+            }
+        }
+
+        return trim(implode("\n", $lineas));
     }
 
     // ───────────────────────── condiciones ─────────────────────────

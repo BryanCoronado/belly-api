@@ -68,8 +68,18 @@ class AtencionIaUseCase
             return true;
         }
 
-        if ((int) $sesion['respuestas'] >= $agente['max_respuestas']) {
+        $tope = (int) $agente['max_respuestas'];
+        if (empresa()->modoAhorro($idEmpresa)) {
+            $tope = min($tope, 2);
+        }
+        if ((int) $sesion['respuestas'] >= $tope) {
             $this->traspasar($idEmpresa, $sesion, $agente, 'El asistente llegó a su máximo de respuestas', $texto, $cadena);
+
+            return true;
+        }
+
+        if (service('CostosWhatsappUseCase')->automaticoDebeCallar($idEmpresa)) {
+            $this->traspasar($idEmpresa, $sesion, null, 'Modo ahorro: se acabó el cupo de WhatsApp', $texto, $cadena);
 
             return true;
         }

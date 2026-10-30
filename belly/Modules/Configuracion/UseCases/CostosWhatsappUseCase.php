@@ -36,29 +36,81 @@ class CostosWhatsappUseCase
         $inicio = new \DateTimeImmutable('first day of this month 00:00:00', $zona);
         $fin = (new \DateTimeImmutable('now', $zona))->modify('+1 day')->setTime(0, 0);
 
-        $local = $this->resumenLocal($inicio, $fin, $app);
-        try {
-            $meta = $this->desdeMeta(
-                (string) $app->whatsapp_business_account_id,
-                (string) $app->access_token,
-                $inicio,
-                $fin,
-            );
-        } catch (\Throwable $e) {
-            log_message('warning', '[COSTOS WA] Meta analytics: ' . $e->getMessage());
+        $ahora = (new \DateTimeImmutable('now', $zona))->format(DATE_ATOM);
+        $meta = $this->desdeMeta(
+            (string) $app->whatsapp_business_account_id,
+            (string) $app->access_token,
+            $inicio,
+            $fin,
+        );
 
-            return $local + [
-                'aviso' => 'Meta no entregó el detalle. Esto es lo enviado desde Belly este mes (aproximado).',
-                'fuente' => 'local',
-            ];
+        $cerrado = $this->cerrarResumen($meta + [
+            'numero' => (string) ($app->telefono ?? ''),
+            'nombre' => (string) ($app->nombre ?? ''),
+            'aviso' => 'Meta publica este resumen con retraso (a veces horas). Belly no suma por su cuenta: si borramos chats, el cupo no cambia.',
+            'fuente' => 'meta',
+            'actualizado_at' => $ahora,
+            'modo_ahorro' => empresa()->modoAhorro(),
+        ], $inicio);
+
+        $this->guardarCache($cerrado);
+
+        return $cerrado;
+    }
+
+    /**
+     * En modo ahorro, si el cupo de Meta ya se acabó, el bot y la IA no mandan más.
+     * Si Meta no responde, no frenamos: mejor un mensaje de más que un CRM mudo.
+     */
+    public function automaticoDebeCallar(?int $idEmpresa = null): bool
+    {
+        if (! empresa()->modoAhorro($idEmpresa)) {
+            return false;
         }
 
-        return $meta + [
-            'numero' => (string) ($app->telefono ?: $local['numero']),
-            'nombre' => (string) ($app->nombre ?? ''),
-            'aviso' => null,
-            'fuente' => 'meta',
-        ];
+        try {
+            $resumen = $this->resumenCacheado();
+
+            return (int) ($resumen['restantes'] ?? 1) <= 0;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /** @return array<string, mixed> */
+    private function resumenCacheado(): array
+    {
+        $clave = $this->claveCache();
+        $guardado = cache()->get($clave);
+        if (is_array($guardado) && isset($guardado['restantes'])) {
+            return $guardado;
+        }
+
+        return $this->resumen();
+    }
+
+    /** @param array<string, mixed> $resumen */
+    private function guardarCache(array $resumen): void
+    {
+        cache()->save($this->claveCache(), $resumen, 300);
+    }
+
+    private function claveCache(): string
+    {
+        return 'wa_cupo_' . (int) (id_empresa_sesion() ?? 0);
+    }
+
+    /**
+     * @param array<string, mixed> $datos
+     * @return array<string, mixed>
+     */
+    private function cerrarResumen(array $datos, \DateTimeImmutable $inicio): array
+    {
+        $datos['usados_gratis'] = min(self::CUPO, (int) ($datos['usados_gratis'] ?? 0));
+        $datos['restantes'] = max(0, self::CUPO - (int) $datos['usados_gratis']);
+        $datos['dias'] = $this->completarDias($inicio, is_array($datos['dias'] ?? null) ? $datos['dias'] : []);
+
+        return $datos;
     }
 
     /**
@@ -137,39 +189,25 @@ class CostosWhatsappUseCase
     }
 
     /**
-     * @return array<string, mixed>
+     * @param list<array{fecha:string,gratis:int,cobrados:int,costo:float}> $dias
+     * @return list<array{fecha:string,gratis:int,cobrados:int,costo:float}>
      */
-    private function resumenLocal(\DateTimeImmutable $inicio, \DateTimeImmutable $fin, $app): array
+    private function completarDias(\DateTimeImmutable $inicio, array $dias): array
     {
-        $db = db_connect();
-        $idEmpresa = (int) ($app->id_empresa ?? 0);
-        $enviados = 0;
-        if ($idEmpresa > 0 && $db->tableExists('mensaje')) {
-            $enviados = (int) $db->table('mensaje')
-                ->where('id_empresa', $idEmpresa)
-                ->whereIn('contesta', ['usuario', 'bot'])
-                ->whereIn('id_estado', [2, 3, 4])
-                ->where('created_at >=', $inicio->format('Y-m-d H:i:s'))
-                ->where('created_at <', $fin->format('Y-m-d H:i:s'))
-                ->where('deleted_at', null)
-                ->countAllResults();
+        $porFecha = [];
+        foreach ($dias as $dia) {
+            $porFecha[$dia['fecha']] = $dia;
+        }
+        $hoy = new \DateTimeImmutable('today', $inicio->getTimezone());
+        $cursor = $inicio;
+        $completo = [];
+        while ($cursor <= $hoy) {
+            $clave = $cursor->format('Y-m-d');
+            $completo[] = $porFecha[$clave] ?? ['fecha' => $clave, 'gratis' => 0, 'cobrados' => 0, 'costo' => 0.0];
+            $cursor = $cursor->modify('+1 day');
         }
 
-        $usadosGratis = min(self::CUPO, $enviados);
-        $cobrados = max(0, $enviados - self::CUPO);
-
-        return [
-            'numero' => (string) ($app->telefono ?? ''),
-            'nombre' => (string) ($app->nombre ?? ''),
-            'mes' => $inicio->format('Y-m'),
-            'cupo' => self::CUPO,
-            'usados_gratis' => $usadosGratis,
-            'restantes' => max(0, self::CUPO - $usadosGratis),
-            'cobrados' => $cobrados,
-            'costo_usd' => round($cobrados * self::TARIFA_USD['SERVICE'], 4),
-            'categorias' => [],
-            'dias' => [],
-        ];
+        return $completo;
     }
 
     /** @param array<string, mixed> $punto */

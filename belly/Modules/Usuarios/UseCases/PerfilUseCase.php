@@ -29,6 +29,7 @@ class PerfilUseCase
                 'nombre' => (string) ($empresa->nombre ?? ''),
                 'correo' => (string) ($empresa->correo ?? ''),
                 'id_aviso_ia' => $this->idAvisoIa($empresa),
+                'modo_ahorro' => empresa()->modoAhorro((int) $usuario->id_empresa),
             ],
             'destinos_aviso' => Autorizacion::esAdministradorEmpresa()
                 ? $this->destinosAviso((int) $usuario->id_empresa)
@@ -142,6 +143,9 @@ class PerfilUseCase
 
         if (array_key_exists('id_aviso_ia', $datos) && db_connect()->fieldExists('id_aviso_ia', 'empresa')) {
             $cambios['id_aviso_ia'] = $this->destinoAvisoValido((int) $usuario->id_empresa, $datos['id_aviso_ia']);
+        }
+        if (array_key_exists('modo_ahorro', $datos) && db_connect()->fieldExists('modo_ahorro', 'empresa')) {
+            $cambios['modo_ahorro'] = filter_var($datos['modo_ahorro'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
         }
 
         $modelo = model(EmpresaModel::class);

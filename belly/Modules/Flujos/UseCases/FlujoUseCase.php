@@ -76,6 +76,7 @@ class FlujoUseCase
                 'descripcion' => $flujo->descripcion,
                 'activo' => (bool) $flujo->activo,
                 'pasos' => count((array) ($flujo->definicion['nodos'] ?? [])),
+                'mensajes' => TiposNodo::cuentaMensajes((array) $flujo->definicion),
                 'disparador' => $this->resumenDisparador((array) $flujo->definicion),
                 'conversaciones_activas' => $activas[(int) $flujo->id] ?? 0,
                 'estadisticas' => [
@@ -147,7 +148,7 @@ class FlujoUseCase
     }
 
     /** @return array<string, mixed> */
-    public function cambiarEstado(int $id, bool $activo): array
+    public function cambiarEstado(int $id, bool $activo, bool $forzar = false): array
     {
         $flujo = $this->buscar($id);
 
@@ -155,6 +156,12 @@ class FlujoUseCase
             $errores = $this->validador->validar($flujo->definicion)['errores'];
             if ($errores !== []) {
                 throw new DomainException('Antes de activarlo corrige esto: ' . $errores[0]['mensaje']);
+            }
+            $mensajes = TiposNodo::cuentaMensajes((array) $flujo->definicion);
+            if (empresa()->modoAhorro() && $mensajes > TiposNodo::TOPE_AHORRO && ! $forzar) {
+                throw new DomainException(
+                    "Este flujo manda unos {$mensajes} mensajes. En modo ahorro conviene 1 o 2. Confirmá si igual lo querés prender."
+                );
             }
         } else {
             $this->cerrarSesiones($id);

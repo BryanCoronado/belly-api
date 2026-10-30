@@ -161,7 +161,55 @@ class EmpresaUseCase
             'slug' => $empresa->slug,
             'plan' => $empresa->plan,
             'estado' => (int) $empresa->estado,
+            'modo_ahorro' => $this->estaEnAhorro($empresa),
         ];
+    }
+
+    /** Modo de la empresa de la sesión (o la indicada). */
+    public function modoAhorro(?int $idEmpresa = null): bool
+    {
+        $id = $idEmpresa ?? (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0) {
+            return false;
+        }
+
+        $empresa = $this->modelo()->find($id);
+
+        return $empresa instanceof EmpresaEntity && $this->estaEnAhorro($empresa);
+    }
+
+    /** @return array{modo_ahorro:bool} */
+    public function leerModo(): array
+    {
+        return ['modo_ahorro' => $this->modoAhorro()];
+    }
+
+    /** @param array<string, mixed> $datos */
+    public function guardarModo(array $datos): array
+    {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador puede cambiar el modo de la empresa.');
+
+        $id = (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0) {
+            throw new \DomainException('No hay empresa en la sesión.');
+        }
+        if (! db_connect()->fieldExists('modo_ahorro', 'empresa')) {
+            throw new \DomainException('Falta actualizar la base para el modo ahorro.');
+        }
+
+        $activo = filter_var($datos['modo_ahorro'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $this->modelo()->update($id, ['modo_ahorro' => $activo ? 1 : 0]);
+
+        return ['modo_ahorro' => $activo];
+    }
+
+    private function estaEnAhorro(object $empresa): bool
+    {
+        if (! db_connect()->fieldExists('modo_ahorro', 'empresa')) {
+            return false;
+        }
+
+        return (int) ($empresa->modo_ahorro ?? 0) === 1;
     }
 
     private function slugDisponible(string $origen): string

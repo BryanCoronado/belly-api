@@ -53,6 +53,7 @@ final class ValidadorFlujo
             $this->revisarSalidasSinConectar($grafo, $id, $nodo);
         }
         $this->revisarAlcanzables($grafo, $porId);
+        $this->revisarCosto($porId);
 
         return $this->resultado();
     }
@@ -202,6 +203,29 @@ final class ValidadorFlujo
                 }
                 break;
 
+            case TiposNodo::FORMULARIO:
+                if (mb_strlen($texto) > 1000) {
+                    $this->error($id, 'El mensaje es demasiado largo.');
+                }
+                $campos = array_values(array_filter((array) ($d['campos'] ?? []), 'is_array'));
+                if ($campos === []) {
+                    $this->error($id, 'Agrega al menos un dato para pedir en el formulario.');
+                }
+                if (count($campos) > TiposNodo::MAX_CAMPOS_FORMULARIO) {
+                    $this->error($id, 'El formulario admite hasta ' . TiposNodo::MAX_CAMPOS_FORMULARIO . ' datos.');
+                }
+                foreach ($campos as $campo) {
+                    if (trim((string) ($campo['etiqueta'] ?? '')) === '') {
+                        $this->error($id, 'Cada dato del formulario necesita un nombre visible.');
+                        break;
+                    }
+                    if (Texto::nombreVariable((string) ($campo['variable'] ?? '')) === '') {
+                        $this->error($id, 'Cada dato del formulario necesita un nombre interno (por ejemplo: correo).');
+                        break;
+                    }
+                }
+                break;
+
             case TiposNodo::CONDICION:
                 if (Texto::nombreVariable((string) ($d['variable'] ?? '')) === '') {
                     $this->error($id, 'Elige el dato que se va a comparar.');
@@ -343,6 +367,23 @@ final class ValidadorFlujo
             if (! isset($visitados[$id])) {
                 $this->aviso($id, 'Este paso no está conectado al inicio, así que nunca se usará.');
             }
+        }
+    }
+
+    /** @param array<string, array> $porId */
+    private function revisarCosto(array $porId): void
+    {
+        $envian = 0;
+        foreach ($porId as $nodo) {
+            if (in_array($nodo['tipo'] ?? '', [
+                TiposNodo::MENSAJE, TiposNodo::BOTONES, TiposNodo::LISTA, TiposNodo::PREGUNTA,
+                TiposNodo::FORMULARIO, TiposNodo::UBICACION, TiposNodo::ASESOR, TiposNodo::FIN,
+            ], true)) {
+                $envian++;
+            }
+        }
+        if ($envian > 3) {
+            $this->aviso(null, "Este flujo puede mandar unos {$envian} mensajes. En modo ahorro conviene 1 o 2 y pasar a un asesor.");
         }
     }
 

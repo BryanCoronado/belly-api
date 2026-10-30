@@ -20,6 +20,7 @@ class EmpresaModel extends Model
         'slug',
         'plan',
         'estado',
+        'modo_ahorro',
     ];
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

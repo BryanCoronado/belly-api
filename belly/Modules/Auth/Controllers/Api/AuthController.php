@@ -137,6 +137,7 @@ class AuthController extends BaseController
                     'apellidos' => $perfil->apellidos ?? null,
                     'foto' => $perfil->foto_url ?? null,
                     'sudo' => (int) ($usuario->sudo ?? 0),
+                    'modo_ahorro' => empresa()->modoAhorro((int) ($usuario->id_empresa ?? 0)),
                 ],
             ];
             return $this->respond($response, 200);

@@ -19,6 +19,7 @@ class EmpresaModel extends Model
         'id_aviso_ia',
         'slug',
         'plan',
+        'id_plan',
         'estado',
         'modo_ahorro',
     ];

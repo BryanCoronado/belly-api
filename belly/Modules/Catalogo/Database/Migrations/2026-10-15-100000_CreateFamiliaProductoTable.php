@@ -31,6 +31,11 @@ class CreateFamiliaProductoTable extends Migration
                 'constraint' => '255',
                 'null'       => true,
             ],
+            'imagen_url' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '500',
+                'null'       => true,
+            ],
             'orden' => [
                 'type'       => 'INT',
                 'constraint' => 11,

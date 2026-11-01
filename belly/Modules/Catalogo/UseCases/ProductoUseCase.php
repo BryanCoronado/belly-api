@@ -14,6 +14,8 @@ use DomainException;
 class ProductoUseCase
 {
     private const MAX_DETALLES = 20;
+    private const MAX_IMAGENES = 8;
+    private const MAX_VARIANTES = 4;
     private const LIMITE_LISTADO = 500;
 
     private ProductoModel $productos;
@@ -31,7 +33,7 @@ class ProductoUseCase
      */
     public function listar(array $filtros = []): array
     {
-        $consulta = $this->productos->orderBy('nombre', 'ASC');
+        $consulta = $this->productos->orderBy('destacado', 'DESC')->orderBy('orden', 'ASC')->orderBy('nombre', 'ASC');
 
         $busqueda = trim((string) ($filtros['q'] ?? ''));
         if ($busqueda !== '') {
@@ -133,7 +135,7 @@ class ProductoUseCase
         if (array_key_exists('nombre', $datos)) {
             $fila['nombre'] = trim((string) $datos['nombre']);
         }
-        foreach (['descripcion', 'codigo', 'unidad', 'imagen_url'] as $campo) {
+        foreach (['descripcion', 'resumen', 'codigo', 'marca', 'unidad', 'imagen_url'] as $campo) {
             if (array_key_exists($campo, $datos)) {
                 $texto = trim((string) ($datos[$campo] ?? ''));
                 $fila[$campo] = $texto !== '' ? $texto : null;
@@ -142,17 +144,95 @@ class ProductoUseCase
         if (array_key_exists('precio', $datos)) {
             $fila['precio'] = $this->precio($datos['precio']);
         }
+        if (array_key_exists('precio_oferta', $datos)) {
+            $fila['precio_oferta'] = $this->precio($datos['precio_oferta']);
+        }
         if (array_key_exists('moneda', $datos)) {
             $fila['moneda'] = strtoupper(trim((string) $datos['moneda'])) ?: 'PEN';
         }
         if (array_key_exists('id_familia', $datos)) {
             $fila['id_familia'] = $this->familia($datos['id_familia']);
         }
+        if (array_key_exists('disponibilidad', $datos)) {
+            $opcion = (string) $datos['disponibilidad'];
+            $fila['disponibilidad'] = in_array($opcion, ['disponible', 'agotado', 'pedido'], true) ? $opcion : 'disponible';
+        }
+        if (array_key_exists('destacado', $datos)) {
+            $fila['destacado'] = $datos['destacado'] ? 1 : 0;
+        }
+        if (array_key_exists('visible_catalogo', $datos)) {
+            $fila['visible_catalogo'] = $datos['visible_catalogo'] ? 1 : 0;
+        }
+        if (array_key_exists('orden', $datos)) {
+            $fila['orden'] = max(0, (int) $datos['orden']);
+        }
         if (array_key_exists('detalles', $datos)) {
             $fila['detalles'] = json_encode($this->detalles($datos['detalles']), JSON_UNESCAPED_UNICODE);
         }
+        if (array_key_exists('imagenes', $datos)) {
+            $fila['imagenes'] = json_encode(self::imagenes($datos['imagenes']), JSON_UNESCAPED_UNICODE);
+        }
+        if (array_key_exists('variantes', $datos)) {
+            $fila['variantes'] = json_encode(self::variantes($datos['variantes']), JSON_UNESCAPED_UNICODE);
+        }
+        if (array_key_exists('etiqueta', $datos)) {
+            $etiqueta = mb_substr(trim((string) ($datos['etiqueta'] ?? '')), 0, 20);
+            $fila['etiqueta'] = $etiqueta !== '' ? $etiqueta : null;
+        }
 
         return $fila;
+    }
+
+    /** @return list<string> */
+    public static function imagenes(mixed $valor): array
+    {
+        if (is_string($valor)) {
+            $valor = json_decode($valor, true);
+        }
+        if (! is_array($valor)) {
+            return [];
+        }
+
+        $urls = [];
+        foreach ($valor as $url) {
+            $texto = mb_substr(trim((string) $url), 0, 500);
+            if ($texto !== '' && ! in_array($texto, $urls, true)) {
+                $urls[] = $texto;
+            }
+        }
+
+        return array_slice($urls, 0, self::MAX_IMAGENES);
+    }
+
+    /** @return list<array{nombre:string, opciones:list<string>}> */
+    public static function variantes(mixed $valor): array
+    {
+        if (is_string($valor)) {
+            $valor = json_decode($valor, true);
+        }
+        if (! is_array($valor)) {
+            return [];
+        }
+
+        $variantes = [];
+        foreach ($valor as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $nombre = mb_substr(trim((string) ($item['nombre'] ?? '')), 0, 40);
+            $opciones = [];
+            foreach (is_array($item['opciones'] ?? null) ? $item['opciones'] : [] as $opcion) {
+                $texto = mb_substr(trim((string) $opcion), 0, 40);
+                if ($texto !== '' && ! in_array($texto, $opciones, true)) {
+                    $opciones[] = $texto;
+                }
+            }
+            if ($nombre !== '' && $opciones !== []) {
+                $variantes[] = ['nombre' => $nombre, 'opciones' => array_slice($opciones, 0, 20)];
+            }
+        }
+
+        return array_slice($variantes, 0, self::MAX_VARIANTES);
     }
 
     private function precio(mixed $valor): ?string
@@ -242,12 +322,24 @@ class ProductoUseCase
             'familia' => $producto->id_familia !== null ? ($nombresFamilia[$producto->id_familia] ?? null) : null,
             'nombre' => $producto->nombre,
             'descripcion' => $producto->descripcion,
+            'resumen' => $producto->resumen ?? null,
             'codigo' => $producto->codigo,
+            'marca' => $producto->marca ?? null,
             'precio' => $producto->precio,
+            'precio_oferta' => $producto->precio_oferta ?? null,
             'moneda' => $producto->moneda,
             'unidad' => $producto->unidad,
             'imagen_url' => $producto->imagen_url,
             'detalles' => is_array($producto->detalles) ? $producto->detalles : [],
+            'imagenes' => self::imagenes($producto->imagenes),
+            'variantes' => self::variantes($producto->variantes),
+            'etiqueta' => $producto->etiqueta ?? null,
+            'disponibilidad' => in_array((string) ($producto->disponibilidad ?? ''), ['disponible', 'agotado', 'pedido'], true)
+                ? $producto->disponibilidad
+                : 'disponible',
+            'destacado' => (bool) ($producto->destacado ?? false),
+            'visible_catalogo' => (bool) ($producto->visible_catalogo ?? true),
+            'orden' => (int) ($producto->orden ?? 0),
             'activo' => $producto->activo,
         ];
     }

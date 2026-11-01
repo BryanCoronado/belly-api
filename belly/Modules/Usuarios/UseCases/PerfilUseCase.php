@@ -31,6 +31,7 @@ class PerfilUseCase
                 'id_aviso_ia' => $this->idAvisoIa($empresa),
                 'modo_ahorro' => empresa()->modoAhorro((int) $usuario->id_empresa),
             ],
+            'operador' => Autorizacion::esOperadorPlataforma(),
             'destinos_aviso' => Autorizacion::esAdministradorEmpresa()
                 ? $this->destinosAviso((int) $usuario->id_empresa)
                 : [],

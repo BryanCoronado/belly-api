@@ -84,6 +84,12 @@ class CreateUsuariosSeeder extends Seeder
         if ($this->db->fieldExists('correo', 'empresa')) {
             $fila['correo'] = 'contacto@demo.belly.test';
         }
+        if ($this->db->fieldExists('id_plan', 'empresa') && $this->db->tableExists('plan')) {
+            $plan = $this->db->table('plan')->select('id')->where('clave', 'base')->get()->getRowArray();
+            if ($plan) {
+                $fila['id_plan'] = (int) $plan['id'];
+            }
+        }
         $this->db->table('empresa')->insert($fila);
     }
 }

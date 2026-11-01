@@ -17,8 +17,9 @@ class ProductoModel extends Model
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
-        'id_empresa', 'id_familia', 'nombre', 'descripcion', 'codigo',
-        'precio', 'moneda', 'unidad', 'imagen_url', 'detalles', 'activo',
+        'id_empresa', 'id_familia', 'nombre', 'descripcion', 'resumen', 'codigo', 'marca',
+        'precio', 'precio_oferta', 'moneda', 'unidad', 'imagen_url', 'imagenes', 'detalles',
+        'variantes', 'etiqueta', 'disponibilidad', 'destacado', 'visible_catalogo', 'orden', 'activo',
     ];
     protected bool $allowEmptyInserts = false;
     protected $useTimestamps = true;
@@ -30,10 +31,15 @@ class ProductoModel extends Model
         'id_empresa' => 'required|is_natural_no_zero',
         'nombre' => 'required|min_length[2]|max_length[150]',
         'codigo' => 'permit_empty|max_length[60]',
+        'resumen' => 'permit_empty|max_length[180]',
+        'marca' => 'permit_empty|max_length[80]',
         'precio' => 'permit_empty|decimal|greater_than_equal_to[0]|less_than[10000000000]',
+        'precio_oferta' => 'permit_empty|decimal|greater_than_equal_to[0]|less_than[10000000000]',
         'moneda' => 'required|regex_match[/^[A-Z]{3}$/]',
         'unidad' => 'permit_empty|max_length[30]',
         'imagen_url' => 'permit_empty|max_length[500]',
+        'disponibilidad' => 'permit_empty|in_list[disponible,agotado,pedido]',
+        'etiqueta' => 'permit_empty|max_length[20]',
     ];
     protected $validationMessages = [
         'nombre' => [
@@ -43,6 +49,18 @@ class ProductoModel extends Model
         ],
         'codigo' => [
             'max_length' => 'El código no puede pasar de 60 letras.',
+        ],
+        'resumen' => [
+            'max_length' => 'El resumen no puede pasar de 180 letras.',
+        ],
+        'marca' => [
+            'max_length' => 'La marca no puede pasar de 80 letras.',
+        ],
+        'precio_oferta' => [
+            'decimal' => 'El precio de oferta debe ser un número.',
+        ],
+        'disponibilidad' => [
+            'in_list' => 'La disponibilidad no es válida.',
         ],
         'precio' => [
             'decimal' => 'El precio debe ser un número.',

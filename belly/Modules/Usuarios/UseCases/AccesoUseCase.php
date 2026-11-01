@@ -562,6 +562,11 @@ class AccesoUseCase
         if ($nombre === '') {
             throw new \Exception('El nombre del grupo es obligatorio.');
         }
+        helper('vip2system');
+        cupo()->exigirEquipo();
+        if (is_array($datos['miembros'] ?? null)) {
+            cupo()->exigirMiembrosEquipo(count($datos['miembros']));
+        }
 
         $id = $this->enTransaccion(function () use ($nombre, $datos): int {
             db_connect()->table('grupo_usuario')->insert([
@@ -587,6 +592,10 @@ class AccesoUseCase
         $nombre = trim((string) ($datos['grupo'] ?? ''));
         if ($nombre === '') {
             throw new \Exception('El nombre del grupo es obligatorio.');
+        }
+        if (is_array($datos['miembros'] ?? null)) {
+            helper('vip2system');
+            cupo()->exigirMiembrosEquipo(count($datos['miembros']));
         }
 
         $this->enTransaccion(function () use ($id, $nombre, $datos): int {

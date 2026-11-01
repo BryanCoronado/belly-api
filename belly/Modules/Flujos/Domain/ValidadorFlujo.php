@@ -160,14 +160,19 @@ final class ValidadorFlujo
                 break;
 
             case TiposNodo::MENSAJE:
+            case TiposNodo::CATALOGO:
                 $media = (string) ($d['media'] ?? 'ninguno');
                 $url = trim((string) ($d['url'] ?? ''));
                 if (! in_array($media, self::MEDIAS, true)) {
                     $this->error($id, 'El tipo de archivo no es válido.');
                 } elseif ($media === 'ninguno' && $texto === '') {
-                    $this->error($id, 'Escribe el mensaje que enviará el bot.');
-                } elseif ($media !== 'ninguno' && ! preg_match('#^https://\S+$#i', $url)) {
-                    $this->error($id, 'El enlace del archivo debe empezar con https://');
+                    $this->error($id, $nodo['tipo'] === TiposNodo::CATALOGO
+                        ? 'Elige un producto, una categoría o el enlace del catálogo.'
+                        : 'Escribe el mensaje que enviará el bot.');
+                } elseif ($media !== 'ninguno' && ! preg_match('#^https?://\S+$#i', $url)) {
+                    $this->error($id, $nodo['tipo'] === TiposNodo::CATALOGO
+                        ? 'Ese producto no tiene una foto pública (el enlace debe empezar con https://).'
+                        : 'El enlace del archivo debe empezar con https://');
                 }
                 if (mb_strlen($texto) > ($media === 'ninguno' ? 4000 : 1000)) {
                     $this->error($id, 'El mensaje es demasiado largo.');
@@ -376,7 +381,7 @@ final class ValidadorFlujo
         $envian = 0;
         foreach ($porId as $nodo) {
             if (in_array($nodo['tipo'] ?? '', [
-                TiposNodo::MENSAJE, TiposNodo::BOTONES, TiposNodo::LISTA, TiposNodo::PREGUNTA,
+                TiposNodo::MENSAJE, TiposNodo::CATALOGO, TiposNodo::BOTONES, TiposNodo::LISTA, TiposNodo::PREGUNTA,
                 TiposNodo::FORMULARIO, TiposNodo::UBICACION, TiposNodo::ASESOR, TiposNodo::FIN,
             ], true)) {
                 $envian++;

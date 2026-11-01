@@ -106,6 +106,8 @@ class ConexionWhatsappUseCase
     public function conectarNumero(array $datos): array
     {
         $this->exigirAdministrador();
+        helper('vip2system');
+        cupo()->exigirNumero();
         $idEmpresa = $this->idEmpresa();
 
         $phoneNumberId = preg_replace('/\D+/', '', (string) ($datos['phone_number_id'] ?? '')) ?? '';

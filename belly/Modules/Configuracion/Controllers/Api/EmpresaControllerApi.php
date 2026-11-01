@@ -44,6 +44,20 @@ class EmpresaControllerApi extends BaseController
         }
     }
 
+    public function cambiarEstado(int $id)
+    {
+        try {
+            $datos = $this->request->getJSON(true);
+
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => empresa()->cambiarEstado($id, is_array($datos) ? $datos : []),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->responderError($e);
+        }
+    }
+
     public function crear()
     {
         try {

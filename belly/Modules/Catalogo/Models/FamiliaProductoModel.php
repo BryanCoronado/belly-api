@@ -16,7 +16,7 @@ class FamiliaProductoModel extends Model
     protected $returnType = FamiliaProductoEntity::class;
     protected $useSoftDeletes = true;
     protected $protectFields = true;
-    protected $allowedFields = ['id_empresa', 'nombre', 'descripcion', 'orden', 'activo'];
+    protected $allowedFields = ['id_empresa', 'nombre', 'descripcion', 'imagen_url', 'orden', 'activo'];
     protected bool $allowEmptyInserts = false;
     protected $useTimestamps = true;
     protected $dateFormat = 'datetime';
@@ -27,6 +27,7 @@ class FamiliaProductoModel extends Model
         'id_empresa' => 'required|is_natural_no_zero',
         'nombre' => 'required|min_length[2]|max_length[80]',
         'descripcion' => 'permit_empty|max_length[255]',
+        'imagen_url' => 'permit_empty|max_length[500]',
     ];
     protected $validationMessages = [
         'nombre' => [

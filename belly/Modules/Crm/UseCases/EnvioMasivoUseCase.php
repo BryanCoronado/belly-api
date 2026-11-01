@@ -69,6 +69,8 @@ class EnvioMasivoUseCase
     /** @param array<string, mixed> $datos @return array<string, mixed> */
     public function crear(array $datos): array
     {
+        helper('vip2system');
+        cupo()->exigirEnvio();
         $nombre = trim((string) ($datos['nombre'] ?? ''));
         if ($nombre === '' || mb_strlen($nombre) > 120) {
             throw new DomainException('Ponle un nombre al envío (hasta 120 letras).');

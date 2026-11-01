@@ -100,6 +100,8 @@ class FlujoUseCase
     /** @param array{nombre?:mixed, descripcion?:mixed} $datos @return array<string, mixed> */
     public function crear(array $datos): array
     {
+        helper('vip2system');
+        cupo()->exigirFlujos();
         $id = $this->flujos->insert([
             'id_empresa' => $this->idEmpresa(),
             'nombre' => trim((string) ($datos['nombre'] ?? '')),

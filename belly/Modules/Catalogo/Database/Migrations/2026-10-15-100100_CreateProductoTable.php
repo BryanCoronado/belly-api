@@ -39,12 +39,27 @@ class CreateProductoTable extends Migration
                 'type' => 'TEXT',
                 'null' => true,
             ],
+            'resumen' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '180',
+                'null'       => true,
+            ],
             'codigo' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '60',
                 'null'       => true,
             ],
+            'marca' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '80',
+                'null'       => true,
+            ],
             'precio' => [
+                'type'       => 'DECIMAL',
+                'constraint' => '12,2',
+                'null'       => true,
+            ],
+            'precio_oferta' => [
                 'type'       => 'DECIMAL',
                 'constraint' => '12,2',
                 'null'       => true,
@@ -64,9 +79,42 @@ class CreateProductoTable extends Migration
                 'constraint' => '500',
                 'null'       => true,
             ],
+            'imagenes' => [
+                'type' => 'LONGTEXT',
+                'null' => true,
+            ],
             'detalles' => [
                 'type' => 'LONGTEXT',
                 'null' => true,
+            ],
+            'variantes' => [
+                'type' => 'LONGTEXT',
+                'null' => true,
+            ],
+            'etiqueta' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '20',
+                'null'       => true,
+            ],
+            'disponibilidad' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '20',
+                'default'    => 'disponible',
+            ],
+            'destacado' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 0,
+            ],
+            'visible_catalogo' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 1,
+            ],
+            'orden' => [
+                'type'       => 'INT',
+                'constraint' => 11,
+                'default'    => 0,
             ],
             'activo' => [
                 'type'       => 'TINYINT',

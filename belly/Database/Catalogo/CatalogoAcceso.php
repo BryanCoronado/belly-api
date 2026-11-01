@@ -29,7 +29,7 @@ final class CatalogoAcceso
         return [
             ['id' => self::GENERAL, 'grupo' => 'General', 'descripcion' => 'Acceso base y resumen de la empresa.'],
             ['id' => self::ATENCION, 'grupo' => 'Atención', 'descripcion' => 'Chat, clientes, asesores y respuestas automáticas.'],
-            ['id' => self::CATALOGO, 'grupo' => 'Catálogo', 'descripcion' => 'Productos y familias de productos de la empresa.'],
+            ['id' => self::CATALOGO, 'grupo' => 'Catálogo', 'descripcion' => 'Productos, familias y la tienda pública de la empresa.'],
             ['id' => self::INTEGRACIONES, 'grupo' => 'Integraciones', 'descripcion' => 'Conexiones con servicios externos.'],
         ];
     }
@@ -65,6 +65,7 @@ final class CatalogoAcceso
             self::permiso(47, self::ATENCION, null, 'mod_agente_ia_access', 'Asistente IA', 'Asistentes con inteligencia artificial que atienden WhatsApp.', admin: true, orden: 56),
 
             self::permiso(38, self::CATALOGO, null, 'mod_producto_access', 'Productos', 'Crear y ordenar los productos y sus familias.', admin: true, orden: 60),
+            self::permiso(50, self::CATALOGO, null, 'mod_vitrina_access', 'Mi Catálogo', 'Armar la tienda pública: banners, enlace, QR y vitrina.', admin: true, orden: 61),
 
             self::permiso(35, self::INTEGRACIONES, null, 'mod_configuracion_conversacion_access', 'WhatsApp', 'Conectar el número de WhatsApp de la empresa.', admin: true, orden: 80),
             self::permiso(49, self::INTEGRACIONES, null, 'mod_costos_whatsapp_access', 'Costos WhatsApp', 'Cupo de 1.000 mensajes y lo que Meta cobra este mes.', wa: true, admin: true, orden: 81),
@@ -94,6 +95,7 @@ final class CatalogoAcceso
             self::modulo(39, 47, self::ATENCION, null, 'Asistente IA', 'mod_agente_ia', '/agente-ia', 'sparkles', 7),
 
             self::modulo(31, 38, self::CATALOGO, null, 'Productos', 'mod_producto', '/productos', 'store', 1),
+            self::modulo(42, 50, self::CATALOGO, null, 'Mi Catálogo', 'mod_vitrina', '/catalogo', 'book', 2),
 
             self::modulo(29, 35, self::INTEGRACIONES, null, 'WhatsApp', 'mod_configuracion', '/integraciones/whatsapp', 'whatsapp', 1),
             self::modulo(41, 49, self::INTEGRACIONES, null, 'Costos WhatsApp', 'mod_costos_whatsapp', '/integraciones/costos', 'wallet', 2),

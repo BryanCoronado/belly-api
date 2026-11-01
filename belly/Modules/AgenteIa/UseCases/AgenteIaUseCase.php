@@ -82,6 +82,8 @@ class AgenteIaUseCase
     public function crear(array $datos): array
     {
         $idEmpresa = $this->idEmpresa();
+        helper('vip2system');
+        cupo()->exigirAgenteIa($idEmpresa);
         if (count($this->repositorio->agentes($idEmpresa)) >= self::MAX_AGENTES) {
             throw new DomainException('Llegaste al máximo de ' . self::MAX_AGENTES . ' asistentes.');
         }

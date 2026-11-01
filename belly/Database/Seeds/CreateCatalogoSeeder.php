@@ -34,5 +34,6 @@ class CreateCatalogoSeeder extends Seeder
         $this->call(CreatePermisosGruposSeeder::class);
         $this->call(CreatePermisosSeeder::class);
         $this->call(CreateModulosSeeder::class);
+        $this->call(CreatePlanesSeeder::class);
     }
 }

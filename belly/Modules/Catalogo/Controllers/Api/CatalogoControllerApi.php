@@ -77,6 +77,65 @@ class CatalogoControllerApi extends BaseController
         return $this->ejecutar(fn () => catalogo_imagenes()->subir($this->request->getFile('imagen')), 201);
     }
 
+    public function verVitrina()
+    {
+        return $this->ejecutar(static fn () => catalogo_vitrina()->deEmpresa());
+    }
+
+    public function guardarVitrina()
+    {
+        return $this->ejecutar(fn () => catalogo_vitrina()->guardar($this->datos()));
+    }
+
+    public function verLogoVitrina()
+    {
+        try {
+            $logo = catalogo_vitrina()->logoBinario();
+
+            return $this->response
+                ->setHeader('Content-Type', $logo['mime'])
+                ->setHeader('Cache-Control', 'private, max-age=60')
+                ->setBody($logo['bytes']);
+        } catch (\DomainException $e) {
+            return $this->response->setStatusCode(404)->setJSON(['success' => false, 'error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            log_message('error', '[CATALOGO] ' . $e->getMessage());
+
+            return $this->response->setStatusCode(400)->setJSON(['success' => false, 'error' => 'No se pudo abrir el logo.']);
+        }
+    }
+
+    public function publico(string $slug)
+    {
+        try {
+            return $this->response->setJSON(['success' => true, 'data' => catalogo_vitrina()->publico($slug)]);
+        } catch (\DomainException $e) {
+            return $this->response->setStatusCode(404)->setJSON(['success' => false, 'error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            log_message('error', '[CATALOGO] ' . $e->getMessage());
+
+            return $this->response->setStatusCode(400)->setJSON(['success' => false, 'error' => 'No se pudo abrir el catálogo.']);
+        }
+    }
+
+    public function seo(string $slug)
+    {
+        try {
+            $producto = $this->request->getGet('producto');
+
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => catalogo_vitrina()->tarjeta($slug, $producto !== null && $producto !== '' ? (int) $producto : null),
+            ]);
+        } catch (\DomainException $e) {
+            return $this->response->setStatusCode(404)->setJSON(['success' => false, 'error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            log_message('error', '[CATALOGO] ' . $e->getMessage());
+
+            return $this->response->setStatusCode(400)->setJSON(['success' => false, 'error' => 'No se pudo armar la ficha.']);
+        }
+    }
+
     /** @return array<string, mixed> */
     private function datos(): array
     {

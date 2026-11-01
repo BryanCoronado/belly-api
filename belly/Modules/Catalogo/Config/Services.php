@@ -5,6 +5,7 @@ namespace Belly\Catalogo\Config;
 use Belly\Catalogo\UseCases\FamiliaProductoUseCase;
 use Belly\Catalogo\UseCases\ImagenProductoUseCase;
 use Belly\Catalogo\UseCases\ProductoUseCase;
+use Belly\Catalogo\UseCases\VitrinaUseCase;
 use CodeIgniter\Config\BaseService;
 
 class Services extends BaseService
@@ -34,5 +35,14 @@ class Services extends BaseService
         }
 
         return new ImagenProductoUseCase();
+    }
+
+    public static function VitrinaUseCase($config = null, bool $getShared = true): VitrinaUseCase
+    {
+        if ($getShared) {
+            return self::getSharedInstance('VitrinaUseCase', $config);
+        }
+
+        return new VitrinaUseCase();
     }
 }

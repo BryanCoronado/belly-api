@@ -68,6 +68,8 @@ class UsuarioUseCase {
     {
         $this->exigirAdministradorEmpresa();
         $this->validarNuevoUsuario($datos);
+        helper('vip2system');
+        cupo()->exigirPersonas();
 
         $idEmpresa = $this->resolverIdEmpresaUsuario($datos);
         $usuario = strtolower(trim((string) $datos['usuario']));

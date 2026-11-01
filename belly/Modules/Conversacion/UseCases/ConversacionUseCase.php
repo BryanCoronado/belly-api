@@ -419,6 +419,8 @@ class ConversacionUseCase {
 
     public function crearConversacion(array $datos)
     {
+        helper('vip2system');
+        cupo()->exigirConversacion((int) ($datos['id_empresa'] ?? id_empresa_sesion() ?? 0));
         $conversacion_model = $this->getConversacionProvider();
 
         $conversacion_entity = new ConversacionEntity();

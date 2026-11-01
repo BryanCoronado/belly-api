@@ -26,11 +26,13 @@ final class TiposNodo
     public const TEMPERATURA = 'temperatura';
     /** Reparte a los clientes en dos caminos (prueba A/B). */
     public const DIVIDIR = 'dividir';
+    /** Envía un producto, una categoría o el enlace del catálogo (la foto y el texto se guardan en el paso). */
+    public const CATALOGO = 'catalogo';
 
     public const TODOS = [
         self::INICIO, self::MENSAJE, self::BOTONES, self::LISTA, self::PREGUNTA, self::FORMULARIO,
         self::CONDICION, self::HORARIO, self::VARIABLE, self::ASESOR, self::FIN,
-        self::ESPERA, self::UBICACION, self::TEMPERATURA, self::DIVIDIR,
+        self::ESPERA, self::UBICACION, self::TEMPERATURA, self::DIVIDIR, self::CATALOGO,
     ];
 
     /** Niveles que el bot puede marcar (la venta la registra una persona). */
@@ -59,7 +61,7 @@ final class TiposNodo
         $datos = $nodo['datos'] ?? [];
 
         return match ($nodo['tipo'] ?? '') {
-            self::INICIO, self::MENSAJE, self::VARIABLE, self::ESPERA, self::UBICACION, self::TEMPERATURA => [self::SALIDA_SIGUIENTE],
+            self::INICIO, self::MENSAJE, self::CATALOGO, self::VARIABLE, self::ESPERA, self::UBICACION, self::TEMPERATURA => [self::SALIDA_SIGUIENTE],
             self::DIVIDIR => ['a', 'b'],
             self::PREGUNTA, self::FORMULARIO => [self::SALIDA_SIGUIENTE, ...self::salidaTiempo($datos)],
             self::BOTONES => [...self::idsOpciones($datos['botones'] ?? []), self::SALIDA_OTRO, ...self::salidaTiempo($datos)],
@@ -72,7 +74,7 @@ final class TiposNodo
 
     /** Pasos que mandan un mensaje de WhatsApp. */
     public const QUE_MANDAN = [
-        self::MENSAJE, self::BOTONES, self::LISTA, self::PREGUNTA,
+        self::MENSAJE, self::CATALOGO, self::BOTONES, self::LISTA, self::PREGUNTA,
         self::FORMULARIO, self::UBICACION, self::ASESOR, self::FIN,
     ];
 

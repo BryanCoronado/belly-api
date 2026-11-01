@@ -22,10 +22,20 @@ class Autorizacion
 
     public static function esOperadorPlataforma(): bool
     {
-        $usuario = self::usuario();
+        return self::esOperadorDe(self::usuario());
+    }
 
-        return self::esAdministradorEmpresa()
-            && (int) ($usuario->id_empresa ?? 0) === config(Plataforma::class)->idEmpresaOperadora;
+    public static function esOperadorDe(?object $usuario): bool
+    {
+        if ($usuario === null) {
+            return false;
+        }
+        if ((int) ($usuario->operador ?? 0) === 1) {
+            return true;
+        }
+
+        return (int) ($usuario->sudo ?? 0) === 1
+            && (int) ($usuario->id_empresa ?? 0) === config(Plataforma::class)->idOperadora();
     }
 
     public static function esUsuarioActual(int $idUsuario): bool

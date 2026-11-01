@@ -80,6 +80,11 @@ class CreateUsuarioTable extends Migration
                 'constraint' => '1',
                 'default'    => 0,
             ],
+            'operador' => [
+                'type'       => 'TINYINT',
+                'constraint' => '1',
+                'default'    => 0,
+            ],
             'es_bot' => [
                 'type'       => 'TINYINT',
                 'constraint' => '1',

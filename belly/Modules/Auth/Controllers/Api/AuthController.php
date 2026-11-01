@@ -3,6 +3,7 @@
 namespace Belly\Auth\Controllers\Api;
 
 use App\Controllers\BaseController;
+use Belly\Auth\UseCases\RegistroValidador;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\I18n\Time;
@@ -19,33 +20,34 @@ class AuthController extends BaseController
         }
 
         try {
-            $correo = strtolower(trim((string) ($datos['correo'] ?? '')));
-            if ($correo === '' || ! filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-                return $this->fail('El correo es obligatorio.', 400);
-            }
-            if ($this->correoYaUsado($correo)) {
+            $validador = new RegistroValidador();
+            $limpios = $validador->validar($datos);
+
+            if ($this->correoYaUsado($limpios['correo'])) {
                 return $this->fail('Ese correo ya tiene una cuenta. Entra con él.', 400);
             }
 
             $usuario = trim((string) ($datos['username'] ?? ''));
             if ($usuario === '') {
-                $usuario = $this->usuarioDesdeCorreo($correo);
+                $usuario = $this->usuarioDesdeCorreo($limpios['correo']);
             }
 
             $creada = empresa()->registrar([
-                'nombre' => $datos['nombre'] ?? '',
+                'nombre' => $limpios['nombre'],
                 'slug' => '',
                 'admin' => [
                     'usuario' => $usuario,
-                    'password' => $datos['password'] ?? '',
-                    'nombres' => $datos['nombres'] ?? '',
-                    'apellidos' => $datos['apellidos'] ?? '',
-                    'correo' => $correo,
-                    'celular' => $this->celularRegistro($datos),
+                    'password' => $limpios['password'],
+                    'nombres' => $limpios['nombres'],
+                    'apellidos' => $limpios['apellidos'],
+                    'correo' => $limpios['correo'],
+                    'celular' => $limpios['celular'],
                     'nro_documento' => $datos['nro_documento'] ?? '',
                     'id_tipo_documento' => 1,
                 ],
             ]);
+
+            $validador->marcarAlta();
 
             return $this->respond([
                 'success' => true,
@@ -133,10 +135,11 @@ class AuthController extends BaseController
                     'empresa' => $empresa->slug,
                     'empresa_nombre' => $empresa->nombre,
                     'usuario' => $usuario->usuario,
-                    'nombres' => $perfil->nombres ?? null,
-                    'apellidos' => $perfil->apellidos ?? null,
+                    'nombres' => $this->textoUtf8($perfil->nombres ?? null),
+                    'apellidos' => $this->textoUtf8($perfil->apellidos ?? null),
                     'foto' => $perfil->foto_url ?? null,
                     'sudo' => (int) ($usuario->sudo ?? 0),
+                    'operador' => \Belly\Services\Autorizacion::esOperadorDe($usuario),
                     'modo_ahorro' => empresa()->modoAhorro((int) ($usuario->id_empresa ?? 0)),
                 ],
             ];
@@ -336,5 +339,21 @@ class AuthController extends BaseController
         $largo = strlen($numero);
 
         return $largo >= 8 && $largo <= 15 ? $numero : null;
+    }
+
+    private function textoUtf8(mixed $valor): ?string
+    {
+        if ($valor === null) {
+            return null;
+        }
+        $texto = (string) $valor;
+        if ($texto === '') {
+            return '';
+        }
+        if (! mb_check_encoding($texto, 'UTF-8')) {
+            $texto = mb_convert_encoding($texto, 'UTF-8', 'UTF-8,ISO-8859-1,Windows-1252');
+        }
+
+        return $texto;
     }
 }

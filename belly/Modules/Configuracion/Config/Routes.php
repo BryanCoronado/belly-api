@@ -17,6 +17,7 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
 $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static function ($routes) {
     $routes->group('empresa', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
         $routes->put('modo', 'EmpresaControllerApi::guardarModo', ['as' => 'apiv1_empresa_modo_guardar']);
+        $routes->get('pagos', 'PagoControllerApi::mios', ['as' => 'apiv1_empresa_pagos']);
     });
 });
 
@@ -47,6 +48,15 @@ $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static fun
 $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:operador']], static function ($routes) {
     $routes->group('configuracion', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
         $routes->get('empresas', 'EmpresaControllerApi::listar', ['as' => 'apiv1_empresas']);
+        $routes->put('empresas/(:num)/estado', 'EmpresaControllerApi::cambiarEstado/$1', ['as' => 'apiv1_empresas_estado']);
+        $routes->put('empresas/(:num)/plan', 'PlanControllerApi::asignar/$1', ['as' => 'apiv1_empresas_plan']);
         $routes->post('empresas', 'EmpresaControllerApi::crear', ['as' => 'apiv1_empresas_crear']);
+        $routes->get('planes', 'PlanControllerApi::listar', ['as' => 'apiv1_planes']);
+        $routes->post('planes', 'PlanControllerApi::crear', ['as' => 'apiv1_planes_crear']);
+        $routes->put('planes/(:num)', 'PlanControllerApi::actualizar/$1', ['as' => 'apiv1_planes_actualizar']);
+        $routes->delete('planes/(:num)', 'PlanControllerApi::eliminar/$1', ['as' => 'apiv1_planes_eliminar']);
+        $routes->get('pagos', 'PagoControllerApi::listar', ['as' => 'apiv1_pagos']);
+        $routes->post('pagos', 'PagoControllerApi::crear', ['as' => 'apiv1_pagos_crear']);
+        $routes->put('pagos/(:num)', 'PagoControllerApi::marcar/$1', ['as' => 'apiv1_pagos_marcar']);
     });
 });

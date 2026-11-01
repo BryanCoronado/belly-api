@@ -46,13 +46,44 @@ class EmpresaUseCase
     {
         $this->exigirOperador();
 
-        $filas = $this->modelo()->orderBy('nombre', 'ASC')->findAll();
+        $filas = $this->modelo()->orderBy('created_at', 'DESC')->findAll();
+        $ids = array_map(static fn (EmpresaEntity $empresa) => (int) $empresa->id, $filas);
+        $extras = $this->extrasOperador($ids);
+
         $salida = [];
         foreach ($filas as $empresa) {
-            $salida[] = $this->presentar($empresa);
+            $id = (int) $empresa->id;
+            $salida[] = [
+                ...$this->presentar($empresa),
+                'propia' => $id === config('Plataforma')->idOperadora(),
+                'creada' => $empresa->created_at ? (string) $empresa->created_at : null,
+                'personas' => $extras['personas'][$id] ?? 0,
+                'whatsapp' => $extras['whatsapp'][$id] ?? false,
+                'admin_nombre' => $extras['admins'][$id]['nombre'] ?? '',
+                'admin_correo' => $extras['admins'][$id]['correo'] ?? '',
+            ];
         }
 
         return $salida;
+    }
+
+    /** @param array<string, mixed> $datos */
+    public function cambiarEstado(int $id, array $datos): array
+    {
+        $this->exigirOperador();
+
+        $empresa = $this->modelo()->find($id);
+        if (! $empresa instanceof EmpresaEntity) {
+            throw new \Exception('No encontramos esa empresa.');
+        }
+        if ($id === config('Plataforma')->idOperadora()) {
+            throw new \Exception('No puedes pausar la empresa que opera Belly.');
+        }
+
+        $activa = filter_var($datos['activa'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $this->modelo()->update($id, ['estado' => $activa ? 1 : 0]);
+
+        return ['id' => $id, 'estado' => $activa ? 1 : 0];
     }
 
     /** @param array<string, mixed> $datos */
@@ -75,7 +106,7 @@ class EmpresaUseCase
         $nombre = trim((string) ($datos['nombre'] ?? ''));
         $slugPedido = trim((string) ($datos['slug'] ?? ''));
         $slug = $this->slugDisponible($slugPedido !== '' ? $slugPedido : $nombre);
-        $plan = trim((string) ($datos['plan'] ?? 'base'));
+        $plan = trim((string) ($datos['plan'] ?? 'gratis'));
         $admin = $datos['admin'] ?? null;
 
         if ($nombre === '' || $slug === '') {
@@ -85,7 +116,7 @@ class EmpresaUseCase
             throw new \Exception('El nombre de la empresa supera el tamaño permitido.');
         }
         if ($plan === '') {
-            $plan = 'base';
+            $plan = 'gratis';
         }
         if (mb_strlen($plan) > 40) {
             throw new \Exception('El plan supera los 40 caracteres.');
@@ -101,6 +132,7 @@ class EmpresaUseCase
             $empresa->nombre = $nombre;
             $empresa->slug = $slug;
             $empresa->plan = $plan;
+            $empresa->id_plan = $this->idPlanPorClave($plan);
             $empresa->estado = 1;
 
             $modelo = $this->modelo();
@@ -155,14 +187,79 @@ class EmpresaUseCase
 
     private function presentar(EmpresaEntity $empresa): array
     {
+        $cupo = (new \Belly\Services\CupoPlan())->resumen((int) $empresa->id);
+
         return [
             'id' => (int) $empresa->id,
             'nombre' => $empresa->nombre,
-            'slug' => $empresa->slug,
-            'plan' => $empresa->plan,
+            'plan' => $empresa->plan ?: ($cupo['plan']['clave'] ?? 'gratis'),
+            'id_plan' => (int) ($empresa->id_plan ?? $cupo['plan']['id'] ?? 0),
+            'plan_nombre' => $cupo['plan']['nombre'] ?? 'Gratis',
+            'plan_precio' => $cupo['plan']['precio_mensual'] ?? 0,
+            'uso' => $cupo['uso'],
+            'limites' => [
+                'conversaciones' => $cupo['plan']['max_conversaciones'],
+                'equipos' => $cupo['plan']['max_equipos'],
+                'personas' => $cupo['plan']['max_personas'],
+                'flujos' => $cupo['plan']['max_flujos'],
+            ],
             'estado' => (int) $empresa->estado,
             'modo_ahorro' => $this->estaEnAhorro($empresa),
         ];
+    }
+
+    private function idPlanPorClave(string $clave): ?int
+    {
+        if (! db_connect()->tableExists('plan')) {
+            return null;
+        }
+        $fila = db_connect()->table('plan')->select('id')->where('clave', $clave)->where('deleted_at', null)->get()->getRowArray();
+
+        return $fila ? (int) $fila['id'] : null;
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array{personas: array<int, int>, whatsapp: array<int, bool>, admins: array<int, array{nombre:string, correo:string}>}
+     */
+    private function extrasOperador(array $ids): array
+    {
+        $personas = [];
+        $whatsapp = [];
+        $admins = [];
+        if ($ids === []) {
+            return ['personas' => $personas, 'whatsapp' => $whatsapp, 'admins' => $admins];
+        }
+
+        $db = db_connect();
+        foreach ($db->table('usuario')->select('id_empresa, COUNT(*) as total')->whereIn('id_empresa', $ids)->where('deleted_at', null)->groupBy('id_empresa')->get()->getResultArray() as $fila) {
+            $personas[(int) $fila['id_empresa']] = (int) $fila['total'];
+        }
+
+        foreach ($db->table('app')->select('id_empresa')->whereIn('id_empresa', $ids)->where('deleted_at', null)->where('phone_number_id IS NOT NULL', null, false)->where('phone_number_id !=', '')->get()->getResultArray() as $fila) {
+            $whatsapp[(int) $fila['id_empresa']] = true;
+        }
+
+        foreach ($db->table('usuario as u')
+            ->select('u.id_empresa, p.nombres, p.apellidos, p.correo')
+            ->join('usuario_perfil as p', 'p.id_usuario = u.id', 'left')
+            ->whereIn('u.id_empresa', $ids)
+            ->where('u.sudo', 1)
+            ->where('u.deleted_at', null)
+            ->orderBy('u.id', 'ASC')
+            ->get()
+            ->getResultArray() as $fila) {
+            $id = (int) $fila['id_empresa'];
+            if (isset($admins[$id])) {
+                continue;
+            }
+            $admins[$id] = [
+                'nombre' => trim(($fila['nombres'] ?? '') . ' ' . ($fila['apellidos'] ?? '')),
+                'correo' => (string) ($fila['correo'] ?? ''),
+            ];
+        }
+
+        return ['personas' => $personas, 'whatsapp' => $whatsapp, 'admins' => $admins];
     }
 
     /** Modo de la empresa de la sesión (o la indicada). */

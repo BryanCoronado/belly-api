@@ -47,6 +47,7 @@ class FamiliaProductoUseCase
             'id_empresa' => $this->idEmpresa(),
             'nombre' => $this->texto($datos['nombre'] ?? null),
             'descripcion' => $this->texto($datos['descripcion'] ?? null) ?: null,
+            'imagen_url' => $this->texto($datos['imagen_url'] ?? null) ?: null,
             'orden' => (int) ($ultimo['maximo'] ?? 0) + 1,
             'activo' => 1,
         ]);
@@ -66,6 +67,9 @@ class FamiliaProductoUseCase
         }
         if (array_key_exists('descripcion', $datos)) {
             $cambios['descripcion'] = $this->texto($datos['descripcion']) ?: null;
+        }
+        if (array_key_exists('imagen_url', $datos)) {
+            $cambios['imagen_url'] = $this->texto($datos['imagen_url']) ?: null;
         }
         if (array_key_exists('activo', $datos)) {
             $cambios['activo'] = $datos['activo'] ? 1 : 0;
@@ -140,6 +144,7 @@ class FamiliaProductoUseCase
             'id' => $familia->id,
             'nombre' => $familia->nombre,
             'descripcion' => $familia->descripcion,
+            'imagen_url' => $familia->imagen_url ?? null,
             'orden' => $familia->orden,
             'activo' => $familia->activo,
             'total_productos' => $totalProductos,

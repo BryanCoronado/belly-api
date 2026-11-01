@@ -156,6 +156,7 @@ final class MotorFlujo
                     break;
 
                 case TiposNodo::MENSAJE:
+                case TiposNodo::CATALOGO:
                     array_push($mensajes, ...$this->pausa($datos), ...$this->mensajesDeTexto($datos, $vars));
                     $siguiente = $grafo->destino($id, TiposNodo::SALIDA_SIGUIENTE);
                     break;

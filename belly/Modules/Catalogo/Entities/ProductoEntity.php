@@ -12,7 +12,13 @@ class ProductoEntity extends Entity
         'id_empresa' => 'int',
         'id_familia' => '?int',
         'precio' => '?float',
+        'precio_oferta' => '?float',
+        'destacado' => 'bool',
+        'visible_catalogo' => 'bool',
+        'orden' => 'int',
         'activo' => 'bool',
         'detalles' => 'json-array',
+        'imagenes' => 'json-array',
+        'variantes' => 'json-array',
     ];
 }

@@ -6,6 +6,7 @@ use Belly\Usuarios\UseCases\AsesorUseCase;
 use Belly\Catalogo\UseCases\FamiliaProductoUseCase;
 use Belly\Catalogo\UseCases\ImagenProductoUseCase;
 use Belly\Catalogo\UseCases\ProductoUseCase;
+use Belly\Catalogo\UseCases\VitrinaUseCase;
 use Belly\AgenteIa\UseCases\AgenteIaUseCase;
 use Belly\AgenteIa\UseCases\AtencionIaUseCase;
 use Belly\Reparto\UseCases\AsignadorChatUseCase;
@@ -28,6 +29,7 @@ use Belly\Conversacion\UseCases\EtiquetaUseCase;
 use Belly\Webhooks\UseCases\WebhookUseCase;
 use Belly\Configuracion\UseCases\AppUseCase;
 use Belly\Configuracion\UseCases\EmpresaUseCase;
+use Belly\Services\CupoPlan;
 use Belly\Configuracion\UseCases\PortafolioUseCase;
 use Belly\Media\UseCases\MediaUseCase;
 use Belly\Auth\UseCases\AuthUseCase;
@@ -168,6 +170,13 @@ if (!function_exists('catalogo_imagenes')) {
     function catalogo_imagenes(): ImagenProductoUseCase
     {
         return service('ImagenProductoUseCase');
+    }
+}
+
+if (!function_exists('catalogo_vitrina')) {
+    function catalogo_vitrina(): VitrinaUseCase
+    {
+        return service('VitrinaUseCase');
     }
 }
 // #####################################
@@ -317,6 +326,13 @@ if (!function_exists('empresa')) {
     function empresa(): EmpresaUseCase
     {
         return service('EmpresaUseCase');
+    }
+}
+
+if (!function_exists('cupo')) {
+    function cupo(): CupoPlan
+    {
+        return new CupoPlan();
     }
 }
 

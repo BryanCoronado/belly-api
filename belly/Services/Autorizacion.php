@@ -2,8 +2,6 @@
 
 namespace Belly\Services;
 
-use Belly\Config\Plataforma;
-
 class Autorizacion
 {
     public static function usuario(): ?object
@@ -27,15 +25,7 @@ class Autorizacion
 
     public static function esOperadorDe(?object $usuario): bool
     {
-        if ($usuario === null) {
-            return false;
-        }
-        if ((int) ($usuario->operador ?? 0) === 1) {
-            return true;
-        }
-
-        return (int) ($usuario->sudo ?? 0) === 1
-            && (int) ($usuario->id_empresa ?? 0) === config(Plataforma::class)->idOperadora();
+        return $usuario !== null && (int) ($usuario->operador ?? 0) === 1;
     }
 
     public static function esUsuarioActual(int $idUsuario): bool

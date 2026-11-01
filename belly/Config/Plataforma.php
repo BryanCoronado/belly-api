@@ -12,7 +12,7 @@ use CodeIgniter\Config\BaseConfig;
  */
 class Plataforma extends BaseConfig
 {
-    public int $idEmpresaOperadora = 1;
+    public int $idEmpresaOperadora = 0;
 
     /** URL HTTPS pública del API: Meta la usa para llamar al webhook. Vacío = base_url(). */
     public string $urlPublicaApi = '';

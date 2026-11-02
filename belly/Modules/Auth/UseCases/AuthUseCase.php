@@ -268,7 +268,8 @@ class AuthUseCase
                 return FALSE;
             }
 
-            if ($this->empresaPausada((int) ($usuario->id_empresa ?? 0))) {
+            if (! \Belly\Services\Autorizacion::esOperadorDe($usuario)
+                && $this->empresaPausada((int) ($usuario->id_empresa ?? 0))) {
                 throw new \Exception(lang('Auth.empresaPausada'));
             }
 

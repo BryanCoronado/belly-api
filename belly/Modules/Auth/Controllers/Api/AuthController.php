@@ -101,7 +101,8 @@ class AuthController extends BaseController
                 if ($empresa === null && $usuario !== []) {
                     return $this->failUnauthorized('No encontramos esa cuenta.', 'Auth');
                 }
-                if ($empresa !== null && (int) $empresa->estado !== 1) {
+                $esDueño = $usuario !== [] && Autorizacion::esOperadorDe((object) $usuario);
+                if ($empresa !== null && (int) $empresa->estado !== 1 && ! $esDueño) {
                     return $this->failUnauthorized(lang('Auth.empresaPausada'), 'Auth');
                 }
             }

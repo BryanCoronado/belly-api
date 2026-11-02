@@ -35,13 +35,18 @@ class VitrinaUseCase
     /** @param array<string, mixed> $datos @return array<string, mixed> */
     public function guardar(array $datos): array
     {
+        $this->asegurarColumnaPublicado();
         $actual = $this->vitrinas->first();
         $fila = $this->normalizar($datos, $actual);
 
         if ($actual instanceof VitrinaEntity) {
-            $this->verificar($this->vitrinas->update($actual->id, $fila + [
+            $ok = $this->vitrinas->update($actual->id, $fila + [
                 'id_empresa' => $actual->id_empresa,
-            ]) ? $actual->id : false);
+            ]);
+            if ($ok === false && $this->vitrinas->errors() !== []) {
+                $this->verificar(false);
+            }
+            $this->fijarPublicado((int) $actual->id, (int) $fila['publicado']);
 
             return $this->deEmpresa();
         }
@@ -49,6 +54,7 @@ class VitrinaUseCase
         $fila['id_empresa'] = $this->idEmpresa();
         $id = $this->vitrinas->insert($fila);
         $this->verificar($id);
+        $this->fijarPublicado((int) $id, (int) $fila['publicado']);
 
         return $this->deEmpresa();
     }
@@ -277,12 +283,8 @@ class VitrinaUseCase
             'color' => $this->color($datos['color'] ?? $actual?->color ?? null),
             'logo_url' => $logo !== '' ? $logo : null,
             'whatsapp' => $whatsapp,
-            'mostrar_precios' => array_key_exists('mostrar_precios', $datos)
-                ? ($datos['mostrar_precios'] ? 1 : 0)
-                : (int) ($actual?->mostrar_precios ?? true),
-            'publicado' => array_key_exists('publicado', $datos)
-                ? ($datos['publicado'] ? 1 : 0)
-                : (int) ($actual?->publicado ?? false),
+            'mostrar_precios' => $this->bandera($datos['mostrar_precios'] ?? $actual?->mostrar_precios ?? true),
+            'publicado' => $this->bandera($datos['publicado'] ?? $actual?->publicado ?? false),
             'pagina' => json_encode($this->paginaDe($datos['pagina'] ?? $actual?->pagina ?? null), JSON_UNESCAPED_UNICODE),
         ];
     }
@@ -656,6 +658,36 @@ class VitrinaUseCase
     }
 
     /** @param int|string|false $resultado */
+    private function bandera(mixed $valor): int
+    {
+        if (is_bool($valor)) {
+            return $valor ? 1 : 0;
+        }
+        if (is_int($valor) || is_float($valor)) {
+            return (int) $valor === 1 ? 1 : 0;
+        }
+
+        return filter_var($valor, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+    }
+
+    private function asegurarColumnaPublicado(): void
+    {
+        if (db_connect()->fieldExists('publicado', 'vitrina')) {
+            return;
+        }
+
+        db_connect()->query('ALTER TABLE vitrina ADD COLUMN publicado TINYINT(1) NOT NULL DEFAULT 0');
+    }
+
+    private function fijarPublicado(int $id, int $publicado): void
+    {
+        if ($id <= 0 || ! db_connect()->fieldExists('publicado', 'vitrina')) {
+            return;
+        }
+
+        db_connect()->table('vitrina')->where('id', $id)->update(['publicado' => $publicado]);
+    }
+
     private function verificar($resultado): void
     {
         if ($resultado === false || $resultado === 0) {

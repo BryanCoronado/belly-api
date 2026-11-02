@@ -163,6 +163,14 @@ class AuthUseCase
     {
         $usuario_model = $this->getUsuarioProvider();
         $asesor = $usuario_model->find($idAsesor);
+        if (! $asesor && \Belly\Services\Autorizacion::esOperadorPlataforma()) {
+            $fila = db_connect()->table('usuario')->where('id', $idAsesor)->where('deleted_at', null)->get()->getRowArray();
+            if ($fila) {
+                $asesor = new UsuarioEntity();
+                $asesor->fill($fila);
+                $asesor->id = (int) $fila['id'];
+            }
+        }
 
         if (!$asesor) {
             throw new \Exception('El usuario a impersonar no existe.');
@@ -258,6 +266,10 @@ class AuthUseCase
                 throw new \Exception(lang('Auth.cuentaBloqueadaPorAdmin'));
 
                 return FALSE;
+            }
+
+            if ($this->empresaPausada((int) ($usuario->id_empresa ?? 0))) {
+                throw new \Exception(lang('Auth.empresaPausada'));
             }
 
             $this->usuario = $usuario;
@@ -364,6 +376,17 @@ class AuthUseCase
      * Crea una instancia del modelo UsuarioLoginModel para registrar los inicios de sesion 
      * de los usuarios
      */
+
+    private function empresaPausada(int $idEmpresa): bool
+    {
+        if ($idEmpresa <= 0) {
+            return false;
+        }
+
+        $fila = db_connect()->table('empresa')->select('estado')->where('id', $idEmpresa)->get()->getRowArray();
+
+        return $fila !== null && (int) ($fila['estado'] ?? 0) !== 1;
+    }
 
     public function getLoginProvider(): UsuarioLoginModel {
         if ($this->login_provider !== null) {

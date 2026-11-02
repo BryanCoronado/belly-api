@@ -6,6 +6,7 @@ return [
     'datosIncorrectos' => 'Datos incorrectos.',
     'cuentaBloqueada' => 'Cuenta bloqueada por intentos fallidos. Intentalo nuevamente {0}.',
     'cuentaBloqueadaPorAdmin' => 'Cuenta bloqueada por un administrador.',
+    'empresaPausada' => 'Tu empresa está pausada.',
     'errorTokenKey' => 'Error al registrar el token key.',
     'headerAuthorized' => 'Token ausente.',
     'tokenInvalido' => 'Token inválido.',

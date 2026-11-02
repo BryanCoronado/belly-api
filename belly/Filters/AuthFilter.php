@@ -37,7 +37,7 @@ class AuthFilter implements FilterInterface {
             $token = $parts[1] ?? null;
         }
 
-        if (empty($token) && strtoupper($request->getMethod()) === 'GET') {
+        if (empty($token) && strtoupper($request->getMethod()) === 'GET' && $this->esRutaDescarga($request)) {
             $queryToken = $request->getGet('access_token');
             if (is_string($queryToken) && $queryToken !== '') {
                 $token = $queryToken;
@@ -74,6 +74,13 @@ class AuthFilter implements FilterInterface {
      */
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null) {
         //
+    }
+
+    private function esRutaDescarga(RequestInterface $request): bool
+    {
+        $ruta = strtolower($request->getUri()->getPath());
+
+        return str_contains($ruta, '/descarga') || str_contains($ruta, '/archivo');
     }
 
     private function unAuthorizedResponse(string $messages) {

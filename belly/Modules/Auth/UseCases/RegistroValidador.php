@@ -105,7 +105,7 @@ class RegistroValidador
     {
         $ip = trim((string) (service('request')->getIPAddress() ?? ''));
         if ($ip === '' || $ip === '0.0.0.0') {
-            return null;
+            $ip = 'desconocida';
         }
 
         return 'registro-ip-' . md5($ip);

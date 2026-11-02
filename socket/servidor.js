@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { timingSafeEqual } from 'node:crypto'
 import { Server } from 'socket.io'
 
-const EVENTOS = new Set(['mensaje', 'conversacion', 'contadores'])
+const EVENTOS = new Set(['mensaje', 'conversacion', 'contadores', 'sesion'])
 const LIMITE_CUERPO = 64 * 1024
 
 const config = leerConfig()
@@ -95,6 +95,9 @@ async function recibirDelApi(peticion, respuesta) {
   }
 
   io.to(salaEmpresa(idEmpresa)).emit(cuerpo.evento, cuerpo.datos ?? {})
+  if (cuerpo.evento === 'sesion') {
+    io.in(salaEmpresa(idEmpresa)).disconnectSockets(true)
+  }
   responder(respuesta, 200, { ok: true })
 }
 

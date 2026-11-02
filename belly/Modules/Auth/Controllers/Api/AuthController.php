@@ -4,6 +4,8 @@ namespace Belly\Auth\Controllers\Api;
 
 use App\Controllers\BaseController;
 use Belly\Auth\UseCases\RegistroValidador;
+use Belly\Services\Autorizacion;
+use Belly\Services\Ritmo;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\I18n\Time;
@@ -20,6 +22,7 @@ class AuthController extends BaseController
         }
 
         try {
+            Ritmo::exigir('registro', 5, 600);
             $validador = new RegistroValidador();
             $limpios = $validador->validar($datos);
 
@@ -66,6 +69,12 @@ class AuthController extends BaseController
             return $this->failUnauthorized('Datos de acceso inválidos.', 'Auth');
         }
 
+        try {
+            Ritmo::exigir('login', 12, 60);
+        } catch (\RuntimeException $e) {
+            return $this->failUnauthorized($e->getMessage(), 'Auth');
+        }
+
         $slug = trim((string) ($datos['empresa'] ?? ''));
         $username = trim((string) ($datos['username'] ?? ''));
         $correo = trim((string) ($datos['correo'] ?? ''));
@@ -83,16 +92,22 @@ class AuthController extends BaseController
                     return $this->failUnauthorized('El correo y la contraseña son obligatorios.', 'Auth');
                 }
                 $usuario = auth()->validarUsuarioPorIdentificador($identificador);
+                if ($usuario !== [] && ! str_contains($identificador, '@') && (int) ($usuario['operador'] ?? 0) !== 1) {
+                    return $this->failUnauthorized('Entra con tu correo.', 'Auth');
+                }
                 $empresa = $usuario !== []
-                    ? empresa()->buscarActivaPorId((int) ($usuario['id_empresa'] ?? 0))
+                    ? empresa()->buscarPorId((int) ($usuario['id_empresa'] ?? 0))
                     : null;
                 if ($empresa === null && $usuario !== []) {
-                    return $this->failUnauthorized('Empresa no encontrada o inactiva.', 'Auth');
+                    return $this->failUnauthorized('No encontramos esa cuenta.', 'Auth');
+                }
+                if ($empresa !== null && (int) $empresa->estado !== 1) {
+                    return $this->failUnauthorized(lang('Auth.empresaPausada'), 'Auth');
                 }
             }
         } catch (\RuntimeException $exc) {
             if ($exc->getMessage() === 'VARIAS_CUENTAS') {
-                return $this->failUnauthorized('Hay más de una cuenta con ese usuario. Entra con tu correo.', 'Auth');
+                return $this->failUnauthorized('No encontramos esa cuenta.', 'Auth');
             }
             throw $exc;
         }
@@ -235,64 +250,45 @@ class AuthController extends BaseController
     }
 
     /**
-     * Genera un JWT para operar como otro usuario.
-     * Solo accesible por roles 1 (Programador), 2 (Administrador), 7 (Personal Marketing) o sudo=1.
-     *
-     * POST /v1/auth/impersonar/{idAsesor}
-     *
-     * Reglas de seguridad:
-     *  - El supervisor debe tener sudo=1 o rol 1/2/7
-     *  - No se puede impersonar a un usuario sudo
-     *  - No se puede impersonar a uno mismo
+     * JWT para operar como otro usuario de la misma empresa (admin) o de cualquier empresa (dueño).
      */
     public function impersonar(int $idAsesor)
     {
         $supervisor = auth()->getUsuario();
 
-        if (!$supervisor) {
+        if (! $supervisor) {
             return $this->failUnauthorized('No autenticado.', 'Auth');
         }
 
-        $db = \Config\Database::connect();
-
-        // Verificar que tenga rol 1, 2, 7 o sea sudo
-        if (intval($supervisor->sudo) !== 1) {
-            $roles = $db->table('grupo_usuario_usuario guu')
-                ->select('gur.id as id_rol')
-                ->join('grupo_usuario_rol gur', 'gur.id = guu.id_grupo_usuario_rol')
-                ->where('guu.id_usuario', $supervisor->id)
-                ->where('guu.deleted_at', null)
-                ->whereIn('gur.id', [1, 2, 7])
-                ->get()
-                ->getResult();
-
-            if (empty($roles)) {
-                return $this->failForbidden('No tienes permisos para supervisar usuarios.', 'Auth');
-            }
+        $dueño = Autorizacion::esOperadorPlataforma();
+        if (! $dueño && ! Autorizacion::esAdministradorEmpresa()) {
+            return $this->failForbidden('No tienes permisos para supervisar usuarios.', 'Auth');
         }
 
-        // No impersonarse a uno mismo
         if ($idAsesor === (int) $supervisor->id) {
             return $this->fail('No puedes supervisarte a ti mismo.', 400, null, 'Auth');
         }
 
-        // No impersonar a usuarios con sudo (administradores)
-        $asesor = $db->table('usuario')
-            ->select('id, sudo, activo, deleted_at')
+        $asesor = db_connect()->table('usuario')
+            ->select('id, id_empresa, sudo, operador, activo, deleted_at')
             ->where('id', $idAsesor)
             ->get()
             ->getRow();
 
-        if (!$asesor || $asesor->deleted_at !== null) {
+        if (! $asesor || $asesor->deleted_at !== null) {
             return $this->fail('El usuario solicitado no existe.', 404, null, 'Auth');
         }
 
-        if (intval($asesor->activo) === 0) {
+        if (! $dueño && (int) $asesor->id_empresa !== (int) ($supervisor->id_empresa ?? 0)) {
+            return $this->fail('El usuario solicitado no existe.', 404, null, 'Auth');
+        }
+
+        if ((int) $asesor->activo === 0) {
             return $this->fail('El usuario solicitado está inactivo.', 422, null, 'Auth');
         }
 
-        if (intval($asesor->sudo) === 1) {
-            return $this->failForbidden('No se puede supervisar a un usuario administrador.', 'Auth');
+        if ((int) ($asesor->operador ?? 0) === 1 || ((int) $asesor->sudo === 1 && ! $dueño)) {
+            return $this->failForbidden('No se puede supervisar a ese usuario.', 'Auth');
         }
 
         try {

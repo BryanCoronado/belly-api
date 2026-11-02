@@ -390,25 +390,23 @@ class AppUseCase {
 
     private function resolverIdEmpresaApp(array $datos): int
     {
-        $id = (int) ($datos['id_empresa'] ?? 0);
-        if ($id > 0) {
-            return $id;
-        }
+        $sesion = Autorizacion::idEmpresaDe($datos);
 
         if (! empty($datos['id_portafolio'])) {
             $portafolio = model('PortafolioModel')->find((int) $datos['id_portafolio']);
             $id = (int) ($portafolio->id_empresa ?? 0);
-            if ($id > 0) {
-                return $id;
+            if ($id <= 0) {
+                throw new \Exception('No encontramos ese portafolio.');
             }
+            Autorizacion::exigirMismaEmpresa($id);
+
+            return $id;
         }
 
-        helper('vip2system');
-        $id = (int) (id_empresa_sesion() ?? 0);
-        if ($id <= 0) {
-            throw new \Exception('id_empresa es obligatorio para la app.');
+        if ($sesion > 0) {
+            return $sesion;
         }
 
-        return $id;
+        throw new \Exception('id_empresa es obligatorio para la app.');
     }
 }

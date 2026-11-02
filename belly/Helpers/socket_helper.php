@@ -186,14 +186,18 @@ class SocketHelper
         return $texto !== '' ? $texto : null;
     }
 
-    /** Nunca debe frenar ni romper la petición: si el socket está caído, se registra y se sigue. */
-    private static function emitir(string $evento, array $datos): bool
+    public static function expulsarEmpresa(int $idEmpresa): bool
     {
-        $clave = trim((string) env('SOCKET_CLAVE', ''));
-        if ($clave === '') {
+        if ($idEmpresa <= 0) {
             return false;
         }
 
+        return self::enviar($idEmpresa, 'sesion', ['motivo' => 'pausada']);
+    }
+
+    /** Nunca debe frenar ni romper la petición: si el socket está caído, se registra y se sigue. */
+    private static function emitir(string $evento, array $datos): bool
+    {
         if (! function_exists('id_empresa_sesion')) {
             helper('vip2system');
         }
@@ -208,6 +212,16 @@ class SocketHelper
         if (! $idEmpresa) {
             log_message('warning', "[SOCKET] Evento {$evento} sin empresa en contexto; no se emite.");
 
+            return false;
+        }
+
+        return self::enviar((int) $idEmpresa, $evento, $datos);
+    }
+
+    private static function enviar(int $idEmpresa, string $evento, array $datos): bool
+    {
+        $clave = trim((string) env('SOCKET_CLAVE', ''));
+        if ($clave === '') {
             return false;
         }
 

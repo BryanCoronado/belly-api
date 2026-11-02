@@ -6,6 +6,7 @@ use Belly\Clientes\Models\ClienteModel;
 use Belly\Clientes\Entities\ClienteEntity;
 use Belly\Clientes\Models\ClientePerfilModel;
 use Belly\Clientes\Entities\ClientePerfilEntity;
+use Belly\Services\Autorizacion;
 
 class ClienteUseCase {
     protected ClientesConfig $config;
@@ -420,26 +421,24 @@ class ClienteUseCase {
 
     private function resolverIdEmpresa(array $datos): int
     {
-        $id = (int) ($datos['id_empresa'] ?? 0);
-        if ($id > 0) {
-            return $id;
-        }
+        $sesion = Autorizacion::idEmpresaDe($datos);
 
         if (! empty($datos['id_app'])) {
             $app = model('AppModel')->find((int) $datos['id_app']);
             $id = (int) ($app->id_empresa ?? 0);
-            if ($id > 0) {
-                return $id;
+            if ($id <= 0) {
+                throw new \Exception('No encontramos esa app.');
             }
+            Autorizacion::exigirMismaEmpresa($id);
+
+            return $id;
         }
 
-        helper('vip2system');
-        $id = (int) (id_empresa_sesion() ?? 0);
-        if ($id <= 0) {
-            throw new \Exception('id_empresa es obligatorio para el cliente.');
+        if ($sesion > 0) {
+            return $sesion;
         }
 
-        return $id;
+        throw new \Exception('id_empresa es obligatorio para el cliente.');
     }
 
     /**

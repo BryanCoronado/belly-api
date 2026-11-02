@@ -1796,6 +1796,7 @@ class ConversacionUseCase {
         if (! $conversacion) {
             throw new \Exception('Conversación no encontrada');
         }
+        Autorizacion::exigirMismaEmpresa((int) ($conversacion->id_empresa ?? 0));
         if (Autorizacion::esAdministradorEmpresa()) {
             return;
         }
@@ -1854,28 +1855,26 @@ class ConversacionUseCase {
         return $this->ejecutarListadoPaginadoSidebarChat($modelo, $page);
     }
 
-    /** La empresa sale del número de WhatsApp (app) que recibió el mensaje; la sesión es solo el último recurso. */
+    /** La empresa sale de la sesión o del número de WhatsApp (app). Nunca del body. */
     private function resolverIdEmpresaConversacion(array $datos): int
     {
-        $id = (int) ($datos['id_empresa'] ?? 0);
-        if ($id > 0) {
-            return $id;
-        }
+        $sesion = Autorizacion::idEmpresaDe($datos);
 
         if (! empty($datos['id_app'])) {
             $app = model('AppModel')->find((int) $datos['id_app']);
             $id = (int) ($app->id_empresa ?? 0);
-            if ($id > 0) {
-                return $id;
+            if ($id <= 0) {
+                throw new \Exception('No encontramos esa app.');
             }
+            Autorizacion::exigirMismaEmpresa($id);
+
+            return $id;
         }
 
-        helper('vip2system');
-        $id = (int) (id_empresa_sesion() ?? 0);
-        if ($id <= 0) {
-            throw new \Exception('id_empresa es obligatorio para la conversación.');
+        if ($sesion > 0) {
+            return $sesion;
         }
 
-        return $id;
+        throw new \Exception('id_empresa es obligatorio para la conversación.');
     }
 }

@@ -6,6 +6,7 @@ use Belly\Mensajes\Models\MensajeModel;
 use Belly\Mensajes\Entities\MensajeEntity;
 use Belly\Conversacion\UseCases\ConversacionUseCase;
 use Belly\Conversacion\Config\ConversacionConfig;
+use Belly\Services\Autorizacion;
 
 class MensajeUseCase {
     protected MensajesConfig $config;
@@ -1682,26 +1683,24 @@ class MensajeUseCase {
 
     private function resolverIdEmpresaMensaje(array $datos): int
     {
-        $id = (int) ($datos['id_empresa'] ?? 0);
-        if ($id > 0) {
-            return $id;
-        }
+        $sesion = Autorizacion::idEmpresaDe($datos);
 
         if (! empty($datos['id_conversacion'])) {
             $conversacion = model('ConversacionModel')->find((int) $datos['id_conversacion']);
             $id = (int) ($conversacion->id_empresa ?? 0);
-            if ($id > 0) {
-                return $id;
+            if ($id <= 0) {
+                throw new \Exception('Conversación no encontrada');
             }
+            Autorizacion::exigirMismaEmpresa($id);
+
+            return $id;
         }
 
-        helper('vip2system');
-        $id = (int) (id_empresa_sesion() ?? 0);
-        if ($id <= 0) {
-            throw new \Exception('id_empresa es obligatorio para el mensaje.');
+        if ($sesion > 0) {
+            return $sesion;
         }
 
-        return $id;
+        throw new \Exception('id_empresa es obligatorio para el mensaje.');
     }
 
     /** Quién del equipo escribió el mensaje (solo cuando contesta = usuario). */

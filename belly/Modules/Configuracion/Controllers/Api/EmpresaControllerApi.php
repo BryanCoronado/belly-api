@@ -30,6 +30,18 @@ class EmpresaControllerApi extends BaseController
         }
     }
 
+    public function leerCupo()
+    {
+        try {
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => cupo()->resumen(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->responderError($e);
+        }
+    }
+
     public function guardarModo()
     {
         try {

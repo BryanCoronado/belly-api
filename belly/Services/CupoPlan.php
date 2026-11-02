@@ -134,7 +134,13 @@ class CupoPlan
         $fila = db_connect()->table('empresa')->select('id_plan')->where('id', $idEmpresa)->get()->getRowArray();
         $idPlan = (int) ($fila['id_plan'] ?? 0);
         if ($idPlan <= 0) {
-            return (new PlanModel())->where('clave', 'gratis')->first();
+            $primero = (new PlanModel())
+                ->where('activo', 1)
+                ->orderBy('orden', 'ASC')
+                ->orderBy('precio_mensual', 'ASC')
+                ->first();
+
+            return $primero instanceof PlanEntity ? $primero : (new PlanModel())->where('clave', 'gratis')->first();
         }
 
         $plan = (new PlanModel())->find($idPlan);

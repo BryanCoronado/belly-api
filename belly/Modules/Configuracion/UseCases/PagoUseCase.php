@@ -14,15 +14,18 @@ class PagoUseCase
         return $this->filas(null);
     }
 
-    /** @return array{plan: array<string, mixed>, pagos: array<int, array<string, mixed>>} */
+    /** @return array{plan: array<string, mixed>, uso: array<string, int>, pagos: array<int, array<string, mixed>>} */
     public function listarEmpresa(): array
     {
         Autorizacion::exigirAdministradorEmpresa();
         helper('vip2system');
         $id = (int) (id_empresa_sesion() ?? 0);
 
+        $resumen = cupo()->resumen($id);
+
         return [
-            'plan' => cupo()->deEmpresa($id),
+            'plan' => $resumen['plan'],
+            'uso' => $resumen['uso'],
             'pagos' => $this->filas($id),
         ];
     }

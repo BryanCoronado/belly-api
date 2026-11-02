@@ -48,4 +48,35 @@ class Autorizacion
             throw new \Exception($mensaje);
         }
     }
+
+    public static function idEmpresaSesion(): int
+    {
+        helper('vip2system');
+
+        return (int) (id_empresa_sesion() ?? 0);
+    }
+
+    /**
+     * Empresa de la petición: sesión o webhook. Nunca un id_empresa del body.
+     *
+     * @param array<string, mixed> $datos
+     */
+    public static function idEmpresaDe(array $datos = []): int
+    {
+        $sesion = self::idEmpresaSesion();
+        $pedido = (int) ($datos['id_empresa'] ?? 0);
+        if ($sesion > 0 && $pedido > 0 && $pedido !== $sesion) {
+            throw new \DomainException('Esa empresa no es la tuya.');
+        }
+
+        return $sesion;
+    }
+
+    public static function exigirMismaEmpresa(int $idEmpresa, string $mensaje = 'Eso no pertenece a tu empresa.'): void
+    {
+        $sesion = self::idEmpresaSesion();
+        if ($sesion > 0 && $idEmpresa !== $sesion) {
+            throw new \DomainException($mensaje);
+        }
+    }
 }

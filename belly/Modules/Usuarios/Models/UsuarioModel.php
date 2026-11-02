@@ -29,7 +29,6 @@ class UsuarioModel extends Model
         'es_bot',
         'id_estado_usuario',
         'sudo',
-        'operador',
         'forzar_cambio_pw', 
     ];
     protected bool $allowEmptyInserts = false;

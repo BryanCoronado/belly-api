@@ -293,7 +293,7 @@ class UsuarioUseCase {
             
             $usuario_entity->cuenta_bloqueada = !isset($datos['cuenta_bloqueada']) ? $existe_usuario->cuenta_bloqueada : $datos['cuenta_bloqueada'];
             $usuario_entity->activo = !isset($datos['activo']) ? $existe_usuario->activo : $datos['activo'];
-            $usuario_entity->sudo = !isset($datos['sudo']) ? $existe_usuario->sudo : $datos['sudo'];
+            $usuario_entity->sudo = $existe_usuario->sudo;
             $usuario_entity->id_estado_usuario = !isset($datos['id_estado_usuario']) ? $existe_usuario->id_estado_usuario : $datos['id_estado_usuario'];
 
 

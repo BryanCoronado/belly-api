@@ -11,6 +11,7 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
     });
     $routes->group('empresa', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
         $routes->get('modo', 'EmpresaControllerApi::leerModo', ['as' => 'apiv1_empresa_modo']);
+        $routes->get('cupo', 'EmpresaControllerApi::leerCupo', ['as' => 'apiv1_empresa_cupo']);
     });
 });
 

@@ -41,6 +41,17 @@ class EmpresaUseCase
         return $empresa instanceof EmpresaEntity ? $empresa : null;
     }
 
+    public function buscarPorId(int $id): ?EmpresaEntity
+    {
+        if ($id <= 0) {
+            return null;
+        }
+
+        $empresa = $this->modelo()->find($id);
+
+        return $empresa instanceof EmpresaEntity ? $empresa : null;
+    }
+
     /** @return array<int, array<string, mixed>> */
     public function listar(): array
     {
@@ -83,12 +94,40 @@ class EmpresaUseCase
         $activa = filter_var($datos['activa'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $this->modelo()->update($id, ['estado' => $activa ? 1 : 0]);
 
+        if (! $activa) {
+            $this->expulsarSesionesDe($id);
+        }
+
         return ['id' => $id, 'estado' => $activa ? 1 : 0];
+    }
+
+    private function expulsarSesionesDe(int $idEmpresa): void
+    {
+        $ids = array_map(
+            static fn (array $fila): int => (int) $fila['id'],
+            db_connect()->table('usuario')->select('id')->where('id_empresa', $idEmpresa)->where('deleted_at', null)->get()->getResultArray()
+        );
+        if ($ids === []) {
+            return;
+        }
+
+        $ahora = date('Y-m-d H:i:s');
+        db_connect()->table('usuario_login')->whereIn('id_usuario', $ids)->where('deleted_at', null)->update([
+            'deleted_at' => $ahora,
+            'updated_at' => $ahora,
+        ]);
+
+        helper('socket');
+        \SocketHelper::expulsarEmpresa($idEmpresa);
     }
 
     /** @param array<string, mixed> $datos */
     public function registrar(array $datos): array
     {
+        $inicial = $this->planInicial();
+        $datos['plan'] = $inicial['clave'];
+        $datos['id_plan'] = $inicial['id'];
+
         return $this->guardarEmpresa($datos);
     }
 
@@ -106,7 +145,9 @@ class EmpresaUseCase
         $nombre = trim((string) ($datos['nombre'] ?? ''));
         $slugPedido = trim((string) ($datos['slug'] ?? ''));
         $slug = $this->slugDisponible($slugPedido !== '' ? $slugPedido : $nombre);
-        $plan = trim((string) ($datos['plan'] ?? 'gratis'));
+        $elegido = $this->resolverPlan($datos);
+        $plan = $elegido['clave'];
+        $idPlan = $elegido['id'];
         $admin = $datos['admin'] ?? null;
 
         if ($nombre === '' || $slug === '') {
@@ -114,12 +155,6 @@ class EmpresaUseCase
         }
         if (mb_strlen($nombre) > 120 || mb_strlen($slug) > 80) {
             throw new \Exception('El nombre de la empresa supera el tamaño permitido.');
-        }
-        if ($plan === '') {
-            $plan = 'gratis';
-        }
-        if (mb_strlen($plan) > 40) {
-            throw new \Exception('El plan supera los 40 caracteres.');
         }
         if (! is_array($admin)) {
             throw new \Exception('El administrador de la empresa es obligatorio.');
@@ -132,7 +167,7 @@ class EmpresaUseCase
             $empresa->nombre = $nombre;
             $empresa->slug = $slug;
             $empresa->plan = $plan;
-            $empresa->id_plan = $this->idPlanPorClave($plan);
+            $empresa->id_plan = $idPlan;
             $empresa->estado = 1;
 
             $modelo = $this->modelo();
@@ -208,9 +243,52 @@ class EmpresaUseCase
         ];
     }
 
-    private function idPlanPorClave(string $clave): ?int
+    /**
+     * @param array<string, mixed> $datos
+     * @return array{clave: string, id: int|null}
+     */
+    private function resolverPlan(array $datos): array
+    {
+        $pedido = trim((string) ($datos['plan'] ?? ''));
+        if ($pedido !== '') {
+            $id = $this->idPlanPorClave($pedido);
+            if ($id) {
+                return ['clave' => $pedido, 'id' => $id];
+            }
+        }
+
+        return $this->planInicial();
+    }
+
+    /** Primer plan activo (Gratis): el de menor orden y precio.
+     * @return array{clave: string, id: int|null}
+     */
+    private function planInicial(): array
     {
         if (! db_connect()->tableExists('plan')) {
+            return ['clave' => 'gratis', 'id' => null];
+        }
+
+        $fila = db_connect()->table('plan')
+            ->select('id, clave')
+            ->where('activo', 1)
+            ->where('deleted_at', null)
+            ->orderBy('orden', 'ASC')
+            ->orderBy('precio_mensual', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getRowArray();
+
+        if ($fila) {
+            return ['clave' => (string) $fila['clave'], 'id' => (int) $fila['id']];
+        }
+
+        return ['clave' => 'gratis', 'id' => $this->idPlanPorClave('gratis')];
+    }
+
+    private function idPlanPorClave(string $clave): ?int
+    {
+        if ($clave === '' || ! db_connect()->tableExists('plan')) {
             return null;
         }
         $fila = db_connect()->table('plan')->select('id')->where('clave', $clave)->where('deleted_at', null)->get()->getRowArray();

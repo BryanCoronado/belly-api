@@ -198,8 +198,12 @@ class MensajeController extends BaseController
                 ])->setStatusCode(400);
             }
 
-            // ✅ Llamar al MediaUseCase
-            $resultado = media()->subirArchivo($file, $id_conversacion);
+            $idConversacion = (int) $id_conversacion;
+            if ($idConversacion > 0) {
+                conversaciones()->exigirAcceso($idConversacion);
+            }
+
+            $resultado = media()->subirArchivo($file, $idConversacion > 0 ? $idConversacion : $id_conversacion);
             
             log_message('debug', 'Resultado del MediaUseCase: ' . json_encode($resultado));
 

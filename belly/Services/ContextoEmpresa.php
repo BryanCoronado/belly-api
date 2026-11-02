@@ -16,6 +16,11 @@ final class ContextoEmpresa
         return self::$idEmpresa;
     }
 
+    public static function limpiar(): void
+    {
+        self::$idEmpresa = null;
+    }
+
     /**
      * @template T
      * @param callable(): T $accion

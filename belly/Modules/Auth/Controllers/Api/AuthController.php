@@ -92,18 +92,23 @@ class AuthController extends BaseController
                     return $this->failUnauthorized('El correo y la contraseña son obligatorios.', 'Auth');
                 }
                 $usuario = auth()->validarUsuarioPorIdentificador($identificador);
-                if ($usuario !== [] && ! str_contains($identificador, '@') && (int) ($usuario['operador'] ?? 0) !== 1) {
+                $esDueño = $usuario !== [] && Autorizacion::esOperadorDe((object) $usuario);
+                if ($usuario !== [] && ! str_contains($identificador, '@') && ! $esDueño) {
                     return $this->failUnauthorized('Entra con tu correo.', 'Auth');
                 }
-                $empresa = $usuario !== []
-                    ? empresa()->buscarPorId((int) ($usuario['id_empresa'] ?? 0))
-                    : null;
-                if ($empresa === null && $usuario !== []) {
-                    return $this->failUnauthorized('No encontramos esa cuenta.', 'Auth');
-                }
-                $esDueño = $usuario !== [] && Autorizacion::esOperadorDe((object) $usuario);
-                if ($empresa !== null && (int) $empresa->estado !== 1 && ! $esDueño) {
-                    return $this->failUnauthorized(lang('Auth.empresaPausada'), 'Auth');
+                if ($esDueño) {
+                    $empresa = empresa()->buscarPorId((int) ($usuario['id_empresa'] ?? 0))
+                        ?? (object) ['slug' => 'belly', 'nombre' => 'Belly'];
+                } else {
+                    $empresa = $usuario !== []
+                        ? empresa()->buscarPorId((int) ($usuario['id_empresa'] ?? 0))
+                        : null;
+                    if ($empresa === null && $usuario !== []) {
+                        return $this->failUnauthorized('No encontramos esa cuenta.', 'Auth');
+                    }
+                    if ($empresa !== null && (int) $empresa->estado !== 1) {
+                        return $this->failUnauthorized(lang('Auth.empresaPausada'), 'Auth');
+                    }
                 }
             }
         } catch (\RuntimeException $exc) {

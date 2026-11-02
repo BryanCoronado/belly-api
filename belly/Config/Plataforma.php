@@ -21,10 +21,28 @@ class Plataforma extends BaseConfig
     {
         $valor = env('plataforma.idEmpresaOperadora');
         if ($valor !== null && $valor !== '') {
-            return (int) $valor;
+            $id = (int) $valor;
+            if ($id > 0) {
+                return $id;
+            }
+        }
+        if ($this->idEmpresaOperadora > 0) {
+            return $this->idEmpresaOperadora;
         }
 
-        return $this->idEmpresaOperadora;
+        try {
+            $fila = db_connect()->table('usuario')
+                ->select('id_empresa')
+                ->where('operador', 1)
+                ->where('deleted_at', null)
+                ->orderBy('id', 'ASC')
+                ->get()
+                ->getRowArray();
+
+            return (int) ($fila['id_empresa'] ?? 0);
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     public function urlApi(): string

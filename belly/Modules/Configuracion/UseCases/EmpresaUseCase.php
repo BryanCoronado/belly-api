@@ -64,9 +64,12 @@ class EmpresaUseCase
         $salida = [];
         foreach ($filas as $empresa) {
             $id = (int) $empresa->id;
+            if (Autorizacion::esEmpresaDueño($id)) {
+                continue;
+            }
             $salida[] = [
                 ...$this->presentar($empresa),
-                'propia' => $id === config('Plataforma')->idOperadora(),
+                'propia' => false,
                 'creada' => $empresa->created_at ? (string) $empresa->created_at : null,
                 'personas' => $extras['personas'][$id] ?? 0,
                 'whatsapp' => $extras['whatsapp'][$id] ?? false,
@@ -87,8 +90,8 @@ class EmpresaUseCase
         if (! $empresa instanceof EmpresaEntity) {
             throw new \Exception('No encontramos esa empresa.');
         }
-        if ($id === config('Plataforma')->idOperadora()) {
-            throw new \Exception('No puedes pausar la empresa que opera Belly.');
+        if (Autorizacion::esEmpresaDueño($id)) {
+            throw new \Exception('El dueño no es una empresa del CRM.');
         }
 
         $activa = filter_var($datos['activa'] ?? false, FILTER_VALIDATE_BOOLEAN);

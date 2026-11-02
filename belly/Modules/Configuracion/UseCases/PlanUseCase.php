@@ -85,6 +85,9 @@ class PlanUseCase
         if ($empresa === null) {
             throw new \Exception('No encontramos esa empresa.');
         }
+        if (Autorizacion::esEmpresaDueño($idEmpresa)) {
+            throw new \Exception('El dueño no es una empresa del CRM.');
+        }
 
         (new \Belly\Configuracion\Models\EmpresaModel())->update($idEmpresa, [
             'id_plan' => $idPlan,

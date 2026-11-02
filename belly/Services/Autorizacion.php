@@ -28,6 +28,28 @@ class Autorizacion
         return $usuario !== null && (int) ($usuario->operador ?? 0) === 1;
     }
 
+    /** La cuenta Belly (dueño), no un cliente del CRM. */
+    public static function esEmpresaDueño(int $idEmpresa): bool
+    {
+        if ($idEmpresa <= 0) {
+            return false;
+        }
+
+        $operadora = (int) config(\Belly\Config\Plataforma::class)->idOperadora();
+        if ($operadora > 0 && $idEmpresa === $operadora) {
+            return true;
+        }
+
+        $db = db_connect();
+        if ($db->table('usuario')->where('id_empresa', $idEmpresa)->where('operador', 1)->where('deleted_at', null)->countAllResults() > 0) {
+            return true;
+        }
+
+        $fila = $db->table('empresa')->select('slug')->where('id', $idEmpresa)->get()->getRowArray();
+
+        return $fila !== null && in_array((string) $fila['slug'], ['belly-plataforma', 'belly'], true);
+    }
+
     public static function esUsuarioActual(int $idUsuario): bool
     {
         $usuario = self::usuario();

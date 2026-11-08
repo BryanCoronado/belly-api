@@ -173,16 +173,7 @@ class ClienteUseCase {
         }
 
         $cliente_entity->id = $cliente_model->insertID;
-
-        $perfil_model = $this->getClientePerfilProvider();
-        $perfil_entity = new ClientePerfilEntity();
-        $perfil_entity->id_cliente = $cliente_entity->id;
-        $nombre = trim((string) ($datos['nombre'] ?? '')) ?: 'Sin nombre';
-        $perfil_entity->nombre = $nombre;
-        $perfil_entity->nombre_completo = $nombre;
-        if (! $perfil_model->save($perfil_entity)) {
-            log_message('warning', 'Error al crear perfil WA cliente ' . $cliente_entity->id);
-        }
+        $this->asegurarPerfilCliente((int) $cliente_entity->id, $datos);
 
         return [
             'id' => (int) $cliente_entity->id,
@@ -568,36 +559,62 @@ class ClienteUseCase {
     }
 
     /**
+     * Crea o reutiliza el perfil (incluye filas soft-deleted: el unique de id_cliente las sigue bloqueando).
+     *
+     * @param array<string, mixed> $datos
+     */
+    private function asegurarPerfilCliente(int $idCliente, array $datos): void
+    {
+        if ($idCliente <= 0) {
+            return;
+        }
+
+        $nombre = trim((string) ($datos['nombre'] ?? ''));
+        $nombreCompleto = trim((string) ($datos['nombre_completo'] ?? $nombre));
+        $perfilModel = $this->getClientePerfilProvider();
+        $perfil = $perfilModel->withDeleted()->where('id_cliente', $idCliente)->first();
+
+        if ($perfil === null) {
+            $nombreFinal = $nombre !== '' ? $nombre : 'Sin nombre';
+            $perfilEntity = new ClientePerfilEntity();
+            $perfilEntity->id_cliente = $idCliente;
+            $perfilEntity->nombre = $nombreFinal;
+            $perfilEntity->nombre_completo = $nombreCompleto !== '' ? $nombreCompleto : $nombreFinal;
+            try {
+                if (! $perfilModel->save($perfilEntity)) {
+                    log_message('warning', 'Error al crear perfil WA cliente ' . $idCliente . ': ' . json_encode($perfilModel->errors()));
+                }
+            } catch (\Throwable $e) {
+                // Carrera / unique: otro request ya creó el perfil.
+                log_message('warning', 'Perfil WA cliente ' . $idCliente . ': ' . $e->getMessage());
+            }
+
+            return;
+        }
+
+        $updates = [];
+        if ($perfil->deleted_at !== null) {
+            $updates['deleted_at'] = null;
+        }
+        $nombreActual = trim((string) ($perfil->nombre ?? ''));
+        if ($nombre !== '' && ($nombreActual === '' || $nombreActual === 'Sin nombre')) {
+            $updates['nombre'] = $nombre;
+            $updates['nombre_completo'] = $nombreCompleto !== '' ? $nombreCompleto : $nombre;
+        }
+        if ($updates === []) {
+            return;
+        }
+
+        $perfilModel->protect(false)->update((int) $perfil->id, $updates);
+        $perfilModel->protect(true);
+    }
+
+    /**
      * @param array<string, mixed> $datos
      */
     private function actualizarNombreSiVacio(int $idCliente, array $datos): void
     {
-        $nombre = trim((string) ($datos['nombre'] ?? ''));
-        if ($nombre === '') {
-            return;
-        }
-
-        $perfilModel = $this->getClientePerfilProvider();
-        $perfil = $perfilModel->where('id_cliente', $idCliente)->first();
-        if ($perfil === null) {
-            $perfilEntity = new ClientePerfilEntity();
-            $perfilEntity->id_cliente = $idCliente;
-            $perfilEntity->nombre = $nombre;
-            $perfilEntity->nombre_completo = trim((string) ($datos['nombre_completo'] ?? $nombre));
-            $perfilModel->save($perfilEntity);
-
-            return;
-        }
-
-        $nombreActual = trim((string) ($perfil->nombre ?? ''));
-        if ($nombreActual !== '') {
-            return;
-        }
-
-        $perfilModel->update($perfil->id, [
-            'nombre' => $nombre,
-            'nombre_completo' => trim((string) ($datos['nombre_completo'] ?? $nombre)),
-        ]);
+        $this->asegurarPerfilCliente($idCliente, $datos);
     }
 
     /**

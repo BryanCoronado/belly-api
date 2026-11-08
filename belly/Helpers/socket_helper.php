@@ -215,6 +215,14 @@ class SocketHelper
             return false;
         }
 
+        if (in_array($evento, ['mensaje', 'conversacion'], true)) {
+            try {
+                \Belly\Usuarios\Services\PushAsesor::avisoMensaje($datos);
+            } catch (\Throwable $e) {
+                log_message('warning', '[PUSH] ' . $e->getMessage());
+            }
+        }
+
         return self::enviar((int) $idEmpresa, $evento, $datos);
     }
 

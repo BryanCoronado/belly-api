@@ -47,6 +47,9 @@ writable/uploads/*
 # Si se versiona, git pull pisa el enlace y aborta el merge.
 public/uploads
 
+# APK de Belly Asesor (se sube al servidor, no al repo)
+public/app/*.apk
+
 writable/debugbar/*
 !writable/debugbar/index.html
 

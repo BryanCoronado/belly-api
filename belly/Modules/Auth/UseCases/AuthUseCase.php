@@ -130,6 +130,11 @@ class AuthUseCase
         return $this->emitirToken('sesion', $this->config->vigencia_token, 'hours');
     }
 
+    public function generarTokenApp(): string
+    {
+        return $this->emitirToken('sesion', $this->config->vigencia_token_app, 'hours');
+    }
+
     public function generarTokenDescarga(): string
     {
         if ($this->usuario === null) {

@@ -243,6 +243,10 @@ class MensajeUseCase {
                 'id_estado_conversacion' => (int) ($datosConversacion['conversacion']->id_estado ?? 0),
             ]);
 
+            if (whatsapp_es_mock_local($access_token)) {
+                return $this->enviarMensajeMockLocal($datos, $destino, $requestId);
+            }
+
             $endpoint = "https://graph.facebook.com/v19.0/{$phone_number_id}/messages";
             $headers = [
                 "Authorization: Bearer $access_token",
@@ -646,6 +650,71 @@ class MensajeUseCase {
         return null;
     }
 
+    /**
+     * Desarrollo: guarda el mensaje como enviado sin llamar a Graph API.
+     *
+     * @param array<string, mixed> $datos
+     * @return array<string, mixed>
+     */
+    private function enviarMensajeMockLocal(array $datos, string $destino, string $requestId): array
+    {
+        helper('whatsapp');
+        $tipo = $datos['media_type'] ?? 'text';
+        $payload = procesarMensajeWhatsappSaliente($datos, $destino);
+        $wamid = 'wamid.local.' . str_replace('.', '', uniqid('', true));
+
+        $datos['mensaje'] = $payload['mensaje_bd'] ?? ($datos['mensaje'] ?? '[Sin texto]');
+        $datos['id_mensaje_whatsapp'] = $wamid;
+        $datos['id_estado'] = 2;
+        $datos['contesta'] = $datos['contesta'] ?? 'usuario';
+        $datos['payload'] = json_encode([
+            'mock' => true,
+            'request_id' => $requestId,
+            'tipo' => $tipo,
+            'destino' => $destino,
+            'request' => $payload,
+        ], JSON_UNESCAPED_UNICODE);
+
+        log_message('info', '[WA MOCK] Mensaje local request_id=' . $requestId
+            . ' id_conversacion=' . (int) ($datos['id_conversacion'] ?? 0)
+            . ' wamid=' . $wamid);
+
+        return $this->crearMensaje($datos);
+    }
+
+    /**
+     * Desarrollo: “envía” plantilla sin Meta (solo texto en el chat).
+     *
+     * @param array<string, mixed> $datos
+     * @return array<string, mixed>
+     */
+    private function enviarPlantillaMockLocal(array $datos, string $destino): array
+    {
+        $nombre = (string) ($datos['template_name'] ?? 'plantilla');
+        $idioma = trim((string) ($datos['language'] ?? 'es')) ?: 'es';
+        $wamid = 'wamid.local.' . str_replace('.', '', uniqid('', true));
+
+        $guardar = [
+            'id_conversacion' => (int) $datos['id_conversacion'],
+            'mensaje' => '[Plantilla local] ' . $nombre . ' (' . $idioma . ')',
+            'id_mensaje_whatsapp' => $wamid,
+            'id_estado' => 2,
+            'contesta' => 'usuario',
+            'payload' => json_encode([
+                'mock' => true,
+                'tipo' => 'template',
+                'destino' => $destino,
+                'template_name' => $nombre,
+                'language' => $idioma,
+                'template_id' => $datos['template_id'] ?? null,
+            ], JSON_UNESCAPED_UNICODE),
+        ];
+
+        log_message('info', '[WA MOCK] Plantilla local conv=' . $guardar['id_conversacion'] . ' name=' . $nombre);
+
+        return $this->crearMensaje($guardar);
+    }
+
     public function crearMensajeError($id_conversacion, $id_mensaje_whatsapp, $texto_original, $cod_error, $descripcion_error, $payload = null)
     {
         $mensaje = "No se pudo enviar el mensaje: \"$texto_original\"\n";
@@ -688,6 +757,10 @@ class MensajeUseCase {
 
             if (empty($datos['template_id']) || empty($datos['template_name'])) {
                 throw new \Exception('El template_id y template_name son obligatorios');
+            }
+
+            if (whatsapp_es_mock_local($access_token)) {
+                return $this->enviarPlantillaMockLocal($datos, $destino);
             }
 
             $plantillaInfo = $this->obtenerInformacionPlantilla($datos['template_id'], $access_token);

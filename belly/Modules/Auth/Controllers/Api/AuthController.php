@@ -174,6 +174,11 @@ class AuthController extends BaseController
         auth()->desbloquearCuenta();
         $usuario = auth()->getUsuario();
 
+        $desdeAppAsesor = strtolower(trim((string) $this->request->getHeaderLine('X-Belly-Client'))) === 'asesor-app';
+        if ($desdeAppAsesor && ! empresa()->appAsesorActiva((int) ($usuario->id_empresa ?? 0))) {
+            return $this->failForbidden('La app de asesores está desactivada para esta empresa. Actívala en Integraciones del CRM.', 'Auth');
+        }
+
         $usuarioModel = model('UsuarioModel');
         $usuarioModel->update($usuario->id, ['id_estado_usuario' => 1]);
 
@@ -182,7 +187,7 @@ class AuthController extends BaseController
             $response = [
                 'success' => true,
                 'messages' => 'Inicio de sesión exitoso.',
-                'token' => auth()->generarToken(),
+                'token' => $desdeAppAsesor ? auth()->generarTokenApp() : auth()->generarToken(),
                 'usuario' => [
                     'id' => (int) $usuario->id,
                     'id_empresa' => (int) ($usuario->id_empresa ?? 0),
@@ -195,6 +200,7 @@ class AuthController extends BaseController
                     'sudo' => (int) ($usuario->sudo ?? 0),
                     'operador' => \Belly\Services\Autorizacion::esOperadorDe($usuario),
                     'modo_ahorro' => empresa()->modoAhorro((int) ($usuario->id_empresa ?? 0)),
+                    'app_asesor_activa' => empresa()->appAsesorActiva((int) ($usuario->id_empresa ?? 0)),
                 ],
             ];
             return $this->respond($response, 200);
@@ -374,6 +380,92 @@ class AuthController extends BaseController
         $largo = strlen($numero);
 
         return $largo >= 8 && $largo <= 15 ? $numero : null;
+    }
+
+    /** Registra el Expo Push Token del celular del asesor. */
+    public function registrarDispositivo()
+    {
+        $usuario = auth()->getUsuario();
+        $idEmpresa = id_empresa_sesion();
+        if (! $usuario || ! $idEmpresa) {
+            return $this->failUnauthorized('No autenticado.', 'Auth');
+        }
+
+        $datos = $this->request->getJSON(true);
+        if (! is_array($datos)) {
+            return $this->fail('Datos inválidos.', 400);
+        }
+
+        try {
+            $dispositivo = (new \Belly\Usuarios\UseCases\DispositivoUseCase())->registrar(
+                (int) $usuario->id,
+                (int) $idEmpresa,
+                $datos,
+            );
+
+            return $this->respond(['success' => true, 'data' => $dispositivo], 200);
+        } catch (\DomainException $e) {
+            return $this->fail($e->getMessage(), 400);
+        } catch (\Throwable $e) {
+            return $this->fail('No se pudo registrar el dispositivo.', 500);
+        }
+    }
+
+    /** Marca qué chat tiene abierto el asesor (evita push mientras mira esa conversación). */
+    public function marcarDispositivoActivo()
+    {
+        $usuario = auth()->getUsuario();
+        if (! $usuario) {
+            return $this->failUnauthorized('No autenticado.', 'Auth');
+        }
+
+        $datos = $this->request->getJSON(true);
+        if (! is_array($datos)) {
+            return $this->fail('Datos inválidos.', 400);
+        }
+
+        try {
+            $idConversacion = array_key_exists('id_conversacion', $datos)
+                ? (($datos['id_conversacion'] !== null && $datos['id_conversacion'] !== '') ? (int) $datos['id_conversacion'] : null)
+                : null;
+            (new \Belly\Usuarios\UseCases\DispositivoUseCase())->marcarActivo(
+                (int) $usuario->id,
+                (string) ($datos['expo_push_token'] ?? ''),
+                $idConversacion,
+            );
+
+            return $this->respond(['success' => true], 200);
+        } catch (\DomainException $e) {
+            return $this->fail($e->getMessage(), 400);
+        } catch (\Throwable $e) {
+            return $this->fail('No se pudo actualizar el dispositivo.', 500);
+        }
+    }
+
+    public function desactivarDispositivo()
+    {
+        $usuario = auth()->getUsuario();
+        if (! $usuario) {
+            return $this->failUnauthorized('No autenticado.', 'Auth');
+        }
+
+        $datos = $this->request->getJSON(true);
+        if (! is_array($datos)) {
+            return $this->fail('Datos inválidos.', 400);
+        }
+
+        try {
+            (new \Belly\Usuarios\UseCases\DispositivoUseCase())->desactivar(
+                (int) $usuario->id,
+                (string) ($datos['expo_push_token'] ?? ''),
+            );
+
+            return $this->respond(['success' => true], 200);
+        } catch (\DomainException $e) {
+            return $this->fail($e->getMessage(), 400);
+        } catch (\Throwable $e) {
+            return $this->fail('No se pudo desactivar el dispositivo.', 500);
+        }
     }
 
     private function textoUtf8(mixed $valor): ?string

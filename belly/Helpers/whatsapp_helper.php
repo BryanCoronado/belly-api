@@ -681,3 +681,24 @@ if (! function_exists('resolver_destino_whatsapp')) {
         return '';
     }
 }
+
+/**
+ * En desarrollo, el token local-demo (o WHATSAPP_MOCK=true) evita pegarle a Graph API.
+ */
+if (! function_exists('whatsapp_es_mock_local')) {
+    function whatsapp_es_mock_local(?string $accessToken): bool
+    {
+        if (ENVIRONMENT === 'production') {
+            return false;
+        }
+
+        $forzado = filter_var(env('WHATSAPP_MOCK', false), FILTER_VALIDATE_BOOLEAN);
+        if ($forzado) {
+            return true;
+        }
+
+        $token = trim((string) $accessToken);
+
+        return $token !== '' && str_starts_with($token, 'local-demo');
+    }
+}

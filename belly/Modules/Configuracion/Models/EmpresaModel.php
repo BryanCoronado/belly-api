@@ -22,6 +22,7 @@ class EmpresaModel extends Model
         'id_plan',
         'estado',
         'modo_ahorro',
+        'app_asesor_activa',
         'tipo_doc',
         'numero_doc',
         'razon_social',

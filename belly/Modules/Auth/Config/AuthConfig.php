@@ -13,5 +13,6 @@ class AuthConfig extends BaseConfig
     public int $inttentos_permitidos = 3; // Intentos permitidos antes de bloquear la cuenta
     public int $tiempo_bloqueo = 5; // Tiempo en minutos que durara el bloqeo de cuenta
     public int $vigencia_token = 24; // Horas de la sesión
+    public int $vigencia_token_app = 720; // Horas de la sesión en la app móvil de asesores
     public int $vigencia_token_descarga = 10; // Minutos del token de descarga
 }

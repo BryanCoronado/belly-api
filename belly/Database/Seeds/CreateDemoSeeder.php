@@ -5,6 +5,7 @@ namespace Belly\Database\Seeds;
 use Belly\AgenteIa\Database\Seeds\CreateAgenteIaDemoSeeder;
 use Belly\Catalogo\Database\Seeds\CreateCatalogoDemoSeeder;
 use Belly\Configuracion\Database\Seeds\CreatePortafolioSeeder;
+use Belly\Configuracion\Database\Seeds\CreateWhatsappLocalSeeder;
 use Belly\Conversacion\Database\Seeds\CreateChatsDemoSeeder;
 use Belly\Crm\Database\Seeds\CreateCrmDemoSeeder;
 use Belly\Mensajes\Database\Seeds\CreatePlantillasRapidasDemoSeeder;
@@ -29,6 +30,7 @@ class CreateDemoSeeder extends Seeder
         $this->call(CreateCatalogoSeeder::class);
         $this->call(CreateUsuariosSeeder::class);
         $this->call(CreatePortafolioSeeder::class);
+        $this->call(CreateWhatsappLocalSeeder::class);
         $this->call(CreateAsesoresDemoSeeder::class);
         $this->call(CreateAgenteIaDemoSeeder::class);
         $this->call(CreateRepartoDemoSeeder::class);

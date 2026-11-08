@@ -176,6 +176,12 @@ class CreateConfiguracionMetaTable extends Migration
                 'constraint' => 1,
                 'default'    => 0,
             ],
+            'app_asesor_activa' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 1,
+                'comment'    => 'Permite entrar a la app móvil de asesores',
+            ],
             'tipo_doc' => [
                 'type'       => 'VARCHAR',
                 'constraint' => '10',

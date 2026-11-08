@@ -14,5 +14,8 @@ $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
         $routes->post('token-descarga', 'AuthController::tokenDescarga', ['as' => 'apiv1_auth_token_descarga']);
         $routes->get('tiempo-real', 'AuthController::tiempoReal', ['as' => 'apiv1_auth_tiempo_real']);
         $routes->post('impersonar/(:num)', 'AuthController::impersonar/$1', ['as' => 'apiv1_auth_impersonar']);
+        $routes->post('dispositivos', 'AuthController::registrarDispositivo', ['as' => 'apiv1_auth_dispositivos_registrar']);
+        $routes->put('dispositivos/activo', 'AuthController::marcarDispositivoActivo', ['as' => 'apiv1_auth_dispositivos_activo']);
+        $routes->post('dispositivos/desactivar', 'AuthController::desactivarDispositivo', ['as' => 'apiv1_auth_dispositivos_borrar']);
     });
 });

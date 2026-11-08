@@ -383,6 +383,62 @@ class EmpresaUseCase
         return ['modo_ahorro' => $this->modoAhorro()];
     }
 
+    /** @return array{activa:bool,version:string,apk_disponible:bool,apk_url:string|null,share_url:string|null} */
+    public function leerAppAsesor(?int $idEmpresa = null): array
+    {
+        return array_merge(['activa' => $this->appAsesorActiva($idEmpresa)], $this->infoApkAsesor());
+    }
+
+    /** @param array<string, mixed> $datos */
+    public function guardarAppAsesor(array $datos): array
+    {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador puede activar o desactivar la app.');
+
+        $id = (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0) {
+            throw new \DomainException('No hay empresa en la sesión.');
+        }
+        if (! db_connect()->fieldExists('app_asesor_activa', 'empresa')) {
+            throw new \DomainException('Falta actualizar la base para la app de asesores.');
+        }
+
+        $activa = filter_var($datos['activa'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $this->modelo()->update($id, ['app_asesor_activa' => $activa ? 1 : 0]);
+
+        return array_merge(['activa' => $activa], $this->infoApkAsesor());
+    }
+
+    /** @return array{version:string,apk_disponible:bool,apk_url:string|null,share_url:string|null} */
+    private function infoApkAsesor(): array
+    {
+        $version = trim((string) env('APP_ASESOR_VERSION', '1.0.0')) ?: '1.0.0';
+        $ruta = FCPATH . 'app' . DIRECTORY_SEPARATOR . 'belly-asesor.apk';
+        $disponible = is_file($ruta) && is_readable($ruta);
+        $url = $disponible ? rtrim(base_url('app/belly-asesor.apk'), '/') : null;
+
+        return [
+            'version' => $version,
+            'apk_disponible' => $disponible,
+            'apk_url' => $url,
+            'share_url' => $url,
+        ];
+    }
+
+    public function appAsesorActiva(?int $idEmpresa = null): bool
+    {
+        $id = $idEmpresa ?? (int) (id_empresa_sesion() ?? 0);
+        if ($id <= 0 || ! db_connect()->fieldExists('app_asesor_activa', 'empresa')) {
+            return true;
+        }
+
+        $empresa = $this->modelo()->find($id);
+        if (! $empresa instanceof EmpresaEntity) {
+            return true;
+        }
+
+        return (int) ($empresa->app_asesor_activa ?? 1) === 1;
+    }
+
     /** @param array<string, mixed> $datos */
     public function guardarModo(array $datos): array
     {

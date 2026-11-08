@@ -120,7 +120,10 @@ class CatalogoControllerApi extends BaseController
 
     public function listarPedidos()
     {
-        return $this->ejecutar(static fn () => catalogo_pedidos()->listar((int) (request()->getGet('limite') ?? 50)));
+        return $this->ejecutar(static fn () => catalogo_pedidos()->listar(
+            (int) (request()->getGet('limite') ?? 50),
+            request()->getGet('id_cliente') !== null ? (int) request()->getGet('id_cliente') : null,
+        ));
     }
 
     public function cambiarEstadoPedido(int $id)

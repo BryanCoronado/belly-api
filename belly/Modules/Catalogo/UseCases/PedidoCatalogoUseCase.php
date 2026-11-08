@@ -19,8 +19,11 @@ class PedidoCatalogoUseCase
     /**
      * @return list<array<string, mixed>>
      */
-    public function listar(int $limite = 50): array
+    public function listar(int $limite = 50, ?int $idCliente = null): array
     {
+        if ($idCliente !== null && $idCliente > 0) {
+            $this->pedidos->where('id_cliente', $idCliente);
+        }
         $filas = $this->pedidos->orderBy('id', 'DESC')->findAll(max(1, min(200, $limite)));
 
         return array_map(fn (PedidoCatalogoEntity $p): array => $this->aArray($p), $filas);

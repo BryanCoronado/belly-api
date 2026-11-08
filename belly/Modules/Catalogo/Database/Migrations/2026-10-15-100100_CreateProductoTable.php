@@ -35,6 +35,11 @@ class CreateProductoTable extends Migration
                 'type'       => 'VARCHAR',
                 'constraint' => '150',
             ],
+            'tipo' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '20',
+                'default'    => 'producto',
+            ],
             'descripcion' => [
                 'type' => 'TEXT',
                 'null' => true,

@@ -113,7 +113,8 @@ class VitrinaUseCase
             'eslogan' => $vitrina['eslogan'] !== null && $vitrina['eslogan'] !== '' ? (string) $vitrina['eslogan'] : null,
             'color' => $this->color($vitrina['color'] ?? null),
             'logo_url' => $vitrina['logo_url'] !== null && $vitrina['logo_url'] !== '' ? (string) $vitrina['logo_url'] : null,
-            'whatsapp' => $this->digitosSuaves($vitrina['whatsapp'] ?? null),
+            'whatsapp' => $this->whatsappEmpresaDeFila($idEmpresa)
+                ?? $this->digitosSuaves($vitrina['whatsapp'] ?? null),
             'mostrar_precios' => (int) ($vitrina['mostrar_precios'] ?? 1) === 1,
             'pagina' => $this->paginaDe($vitrina['pagina'] ?? null),
             'familias' => $familiasConProductos,
@@ -237,6 +238,7 @@ class VitrinaUseCase
                 'id_familia' => $idFamilia,
                 'familia' => $idFamilia !== null ? ($familias[$idFamilia]['nombre'] ?? null) : null,
                 'nombre' => (string) $fila['nombre'],
+                'tipo' => in_array((string) ($fila['tipo'] ?? ''), ['producto', 'servicio'], true) ? $fila['tipo'] : 'producto',
                 'resumen' => $this->textoOpcional($fila['resumen'] ?? null),
                 'descripcion' => $this->textoOpcional($fila['descripcion'] ?? null),
                 'marca' => $this->textoOpcional($fila['marca'] ?? null),
@@ -274,7 +276,8 @@ class VitrinaUseCase
 
         $eslogan = trim((string) ($datos['eslogan'] ?? $actual?->eslogan ?? ''));
         $logo = trim((string) ($datos['logo_url'] ?? $actual?->logo_url ?? ''));
-        $whatsapp = $this->soloDigitos($datos['whatsapp'] ?? $actual?->whatsapp ?? null);
+        // Siempre el número Meta de la empresa: no se inventa otro.
+        $whatsapp = $this->whatsappEmpresa();
 
         return [
             'slug' => $slug,
@@ -389,6 +392,7 @@ class VitrinaUseCase
                 'color' => '#0B1026',
                 'logo_url' => null,
                 'whatsapp' => $whatsappSugerido,
+                'whatsapp_meta' => $whatsappSugerido !== null,
                 'mostrar_precios' => true,
                 'publicado' => false,
                 'pagina' => $this->paginaDe(null),
@@ -403,7 +407,8 @@ class VitrinaUseCase
             'eslogan' => (string) ($vitrina->eslogan ?? ''),
             'color' => $this->color($vitrina->color),
             'logo_url' => $vitrina->logo_url ? (string) $vitrina->logo_url : null,
-            'whatsapp' => $vitrina->whatsapp ? (string) $vitrina->whatsapp : $whatsappSugerido,
+            'whatsapp' => $whatsappSugerido,
+            'whatsapp_meta' => $whatsappSugerido !== null,
             'mostrar_precios' => (bool) $vitrina->mostrar_precios,
             'publicado' => (bool) $vitrina->publicado,
             'pagina' => $this->paginaDe($vitrina->pagina),
@@ -433,13 +438,13 @@ class VitrinaUseCase
             }
             $banners[] = [
                 'imagen_url' => $imagen,
-                'estilo' => ($item['estilo'] ?? '') === 'completo' ? 'completo' : 'dividido',
+                'estilo' => 'completo',
                 'etiqueta' => $this->corto($item['etiqueta'] ?? null, 40),
                 'titulo' => $this->corto($item['titulo'] ?? null, 80),
                 'texto' => $this->corto($item['texto'] ?? null, 160),
                 'boton' => $this->corto($item['boton'] ?? null, 30),
                 'id_familia' => $this->idOpcional($item['id_familia'] ?? null),
-                'fondo' => $this->colorSuave($item['fondo'] ?? null, '#EEF0E5'),
+                'fondo' => '#0B1026',
                 'burbuja' => $this->corto($item['burbuja'] ?? null, 20),
             ];
             if (count($banners) >= 6) {
@@ -556,7 +561,7 @@ class VitrinaUseCase
                 'html' => $html,
                 'css' => $css,
                 'donde' => $donde,
-                'ancho' => ($item['ancho'] ?? '') === 'completo' ? 'completo' : 'caja',
+                'ancho' => $this->anchoBloque($item['ancho'] ?? null),
                 'activo' => array_key_exists('activo', $item) ? (bool) $item['activo'] : true,
                 'datos' => $this->datosBloque($item['datos'] ?? null),
             ];
@@ -586,6 +591,11 @@ class VitrinaUseCase
             }
         }
 
+        $tamano = strtolower(trim((string) ($datos['tamano'] ?? 'm')));
+        if (! in_array($tamano, ['s', 'm', 'l'], true)) {
+            $tamano = 'm';
+        }
+
         return [
             'titulo' => $this->corto($datos['titulo'] ?? null, 80),
             'texto' => $this->corto($datos['texto'] ?? null, 600),
@@ -595,9 +605,18 @@ class VitrinaUseCase
             'color' => $this->colorSuave($datos['color'] ?? null, '#0B1026'),
             'fondo' => $this->colorSuave($datos['fondo'] ?? null, '#FFFFFF'),
             'video' => $this->corto($datos['video'] ?? null, 300),
-            'alto' => max(8, min(240, (int) ($datos['alto'] ?? 40))),
+            'alto' => max(8, min(640, (int) ($datos['alto'] ?? 40))),
+            'ancho_pct' => max(0, min(100, (int) ($datos['ancho_pct'] ?? 0))),
+            'tamano' => $tamano,
             'columnas' => $columnas,
         ];
+    }
+
+    private function anchoBloque(mixed $valor): string
+    {
+        $ancho = strtolower(trim((string) ($valor ?? 'caja')));
+
+        return in_array($ancho, ['estrecho', 'caja', 'amplio', 'completo'], true) ? $ancho : 'caja';
     }
 
     private function htmlLimpio(mixed $valor, int $largo): string
@@ -644,17 +663,36 @@ class VitrinaUseCase
 
     private function whatsappEmpresa(): ?string
     {
-        $fila = db_connect()->table('app')
-            ->select('telefono')
-            ->where('id_empresa', $this->idEmpresa())
+        return $this->whatsappEmpresaDeFila($this->idEmpresa());
+    }
+
+    private function whatsappEmpresaDeFila(int $idEmpresa): ?string
+    {
+        if ($idEmpresa <= 0) {
+            return null;
+        }
+        $filas = db_connect()->table('app')
+            ->select('telefono, estado, verificado_at, phone_number_id, access_token')
+            ->where('id_empresa', $idEmpresa)
             ->where('canal', 'whatsapp')
             ->where('deleted_at', null)
             ->orderBy('id', 'ASC')
             ->get()
-            ->getRowArray();
-        $digitos = preg_replace('/\D+/', '', (string) ($fila['telefono'] ?? '')) ?? '';
+            ->getResultArray();
+        foreach ($filas as $fila) {
+            $verificado = (int) ($fila['estado'] ?? 0) === 1
+                && ! empty($fila['verificado_at'])
+                && ! empty($fila['phone_number_id']);
+            if (! $verificado) {
+                continue;
+            }
+            $digitos = preg_replace('/\D+/', '', (string) ($fila['telefono'] ?? '')) ?? '';
+            if ($digitos !== '') {
+                return $digitos;
+            }
+        }
 
-        return $digitos !== '' ? $digitos : null;
+        return null;
     }
 
     /** @param int|string|false $resultado */

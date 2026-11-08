@@ -163,16 +163,26 @@ final class ValidadorFlujo
             case TiposNodo::CATALOGO:
                 $media = (string) ($d['media'] ?? 'ninguno');
                 $url = trim((string) ($d['url'] ?? ''));
+                $vivoCatalogo = $nodo['tipo'] === TiposNodo::CATALOGO
+                    && in_array((string) ($d['modo'] ?? ''), ['producto', 'familia', 'enlace'], true)
+                    && (
+                        (int) ($d['id_producto'] ?? 0) > 0
+                        || (int) ($d['id_familia'] ?? 0) > 0
+                        || (string) ($d['modo'] ?? '') === 'enlace'
+                        || $texto !== ''
+                    );
                 if (! in_array($media, self::MEDIAS, true)) {
                     $this->error($id, 'El tipo de archivo no es válido.');
-                } elseif ($media === 'ninguno' && $texto === '') {
+                } elseif ($media === 'ninguno' && $texto === '' && ! $vivoCatalogo) {
                     $this->error($id, $nodo['tipo'] === TiposNodo::CATALOGO
                         ? 'Elige un producto, una categoría o el enlace del catálogo.'
                         : 'Escribe el mensaje que enviará el bot.');
-                } elseif ($media !== 'ninguno' && ! preg_match('#^https?://\S+$#i', $url)) {
+                } elseif ($media !== 'ninguno' && ! preg_match('#^https?://\S+$#i', $url) && ! $vivoCatalogo) {
                     $this->error($id, $nodo['tipo'] === TiposNodo::CATALOGO
                         ? 'Ese producto no tiene una foto pública (el enlace debe empezar con https://).'
                         : 'El enlace del archivo debe empezar con https://');
+                } elseif ($nodo['tipo'] === TiposNodo::CATALOGO && ! $vivoCatalogo && $media === 'ninguno' && $texto === '') {
+                    $this->error($id, 'Elige un producto, una categoría o el enlace del catálogo.');
                 }
                 if (mb_strlen($texto) > ($media === 'ninguno' ? 4000 : 1000)) {
                     $this->error($id, 'El mensaje es demasiado largo.');

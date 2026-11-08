@@ -17,7 +17,7 @@ class ProductoModel extends Model
     protected $useSoftDeletes = true;
     protected $protectFields = true;
     protected $allowedFields = [
-        'id_empresa', 'id_familia', 'nombre', 'descripcion', 'resumen', 'codigo', 'marca',
+        'id_empresa', 'id_familia', 'nombre', 'tipo', 'descripcion', 'resumen', 'codigo', 'marca',
         'precio', 'precio_oferta', 'moneda', 'unidad', 'imagen_url', 'imagenes', 'detalles',
         'variantes', 'etiqueta', 'disponibilidad', 'destacado', 'visible_catalogo', 'orden', 'activo',
     ];
@@ -30,6 +30,7 @@ class ProductoModel extends Model
     protected $validationRules = [
         'id_empresa' => 'required|is_natural_no_zero',
         'nombre' => 'required|min_length[2]|max_length[150]',
+        'tipo' => 'permit_empty|in_list[producto,servicio]',
         'codigo' => 'permit_empty|max_length[60]',
         'resumen' => 'permit_empty|max_length[180]',
         'marca' => 'permit_empty|max_length[80]',
@@ -43,9 +44,12 @@ class ProductoModel extends Model
     ];
     protected $validationMessages = [
         'nombre' => [
-            'required' => 'Ponle un nombre al producto.',
+            'required' => 'Ponle un nombre.',
             'min_length' => 'El nombre es muy corto.',
             'max_length' => 'El nombre no puede pasar de 150 letras.',
+        ],
+        'tipo' => [
+            'in_list' => 'Elige si es producto o servicio.',
         ],
         'codigo' => [
             'max_length' => 'El código no puede pasar de 60 letras.',

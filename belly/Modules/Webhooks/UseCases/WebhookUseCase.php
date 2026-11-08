@@ -152,12 +152,17 @@ class WebhookUseCase
                 }
 
                 $referral = $this->referralDelMensaje($message);
+                $textoEntrante = $this->textoDelMensaje($message);
+                $origenChat = mensaje_viene_de_catalogo($textoEntrante) ? 'catalogo' : 'api-crm';
+                if ($origenChat === 'catalogo') {
+                    $this->marcarClienteOrigenCatalogo($idCliente);
+                }
                 $creada = conversaciones()->crearConversacion([
                     'id_empresa' => $idEmpresa,
                     'id_cliente' => $idCliente,
                     'id_usuario' => $idUsuario,
-                    'origen' => 'api-crm',
-                    'registro' => $referral['source_id'] !== null ? 'anuncio_meta' : null,
+                    'origen' => $origenChat,
+                    'registro' => $referral['source_id'] !== null ? 'anuncio_meta' : ($origenChat === 'catalogo' ? 'catalogo_web' : null),
                     'id_app' => $idApp,
                     'id_estado' => 3,
                     'asignado_at' => date('Y-m-d H:i:s'),
@@ -200,6 +205,7 @@ class WebhookUseCase
         }
 
         $texto = trim((string) ($mensajeData['mensaje'] ?? ''));
+        $this->registrarPedidoCatalogoSiCorresponde($idEmpresa, $idCliente, $idConversacion, $texto);
         if ($this->responderConAsistente($idEmpresa, $idConversacion, $texto, $agenteInicial)) {
             return;
         }
@@ -324,18 +330,53 @@ class WebhookUseCase
     private function resolverAsignacion(int $idEmpresa, int $idApp, int $idCliente, array $message): array
     {
         $asesorPrevio = conversaciones()->obtenerUltimoAsesorHumanoCliente($idCliente, $idApp);
-        $texto = $message['text']['body']
-            ?? $message['interactive']['button_reply']['title']
-            ?? $message['interactive']['list_reply']['title']
-            ?? $message['button']['text']
-            ?? '';
 
         return asignador_chats()->decidir($idEmpresa, [
             'recurrente' => $asesorPrevio !== null,
             'asesor_previo' => $asesorPrevio,
             'anuncio' => $this->referralDelMensaje($message)['source_id'] !== null,
-            'texto' => (string) $texto,
+            'texto' => $this->textoDelMensaje($message),
         ]);
+    }
+
+    /** @param array<string, mixed> $message */
+    private function textoDelMensaje(array $message): string
+    {
+        return trim((string) (
+            $message['text']['body']
+            ?? $message['interactive']['button_reply']['title']
+            ?? $message['interactive']['list_reply']['title']
+            ?? $message['button']['text']
+            ?? ''
+        ));
+    }
+
+    private function marcarClienteOrigenCatalogo(int $idCliente): void
+    {
+        if ($idCliente <= 0) {
+            return;
+        }
+        db_connect()->table('cliente')
+            ->where('id', $idCliente)
+            ->groupStart()
+            ->where('origen', null)
+            ->orWhere('origen', '')
+            ->orWhere('origen', 'whatsapp')
+            ->groupEnd()
+            ->update(['origen' => 'catalogo', 'updated_at' => date('Y-m-d H:i:s')]);
+    }
+
+    private function registrarPedidoCatalogoSiCorresponde(int $idEmpresa, int $idCliente, int $idConversacion, string $texto): void
+    {
+        if ($texto === '' || $idEmpresa <= 0) {
+            return;
+        }
+        try {
+            helper('vip2system');
+            catalogo_pedidos()->registrarDesdeMensaje($idEmpresa, $idCliente > 0 ? $idCliente : null, $idConversacion > 0 ? $idConversacion : null, $texto);
+        } catch (\Throwable $e) {
+            log_message('warning', '[WEBHOOK WA] Pedido catálogo: ' . $e->getMessage());
+        }
     }
 
     private function obtenerConversacionActivaWhatsapp(int $idCliente, int $idApp, $db): ?object

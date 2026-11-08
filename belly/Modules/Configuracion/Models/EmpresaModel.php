@@ -22,6 +22,17 @@ class EmpresaModel extends Model
         'id_plan',
         'estado',
         'modo_ahorro',
+        'tipo_doc',
+        'numero_doc',
+        'razon_social',
+        'estado_sunat',
+        'condicion_sunat',
+        'direccion_fiscal',
+        'ubigeo',
+        'representante_nombre',
+        'representante_cargo',
+        'representante_documento',
+        'identidad_json',
     ];
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

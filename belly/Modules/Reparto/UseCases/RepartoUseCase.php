@@ -29,6 +29,7 @@ class RepartoUseCase
 
         return [
             'definicion' => $definicion,
+            'configurado' => $this->repositorio->tieneDefinicionGuardada($idEmpresa),
             'revision' => ValidadorReparto::revisar(ValidadorReparto::normalizar($definicion), $this->catalogo($idEmpresa)),
             'grupos' => $this->repositorio->grupos($idEmpresa),
             'asesores' => array_map(

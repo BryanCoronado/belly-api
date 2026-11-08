@@ -41,12 +41,59 @@ class DashboardCrmUseCase
             'dias' => $dias,
             'cuadros' => $this->cuadros($idEmpresa, $idUsuario, $desde, $admin),
             'actividad' => $this->actividad($idEmpresa, $idUsuario, $dias, $desde),
+            'origenes' => $this->origenes($idEmpresa, $idUsuario, $desde),
             'embudo' => $this->conteoPorLista($this->ajustes->etapas(), $this->totalesEtapa($idUsuario)),
             'tipos' => $this->conteoPorLista($this->ajustes->tipos(), $this->totalesTipo($idUsuario), true),
             'motivos' => $this->conteoPorLista($this->ajustes->motivos(), $this->totalesMotivo($idEmpresa, $idUsuario, $desde)),
             'pendientes' => $this->pendientes($idEmpresa, $idUsuario),
             'equipo' => $admin ? $this->equipo($idEmpresa, $desde) : [],
         ];
+    }
+
+    /**
+     * De dónde llegaron los clientes nuevos del periodo: WhatsApp directo o tienda web.
+     *
+     * @return list<array{id:string,nombre:string,color:string,total:int}>
+     */
+    private function origenes(int $idEmpresa, ?int $idUsuario, string $desde): array
+    {
+        $caso = "CASE
+                WHEN LOWER(COALESCE(c.origen, '')) IN ('catalogo', 'web', 'tienda') THEN 'catalogo'
+                WHEN LOWER(COALESCE(c.origen, '')) IN ('manual', 'importado', 'masivo') THEN LOWER(c.origen)
+                ELSE 'whatsapp'
+              END";
+        $sql = "SELECT {$caso} AS clave, COUNT(*) AS total
+                FROM cliente c
+                WHERE c.id_empresa = ? AND c.deleted_at IS NULL AND c.created_at >= ?";
+        $params = [$idEmpresa, $desde];
+        if ($idUsuario !== null) {
+            $sql .= ' AND c.id_responsable = ?';
+            $params[] = $idUsuario;
+        }
+        $sql .= " GROUP BY {$caso}";
+        $filas = $this->db->query($sql, $params)->getResultArray();
+        $mapa = [];
+        foreach ($filas as $fila) {
+            $mapa[(string) $fila['clave']] = (int) $fila['total'];
+        }
+
+        $etiquetas = [
+            'whatsapp' => ['WhatsApp', '#25D366'],
+            'catalogo' => ['Web / Catálogo', '#5B46B4'],
+            'manual' => ['Manual', '#64748B'],
+            'importado' => ['Importado', '#94A3B8'],
+            'masivo' => ['Masivo', '#0F766E'],
+        ];
+        $lista = [];
+        foreach ($etiquetas as $clave => [$nombre, $color]) {
+            $total = $mapa[$clave] ?? 0;
+            if ($total <= 0 && ! in_array($clave, ['whatsapp', 'catalogo'], true)) {
+                continue;
+            }
+            $lista[] = ['id' => $clave, 'nombre' => $nombre, 'color' => $color, 'total' => $total];
+        }
+
+        return $lista;
     }
 
     /** @return array<string, int> */

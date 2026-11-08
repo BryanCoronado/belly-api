@@ -67,6 +67,7 @@ class CreateCatalogoDemoSeeder extends Seeder
                     'id_empresa' => $idEmpresa,
                     'id_familia' => $idFamilia,
                     'nombre' => $producto['nombre'],
+                    'tipo' => $familia === 'Servicios' ? 'servicio' : 'producto',
                     'descripcion' => $producto['descripcion'] ?? null,
                     'codigo' => $producto['codigo'] ?? null,
                     'precio' => $producto['precio'],

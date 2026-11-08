@@ -21,6 +21,7 @@ $routes->group('v1', ['filter' => ['authFilter']], static function ($routes) {
         $routes->get('productos', 'CatalogoControllerApi::listarProductos', ['as' => 'apiv1_catalogo_productos']);
         $routes->get('productos/(:num)', 'CatalogoControllerApi::verProducto/$1', ['as' => 'apiv1_catalogo_producto']);
         $routes->get('vitrina', 'CatalogoControllerApi::verVitrina', ['as' => 'apiv1_catalogo_vitrina']);
+        $routes->get('pedidos', 'CatalogoControllerApi::listarPedidos', ['as' => 'apiv1_catalogo_pedidos']);
     });
 });
 
@@ -39,5 +40,6 @@ $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static fun
 
         $routes->get('vitrina/logo', 'CatalogoControllerApi::verLogoVitrina', ['as' => 'apiv1_catalogo_vitrina_logo']);
         $routes->put('vitrina', 'CatalogoControllerApi::guardarVitrina', ['as' => 'apiv1_catalogo_vitrina_guardar']);
+        $routes->put('pedidos/(:num)/estado', 'CatalogoControllerApi::cambiarEstadoPedido/$1', ['as' => 'apiv1_catalogo_pedidos_estado']);
     });
 });

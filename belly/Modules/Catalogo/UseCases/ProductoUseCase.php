@@ -28,7 +28,7 @@ class ProductoUseCase
     }
 
     /**
-     * @param array{q?:mixed, id_familia?:mixed, activo?:mixed} $filtros id_familia = "sin" para los que no tienen familia
+     * @param array{q?:mixed, id_familia?:mixed, activo?:mixed, tipo?:mixed} $filtros id_familia = "sin" para los que no tienen familia
      * @return list<array<string, mixed>>
      */
     public function listar(array $filtros = []): array
@@ -51,6 +51,11 @@ class ProductoUseCase
             $consulta->where('id_familia', (int) $familia);
         }
 
+        $tipo = trim((string) ($filtros['tipo'] ?? ''));
+        if (in_array($tipo, ['producto', 'servicio'], true)) {
+            $consulta->where('tipo', $tipo);
+        }
+
         $activo = $filtros['activo'] ?? null;
         if ($activo !== null && $activo !== '') {
             $consulta->where('activo', filter_var($activo, FILTER_VALIDATE_BOOLEAN) ? 1 : 0);
@@ -71,10 +76,13 @@ class ProductoUseCase
     /** @param array<string, mixed> $datos @return array<string, mixed> */
     public function crear(array $datos): array
     {
-        $fila = $this->normalizar($datos) + [
+        $fila = $this->normalizar($datos + ['tipo' => $datos['tipo'] ?? 'producto']) + [
             'id_empresa' => $this->idEmpresa(),
             'activo' => array_key_exists('activo', $datos) ? ($datos['activo'] ? 1 : 0) : 1,
         ];
+        if (! isset($fila['tipo'])) {
+            $fila['tipo'] = 'producto';
+        }
         $id = $this->productos->insert($fila);
         $this->verificar($id);
 
@@ -134,6 +142,10 @@ class ProductoUseCase
 
         if (array_key_exists('nombre', $datos)) {
             $fila['nombre'] = trim((string) $datos['nombre']);
+        }
+        if (array_key_exists('tipo', $datos)) {
+            $tipo = strtolower(trim((string) $datos['tipo']));
+            $fila['tipo'] = in_array($tipo, ['producto', 'servicio'], true) ? $tipo : 'producto';
         }
         foreach (['descripcion', 'resumen', 'codigo', 'marca', 'unidad', 'imagen_url'] as $campo) {
             if (array_key_exists($campo, $datos)) {
@@ -321,6 +333,7 @@ class ProductoUseCase
             'id_familia' => $producto->id_familia,
             'familia' => $producto->id_familia !== null ? ($nombresFamilia[$producto->id_familia] ?? null) : null,
             'nombre' => $producto->nombre,
+            'tipo' => in_array((string) ($producto->tipo ?? ''), ['producto', 'servicio'], true) ? $producto->tipo : 'producto',
             'descripcion' => $producto->descripcion,
             'resumen' => $producto->resumen ?? null,
             'codigo' => $producto->codigo,

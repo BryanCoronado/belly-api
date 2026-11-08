@@ -2,6 +2,8 @@
 
 namespace Belly\Auth\UseCases;
 
+use Belly\Services\JsonPe;
+
 class RegistroValidador
 {
     private const DESCARTABLES = [
@@ -18,7 +20,12 @@ class RegistroValidador
             throw new \RuntimeException('No se pudo crear la cuenta.');
         }
 
+        $identidad = $this->exigirDocumento($datos);
+
         $nombre = trim((string) ($datos['nombre'] ?? ''));
+        if ($nombre === '' && $identidad['tipo'] === 'ruc') {
+            $nombre = (string) $identidad['nombre'];
+        }
         if (mb_strlen($nombre) < 3) {
             throw new \RuntimeException('El nombre del negocio debe tener al menos 3 letras.');
         }
@@ -34,6 +41,12 @@ class RegistroValidador
 
         $nombres = trim((string) ($datos['nombres'] ?? ''));
         $apellidos = trim((string) ($datos['apellidos'] ?? ''));
+        if ($nombres === '' && $identidad['tipo'] === 'dni') {
+            $nombres = (string) $identidad['nombres'];
+        }
+        if ($apellidos === '' && $identidad['tipo'] === 'dni') {
+            $apellidos = (string) $identidad['apellidos'];
+        }
         if (mb_strlen($nombres) < 2) {
             throw new \RuntimeException('Escribe tu nombre.');
         }
@@ -48,11 +61,6 @@ class RegistroValidador
         $dominio = substr(strrchr($correo, '@') ?: '', 1);
         if ($dominio !== '' && in_array($dominio, self::DESCARTABLES, true)) {
             throw new \RuntimeException('Usa un correo de empresa o personal, no uno temporal.');
-        }
-
-        $confirmado = strtolower(trim((string) ($datos['correo_confirmado'] ?? $datos['confirm_correo'] ?? '')));
-        if ($confirmado !== '' && $confirmado !== $correo) {
-            throw new \RuntimeException('El correo y su confirmación no coinciden.');
         }
 
         $clave = (string) ($datos['password'] ?? '');
@@ -78,7 +86,54 @@ class RegistroValidador
             'password' => $clave,
             'celular' => $celular,
             'codigo_pais' => preg_replace('/\D/', '', (string) ($datos['codigo_pais'] ?? '')) ?? '',
+            'identidad' => $identidad,
+            'nro_documento' => (string) $identidad['numero'],
+            'id_tipo_documento' => $identidad['tipo'] === 'dni' ? 1 : null,
         ];
+    }
+
+    /** @param array<string, mixed> $datos @return array<string, mixed> */
+    public function exigirDocumento(array $datos): array
+    {
+        $numero = preg_replace('/\D+/', '', (string) ($datos['documento'] ?? $datos['nro_documento'] ?? $datos['dni'] ?? $datos['ruc'] ?? '')) ?? '';
+        if ($numero === '') {
+            throw new \RuntimeException('El DNI o RUC es obligatorio.');
+        }
+
+        $this->exigirDocumentoLibre($numero);
+        $identidad = (new JsonPe())->consultar($numero);
+        $this->exigirDocumentoLibre((string) $identidad['numero']);
+
+        return $identidad;
+    }
+
+    public function exigirDocumentoLibre(string $numero): void
+    {
+        $numero = preg_replace('/\D+/', '', $numero) ?? '';
+        if ($numero === '') {
+            return;
+        }
+
+        $db = db_connect();
+        if ($db->fieldExists('numero_doc', 'empresa')) {
+            $usado = $db->table('empresa')
+                ->where('numero_doc', $numero)
+                ->where('deleted_at', null)
+                ->countAllResults();
+            if ($usado > 0) {
+                throw new \RuntimeException('Ese DNI o RUC ya tiene una cuenta en Belly.');
+            }
+        }
+
+        $perfil = $db->table('usuario_perfil p')
+            ->join('usuario u', 'u.id = p.id_usuario')
+            ->where('p.nro_documento', $numero)
+            ->where('p.deleted_at', null)
+            ->where('u.deleted_at', null)
+            ->countAllResults();
+        if ($perfil > 0) {
+            throw new \RuntimeException('Ese DNI o RUC ya tiene una cuenta en Belly.');
+        }
     }
 
     public function marcarAlta(): void

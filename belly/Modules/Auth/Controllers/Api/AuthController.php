@@ -14,6 +14,37 @@ class AuthController extends BaseController
 {
     use ResponseTrait;
 
+    public function consultarDocumento()
+    {
+        $datos = $this->request->getJSON(true);
+        if (! is_array($datos)) {
+            return $this->fail('Datos inválidos.', 400);
+        }
+
+        try {
+            Ritmo::exigir('consulta-doc', 20, 60);
+            $identidad = (new RegistroValidador())->exigirDocumento($datos);
+
+            return $this->respond([
+                'success' => true,
+                'data' => [
+                    'tipo' => $identidad['tipo'],
+                    'numero' => $identidad['numero'],
+                    'nombre' => $identidad['nombre'],
+                    'nombres' => $identidad['nombres'],
+                    'apellidos' => $identidad['apellidos'],
+                    'estado' => $identidad['estado'],
+                    'condicion' => $identidad['condicion'],
+                    'direccion' => $identidad['direccion'],
+                    'representante_nombre' => $identidad['representante_nombre'],
+                    'representante_cargo' => $identidad['representante_cargo'],
+                ],
+            ], 200);
+        } catch (\Throwable $e) {
+            return $this->fail($e->getMessage(), 400);
+        }
+    }
+
     public function registro()
     {
         $datos = $this->request->getJSON(true);
@@ -35,9 +66,11 @@ class AuthController extends BaseController
                 $usuario = $this->usuarioDesdeCorreo($limpios['correo']);
             }
 
+            $identidad = $limpios['identidad'];
             $creada = empresa()->registrar([
                 'nombre' => $limpios['nombre'],
                 'slug' => '',
+                'identidad' => $identidad,
                 'admin' => [
                     'usuario' => $usuario,
                     'password' => $limpios['password'],
@@ -45,8 +78,8 @@ class AuthController extends BaseController
                     'apellidos' => $limpios['apellidos'],
                     'correo' => $limpios['correo'],
                     'celular' => $limpios['celular'],
-                    'nro_documento' => $datos['nro_documento'] ?? '',
-                    'id_tipo_documento' => 1,
+                    'nro_documento' => $limpios['nro_documento'],
+                    'id_tipo_documento' => $limpios['id_tipo_documento'] ?? 1,
                 ],
             ]);
 

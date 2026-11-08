@@ -3,6 +3,7 @@
 namespace Belly\Flujos\UseCases;
 
 use Belly\Flujos\Domain\AccionesConversacion;
+use Belly\Flujos\Domain\CatalogoVivo;
 use Belly\Flujos\Domain\Disparador;
 use Belly\Flujos\Domain\EnviadorMensajes;
 use Belly\Flujos\Domain\MotorFlujo;
@@ -119,7 +120,8 @@ class FlujoBotUseCase
             if ($ultima instanceof FlujoSesionEntity && $ultima->estado === 'activa') {
                 $flujo = $this->buscarActivo($activos, (int) $ultima->id_flujo);
                 if ($flujo !== null) {
-                    $resultado = $this->motor->continuar($flujo->definicion, $this->estadoDe($ultima), $entrada, $ahora);
+                    $definicion = CatalogoVivo::refrescar((array) $flujo->definicion, (int) $idEmpresa);
+                    $resultado = $this->motor->continuar($definicion, $this->estadoDe($ultima), $entrada, $ahora);
                     $this->guardarSesion($ultima, $resultado['estado']);
                     $this->enviarTodos($idConversacion, $resultado['mensajes']);
 
@@ -135,7 +137,8 @@ class FlujoBotUseCase
                 return;
             }
 
-            $resultado = $this->motor->iniciar($flujo->definicion, $this->variablesDelCliente($idConversacion, $texto), $ahora);
+            $definicion = CatalogoVivo::refrescar((array) $flujo->definicion, (int) $idEmpresa);
+            $resultado = $this->motor->iniciar($definicion, $this->variablesDelCliente($idConversacion, $texto), $ahora);
             $nueva = new FlujoSesionEntity([
                 'id_empresa' => $idEmpresa,
                 'id_flujo' => $flujo->id,
@@ -218,7 +221,8 @@ class FlujoBotUseCase
                 return;
             }
 
-            $resultado = $this->motor->reanudar($flujo->definicion, $this->estadoDe($sesion), $this->ahora());
+            $definicion = CatalogoVivo::refrescar((array) $flujo->definicion, (int) $sesion->id_empresa);
+            $resultado = $this->motor->reanudar($definicion, $this->estadoDe($sesion), $this->ahora());
             $this->guardarSesion($sesion, $resultado['estado']);
             $this->enviarTodos((int) $sesion->id_conversacion, $resultado['mensajes']);
             $hecho = 1;

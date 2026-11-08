@@ -524,12 +524,19 @@ class AccesoUseCase
             return ['admin' => $base[0], 'equipo' => $base[1] ?? $base[0]];
         }
 
-        $db = db_connect();
-        $ids = [];
-        foreach ([
+        helper('vip2system');
+        $tope = (int) (cupo()->deEmpresa($idEmpresa)['max_equipos'] ?? 0);
+        // 0 = sin tope → 2 base; con tope, no crear más grupos de los que admite el plan.
+        $cuantos = $tope <= 0 ? 2 : max(1, min(2, $tope));
+
+        $plantilla = [
             ['Administradores', 'Gestionan la empresa y el equipo.'],
             ['Equipo', 'Personal que atiende chats y clientes.'],
-        ] as [$grupo, $descripcion]) {
+        ];
+
+        $db = db_connect();
+        $ids = [];
+        foreach (array_slice($plantilla, 0, $cuantos) as [$grupo, $descripcion]) {
             $db->table('grupo_usuario')->insert([
                 'id_empresa' => $idEmpresa,
                 'grupo' => $grupo,
@@ -539,7 +546,7 @@ class AccesoUseCase
             $ids[] = (int) $db->insertID();
         }
 
-        return ['admin' => $ids[0], 'equipo' => $ids[1]];
+        return ['admin' => $ids[0], 'equipo' => $ids[1] ?? $ids[0]];
     }
 
     public function obtenerGrupo(int $id): array

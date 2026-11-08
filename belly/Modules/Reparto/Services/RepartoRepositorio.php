@@ -14,6 +14,12 @@ class RepartoRepositorio
 
     // ───────────── lienzo ─────────────
 
+    /** True solo si la empresa ya guardó su lienzo (no el plantilla por defecto en memoria). */
+    public function tieneDefinicionGuardada(int $idEmpresa): bool
+    {
+        return db_connect()->table('reparto_flujo')->where('id_empresa', $idEmpresa)->countAllResults() > 0;
+    }
+
     /** @return array{nodos: list<array>, conexiones: list<array>} */
     public function definicion(int $idEmpresa): array
     {

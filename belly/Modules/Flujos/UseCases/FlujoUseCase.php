@@ -6,6 +6,7 @@ use Belly\Flujos\Domain\Asignacion;
 use Belly\Flujos\Domain\CatalogoAsesores;
 use Belly\Flujos\Domain\Disparador;
 use Belly\Flujos\Domain\Grafo;
+use Belly\Flujos\Domain\CatalogoVivo;
 use Belly\Flujos\Domain\MotorFlujo;
 use Belly\Flujos\Domain\TiposNodo;
 use Belly\Flujos\Domain\ValidadorFlujo;
@@ -272,6 +273,9 @@ class FlujoUseCase
 
         $ahora = new DateTimeImmutable('now', new DateTimeZone(config('App')->appTimezone));
         $estado = $datos['estado'] ?? null;
+        helper('vip2system');
+        $idEmpresa = (int) (id_empresa_sesion() ?? 0);
+        $definicion = CatalogoVivo::refrescar($definicion, $idEmpresa);
 
         if (! is_array($estado) || ! isset($estado['estado'])) {
             $nombre = mb_substr(trim((string) ($datos['nombre'] ?? 'Cliente de prueba')), 0, 60);

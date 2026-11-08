@@ -172,6 +172,7 @@ class EmpresaUseCase
             $empresa->plan = $plan;
             $empresa->id_plan = $idPlan;
             $empresa->estado = 1;
+            $this->aplicarIdentidad($empresa, $datos['identidad'] ?? null);
 
             $modelo = $this->modelo();
             if (! $modelo->save($empresa)) {
@@ -202,6 +203,26 @@ class EmpresaUseCase
             $db->transRollback();
             throw $e;
         }
+    }
+
+    /** @param array<string, mixed>|null $identidad */
+    private function aplicarIdentidad(EmpresaEntity $empresa, ?array $identidad): void
+    {
+        if ($identidad === null || ! db_connect()->fieldExists('numero_doc', 'empresa')) {
+            return;
+        }
+
+        $empresa->tipo_doc = (string) ($identidad['tipo'] ?? '');
+        $empresa->numero_doc = (string) ($identidad['numero'] ?? '');
+        $empresa->razon_social = (string) ($identidad['nombre'] ?? '');
+        $empresa->estado_sunat = (string) ($identidad['estado'] ?? '');
+        $empresa->condicion_sunat = (string) ($identidad['condicion'] ?? '');
+        $empresa->direccion_fiscal = (string) ($identidad['direccion'] ?? '');
+        $empresa->ubigeo = (string) ($identidad['ubigeo'] ?? '');
+        $empresa->representante_nombre = (string) ($identidad['representante_nombre'] ?? '');
+        $empresa->representante_cargo = (string) ($identidad['representante_cargo'] ?? '');
+        $empresa->representante_documento = (string) ($identidad['representante_documento'] ?? '');
+        $empresa->identidad_json = json_encode($identidad['crudo'] ?? $identidad, JSON_UNESCAPED_UNICODE);
     }
 
     private function crearPortafolioInicial(int $idEmpresa): void

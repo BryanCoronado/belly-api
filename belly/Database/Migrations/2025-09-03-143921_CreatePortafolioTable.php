@@ -176,6 +176,60 @@ class CreateConfiguracionMetaTable extends Migration
                 'constraint' => 1,
                 'default'    => 0,
             ],
+            'tipo_doc' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '10',
+                'null'       => true,
+            ],
+            'numero_doc' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '20',
+                'null'       => true,
+            ],
+            'razon_social' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '180',
+                'null'       => true,
+            ],
+            'estado_sunat' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '80',
+                'null'       => true,
+            ],
+            'condicion_sunat' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '80',
+                'null'       => true,
+            ],
+            'direccion_fiscal' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '255',
+                'null'       => true,
+            ],
+            'ubigeo' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '20',
+                'null'       => true,
+            ],
+            'representante_nombre' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '180',
+                'null'       => true,
+            ],
+            'representante_cargo' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '120',
+                'null'       => true,
+            ],
+            'representante_documento' => [
+                'type'       => 'VARCHAR',
+                'constraint' => '20',
+                'null'       => true,
+            ],
+            'identidad_json' => [
+                'type' => 'LONGTEXT',
+                'null' => true,
+            ],
             'created_at' => [
                 'type' => 'DATETIME',
                 'default' => new RawSql('CURRENT_TIMESTAMP'),
@@ -192,6 +246,7 @@ class CreateConfiguracionMetaTable extends Migration
 
         $this->forge->addPrimaryKey('id');
         $this->forge->addUniqueKey('slug', 'uk_empresa_slug');
+        $this->forge->addKey('numero_doc', false, false, 'idx_empresa_numero_doc');
         $this->forge->addKey('deleted_at');
         $this->forge->addForeignKey('id_plan', 'plan', 'id', 'RESTRICT', 'CASCADE', 'fk_empresa_plan');
         $this->forge->createTable('empresa');

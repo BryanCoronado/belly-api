@@ -6,7 +6,15 @@ if (! function_exists('origenes_conversacion_whatsapp')) {
      */
     function origenes_conversacion_whatsapp(): array
     {
-        return ['api-crm', 'whatsapp', 'wa', 'manual', 'llamada'];
+        return ['api-crm', 'whatsapp', 'wa', 'manual', 'llamada', 'catalogo'];
+    }
+}
+
+if (! function_exists('mensaje_viene_de_catalogo')) {
+    /** Marca que pone la tienda web en el texto al abrir WhatsApp. */
+    function mensaje_viene_de_catalogo(string $texto): bool
+    {
+        return str_contains($texto, '[Belly·Web]') || str_contains($texto, 'Belly·Web');
     }
 }
 

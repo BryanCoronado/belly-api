@@ -179,6 +179,13 @@ if (!function_exists('catalogo_vitrina')) {
         return service('VitrinaUseCase');
     }
 }
+
+if (!function_exists('catalogo_pedidos')) {
+    function catalogo_pedidos(): \Belly\Catalogo\UseCases\PedidoCatalogoUseCase
+    {
+        return service('PedidoCatalogoUseCase');
+    }
+}
 // #####################################
 
 // MODULO REPARTO

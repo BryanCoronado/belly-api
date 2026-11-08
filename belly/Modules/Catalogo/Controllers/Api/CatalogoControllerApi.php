@@ -118,6 +118,20 @@ class CatalogoControllerApi extends BaseController
         }
     }
 
+    public function listarPedidos()
+    {
+        return $this->ejecutar(static fn () => catalogo_pedidos()->listar((int) (request()->getGet('limite') ?? 50)));
+    }
+
+    public function cambiarEstadoPedido(int $id)
+    {
+        return $this->ejecutar(function () use ($id) {
+            $estado = (string) ($this->datos()['estado'] ?? 'nuevo');
+
+            return catalogo_pedidos()->cambiarEstado($id, $estado);
+        });
+    }
+
     public function seo(string $slug)
     {
         try {

@@ -88,6 +88,7 @@ class GrupoUsuarioUseCase
         if ($idEmpresa <= 0) {
             throw new \Exception('No hay empresa en sesión.');
         }
+        cupo()->exigirEquipo($idEmpresa);
 
         $grupo_usuario_entity = new GrupoUsuarioEntity();
         $grupo_usuario_entity->id_empresa = $idEmpresa;

@@ -383,7 +383,7 @@ class EmpresaUseCase
         return ['modo_ahorro' => $this->modoAhorro()];
     }
 
-    /** @return array{activa:bool,version:string,apk_disponible:bool,apk_url:string|null,share_url:string|null} */
+    /** @return array{activa:bool,version:string,apk_disponible:bool,apk_url:string|null,share_url:string|null,apk_tamano:int|null} */
     public function leerAppAsesor(?int $idEmpresa = null): array
     {
         return array_merge(['activa' => $this->appAsesorActiva($idEmpresa)], $this->infoApkAsesor());
@@ -408,19 +408,77 @@ class EmpresaUseCase
         return array_merge(['activa' => $activa], $this->infoApkAsesor());
     }
 
-    /** @return array{version:string,apk_disponible:bool,apk_url:string|null,share_url:string|null} */
+    /** Sube el APK que se descarga / comparte desde Integraciones. */
+    public function subirApkAsesor($archivo): array
+    {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador puede subir el APK.');
+
+        if (! is_object($archivo) || ! method_exists($archivo, 'isValid') || ! $archivo->isValid()) {
+            throw new \DomainException('No se recibió un APK válido.');
+        }
+
+        $nombre = strtolower((string) $archivo->getClientName());
+        $ext = strtolower((string) $archivo->getClientExtension());
+        $mime = strtolower((string) $archivo->getMimeType());
+        $mimesOk = ['application/vnd.android.package-archive', 'application/java-archive', 'application/zip', 'application/octet-stream'];
+        if ($ext !== 'apk' && ! str_ends_with($nombre, '.apk') && ! in_array($mime, $mimesOk, true)) {
+            throw new \DomainException('El archivo debe ser un .apk.');
+        }
+        if ((int) $archivo->getSize() > 120 * 1024 * 1024) {
+            throw new \DomainException('El APK no puede superar 120 MB.');
+        }
+
+        $dir = $this->directorioApkAsesor();
+        if (! is_dir($dir) && ! mkdir($dir, 0755, true) && ! is_dir($dir)) {
+            throw new \RuntimeException('No se pudo crear la carpeta del APK.');
+        }
+
+        $destino = $this->rutaApkAsesor();
+        if (is_file($destino)) {
+            @unlink($destino);
+        }
+        if (! $archivo->move($dir, 'belly-asesor.apk', true)) {
+            throw new \RuntimeException('No se pudo guardar el APK.');
+        }
+
+        $version = trim((string) (service('request')->getPost('version') ?? ''));
+        if ($version !== '') {
+            // Solo informativo en respuesta; la versión publicada se lee del env o del nombre.
+        }
+
+        return array_merge(['activa' => $this->appAsesorActiva()], $this->infoApkAsesor());
+    }
+
+    public function rutaApkAsesor(): string
+    {
+        return $this->directorioApkAsesor() . 'belly-asesor.apk';
+    }
+
+    private function directorioApkAsesor(): string
+    {
+        return WRITEPATH . 'uploads' . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR;
+    }
+
+    /** @return array{version:string,apk_disponible:bool,apk_url:string|null,share_url:string|null,apk_tamano:int|null} */
     private function infoApkAsesor(): array
     {
         $version = trim((string) env('APP_ASESOR_VERSION', '1.0.0')) ?: '1.0.0';
-        $ruta = FCPATH . 'app' . DIRECTORY_SEPARATOR . 'belly-asesor.apk';
-        $disponible = is_file($ruta) && is_readable($ruta);
-        $url = $disponible ? rtrim(base_url('app/belly-asesor.apk'), '/') : null;
+        $ruta = $this->rutaApkAsesor();
+        // Compatibilidad: también acepta el APK dejado a mano en public/app/
+        $rutaPublica = FCPATH . 'app' . DIRECTORY_SEPARATOR . 'belly-asesor.apk';
+        if (! is_file($ruta) && is_file($rutaPublica)) {
+            $ruta = $rutaPublica;
+        }
+        $disponible = is_file($ruta) && is_readable($ruta) && filesize($ruta) > 0;
+        // Ruta del controlador (no archivo estático): evita 404 si falta el .apk en public/
+        $url = $disponible ? rtrim(site_url('v1/publico/app-asesor.apk'), '/') : null;
 
         return [
             'version' => $version,
             'apk_disponible' => $disponible,
             'apk_url' => $url,
             'share_url' => $url,
+            'apk_tamano' => $disponible ? (int) filesize($ruta) : null,
         ];
     }
 

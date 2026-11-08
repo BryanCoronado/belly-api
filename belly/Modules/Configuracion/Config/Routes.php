@@ -2,6 +2,9 @@
 
 use CodeIgniter\Router\RouteCollection;
 
+// APK público: se puede compartir el enlace sin sesión.
+$routes->get('v1/publico/app-asesor.apk', '\Belly\Configuracion\Controllers\Api\EmpresaControllerApi::descargarApkAsesor', ['as' => 'apiv1_publico_app_asesor_apk']);
+
 $routes->group('v1', ['filter' => 'authFilter'], static function ($routes) {
     $routes->group('configuracion', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
         $routes->get('mis-apps', 'ConfiguracionControllerApi::listarMisApps', ['as' => 'apiv1_mis_apps']);
@@ -20,6 +23,7 @@ $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static fun
     $routes->group('empresa', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
         $routes->put('modo', 'EmpresaControllerApi::guardarModo', ['as' => 'apiv1_empresa_modo_guardar']);
         $routes->put('app-asesor', 'EmpresaControllerApi::guardarAppAsesor', ['as' => 'apiv1_empresa_app_asesor_guardar']);
+        $routes->post('app-asesor/apk', 'EmpresaControllerApi::subirApkAsesor', ['as' => 'apiv1_empresa_app_asesor_apk']);
         $routes->get('pagos', 'PagoControllerApi::mios', ['as' => 'apiv1_empresa_pagos']);
     });
 });

@@ -82,6 +82,41 @@ class EmpresaControllerApi extends BaseController
         }
     }
 
+    public function subirApkAsesor()
+    {
+        try {
+            $archivo = $this->request->getFile('apk');
+
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => empresa()->subirApkAsesor($archivo),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->responderError($e);
+        }
+    }
+
+    /** Descarga pública del APK (para compartir el enlace sin login). */
+    public function descargarApkAsesor()
+    {
+        $ruta = empresa()->rutaApkAsesor();
+        $rutaPublica = FCPATH . 'app' . DIRECTORY_SEPARATOR . 'belly-asesor.apk';
+        if (! is_file($ruta) && is_file($rutaPublica)) {
+            $ruta = $rutaPublica;
+        }
+
+        if (! is_file($ruta) || ! is_readable($ruta) || filesize($ruta) <= 0) {
+            return $this->response->setStatusCode(404)->setJSON([
+                'success' => false,
+                'error' => 'El APK aún no está publicado. Súbelo desde Integraciones → App Belly Asesor.',
+            ]);
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/vnd.android.package-archive')
+            ->download($ruta, 'belly-asesor.apk');
+    }
+
     public function cambiarEstado(int $id)
     {
         try {

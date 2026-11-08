@@ -42,6 +42,9 @@ writable/session/*
 
 writable/uploads/*
 !writable/uploads/index.html
+!writable/uploads/app/
+!writable/uploads/app/index.html
+writable/uploads/app/*.apk
 
 # Disco real: writable/uploads. En el servidor public/uploads es symlink a eso.
 # Si se versiona, git pull pisa el enlace y aborta el merge.

@@ -1,14 +1,9 @@
 # APK Belly Asesor
 
-Coloca aquí el archivo `belly-asesor.apk` (generado con EAS preview).
+Preferible: súbelo desde el CRM en **Integraciones → App Belly Asesor → Elegir APK**.
 
-En producción:
+Queda en `writable/uploads/app/belly-asesor.apk` y se descarga en:
 
-```bash
-# desde el build de EAS descargado
-sudo mkdir -p /var/www/belly/api/public/app
-sudo cp belly-asesor.apk /var/www/belly/api/public/app/belly-asesor.apk
-sudo chmod 644 /var/www/belly/api/public/app/belly-asesor.apk
-```
+`https://api.micrm.space/v1/publico/app-asesor.apk`
 
-Queda público en: `https://api.micrm.space/app/belly-asesor.apk`
+También puedes copiar a mano el archivo aquí como `belly-asesor.apk` (compatibilidad).

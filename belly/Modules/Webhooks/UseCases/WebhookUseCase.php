@@ -128,21 +128,34 @@ class WebhookUseCase
 
         $db = \Config\Database::connect();
         $db->transStart();
+        $conversacionNueva = false;
+        $agenteInicial = null;
+        $forzarFlujo = false;
+        $idFlujoForzado = null;
+        $idConversacion = 0;
+        $idUsuario = 0;
 
         try {
             $conversacion = $this->obtenerConversacionActivaWhatsapp($idCliente, $idApp, $db);
-            $conversacionNueva = false;
-            $agenteInicial = null;
 
             if ($conversacion) {
                 $idConversacion = (int) $conversacion->id;
                 $idUsuario = (int) $conversacion->id_usuario;
             } else {
                 $decision = $this->resolverAsignacion($idEmpresa, $idApp, $idCliente, $message);
-                $idUsuario = $decision['tipo'] === 'asesor' ? $decision['id_usuario'] : null;
+                $idUsuario = in_array($decision['tipo'], ['asesor', 'flujo'], true) ? $decision['id_usuario'] : null;
                 if ($decision['tipo'] === 'agente') {
                     $idUsuario = atencion_ia()->usuarioAsistente($idEmpresa);
                     $agenteInicial = ['id' => (int) $decision['id_agente'], 'nodo' => $decision['nodo']];
+                }
+                if ($decision['tipo'] === 'flujo') {
+                    $forzarFlujo = true;
+                    $idFlujoForzado = isset($decision['id_flujo']) && (int) $decision['id_flujo'] > 0
+                        ? (int) $decision['id_flujo']
+                        : null;
+                    if ($idUsuario === null) {
+                        $idUsuario = asignador_chats()->respaldo($idEmpresa);
+                    }
                 }
                 if ($idUsuario === null) {
                     $db->transRollback();
@@ -206,11 +219,12 @@ class WebhookUseCase
 
         $texto = trim((string) ($mensajeData['mensaje'] ?? ''));
         $this->registrarPedidoCatalogoSiCorresponde($idEmpresa, $idCliente, $idConversacion, $texto);
-        if ($this->responderConAsistente($idEmpresa, $idConversacion, $texto, $agenteInicial)) {
+        // Si el reparto eligió «Usar respuestas automáticas», el bot tiene prioridad sobre la IA.
+        if (! $forzarFlujo && $this->responderConAsistente($idEmpresa, $idConversacion, $texto, $agenteInicial)) {
             return;
         }
 
-        $this->responderConBot($idConversacion, $message, $texto, $conversacionNueva);
+        $this->responderConBot($idConversacion, $message, $texto, $conversacionNueva, $forzarFlujo, $idFlujoForzado);
     }
 
     /**
@@ -240,8 +254,14 @@ class WebhookUseCase
      *
      * @param array<string, mixed> $message
      */
-    private function responderConBot(int $idConversacion, array $message, string $texto, bool $conversacionNueva): void
-    {
+    private function responderConBot(
+        int $idConversacion,
+        array $message,
+        string $texto,
+        bool $conversacionNueva,
+        bool $forzarFlujo = false,
+        ?int $idFlujoForzado = null
+    ): void {
         try {
             $respuestaId = (string) (
                 $message['interactive']['button_reply']['id']
@@ -249,7 +269,14 @@ class WebhookUseCase
                 ?? ''
             );
 
-            bot_flujos()->alRecibirMensaje($idConversacion, $texto, $respuestaId, $conversacionNueva);
+            bot_flujos()->alRecibirMensaje(
+                $idConversacion,
+                $texto,
+                $respuestaId,
+                $conversacionNueva,
+                $forzarFlujo,
+                $idFlujoForzado
+            );
         } catch (\Throwable $e) {
             log_message('error', '[BOT] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
         }

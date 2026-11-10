@@ -121,7 +121,7 @@ final class ValidadorReparto
             $ojo = static function (string $mensaje) use (&$avisos, $id): void {
                 $avisos[] = ['nodo' => $id, 'mensaje' => $mensaje];
             };
-            if ($alcanzable && in_array($nodo['tipo'], [NodosReparto::REPARTIR, NodosReparto::PERSONA, NodosReparto::AGENTE_IA], true)) {
+            if ($alcanzable && in_array($nodo['tipo'], [NodosReparto::REPARTIR, NodosReparto::PERSONA, NodosReparto::AGENTE_IA, NodosReparto::FLUJO_BOT], true)) {
                 $entregan = true;
             }
 
@@ -193,6 +193,18 @@ final class ValidadorReparto
                         $ojo('«Cuando pase a una persona» no va a ningún paso: esos chats le llegarán a la persona de respaldo.');
                     }
                     break;
+                case NodosReparto::FLUJO_BOT:
+                    if ($d['id_usuario'] === null || ! in_array($d['id_usuario'], $catalogo['personas'], true)) {
+                        $mal('Elige a quién se asigna el chat mientras responde el bot.');
+                    }
+                    if ($d['id_flujo'] !== null && isset($catalogo['flujos']) && ! isset($catalogo['flujos'][$d['id_flujo']])) {
+                        $mal('El flujo elegido ya no existe. Elige otro o «Cualquier flujo activo».');
+                    } elseif ($d['id_flujo'] !== null && isset($catalogo['flujos'][$d['id_flujo']]) && ! $catalogo['flujos'][$d['id_flujo']]['activo']) {
+                        $ojo('Ese flujo está pausado: actívalo en Respuestas automáticas o elige otro.');
+                    } elseif (($catalogo['flujos_activos'] ?? 0) === 0) {
+                        $ojo('No hay ningún flujo activo. Activa uno en Respuestas automáticas para que el bot conteste.');
+                    }
+                    break;
             }
 
             if ($nodo['tipo'] === NodosReparto::INICIO) {
@@ -218,7 +230,7 @@ final class ValidadorReparto
         }
 
         if ($inicios !== [] && isset($conectadas[$inicios[0]['id'] . ':' . NodosReparto::SALIDA_SIGUIENTE]) && ! $entregan) {
-            $avisos[] = ['nodo' => null, 'mensaje' => 'Ningún camino termina en «Repartir», «A una persona» o «Asistente IA»: los chats nuevos irán a la persona de respaldo.'];
+            $avisos[] = ['nodo' => null, 'mensaje' => 'Ningún camino termina en «Repartir», «A una persona», «Usar respuestas automáticas» o «Asistente IA»: los chats nuevos irán a la persona de respaldo.'];
         }
 
         self::revisarEnlacesTurnosRepartir($definicion, $catalogo, $alcanzables, $errores, $avisos);
@@ -431,6 +443,10 @@ final class ValidadorReparto
             ],
             NodosReparto::PERSONA => ['id_usuario' => $entero($d['id_usuario'] ?? null)],
             NodosReparto::AGENTE_IA => ['id_agente' => $entero($d['id_agente'] ?? null)],
+            NodosReparto::FLUJO_BOT => [
+                'id_usuario' => $entero($d['id_usuario'] ?? null),
+                'id_flujo' => $entero($d['id_flujo'] ?? null),
+            ],
             default => [],
         };
     }

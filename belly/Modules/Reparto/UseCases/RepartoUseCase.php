@@ -38,7 +38,28 @@ class RepartoUseCase
             ),
             'personas' => $this->repositorio->personas($idEmpresa),
             'agentes' => agentes_ia()->resumenes($idEmpresa),
+            'flujos' => $this->resumenFlujos($idEmpresa),
         ];
+    }
+
+    /** @return list<array{id: int, nombre: string, activo: bool}> */
+    private function resumenFlujos(int $idEmpresa): array
+    {
+        try {
+            $filas = (new \Belly\Flujos\Models\FlujoModel())
+                ->select('id, nombre, activo')
+                ->where('id_empresa', $idEmpresa)
+                ->orderBy('id', 'ASC')
+                ->findAll();
+
+            return array_map(static fn ($f): array => [
+                'id' => (int) $f->id,
+                'nombre' => (string) $f->nombre,
+                'activo' => (bool) $f->activo,
+            ], $filas);
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     /** @return array{definicion: array, revision: array} */
@@ -108,6 +129,13 @@ class RepartoUseCase
                 }
             }
         }
+        if ($decision['tipo'] === 'flujo' && $nombre === null) {
+            foreach ($this->repositorio->personas($idEmpresa) as $persona) {
+                if ($persona['id'] === $decision['id_usuario']) {
+                    $nombre = $persona['nombre'];
+                }
+            }
+        }
         $grupoReparto = null;
         if (isset($decision['id_grupo_reparto']) && (int) $decision['id_grupo_reparto'] > 0) {
             foreach ($this->repositorio->grupos($idEmpresa) as $grupo) {
@@ -133,6 +161,25 @@ class RepartoUseCase
         foreach (agentes_ia()->resumenes($idEmpresa) as $agente) {
             $agentes[$agente['id']] = ['activo' => $agente['activo'], 'listo' => $agente['listo']];
         }
+        $flujos = [];
+        $flujosActivos = 0;
+        try {
+            helper('vip2system');
+            $filas = (new \Belly\Flujos\Models\FlujoModel())
+                ->select('id, nombre, activo')
+                ->where('id_empresa', $idEmpresa)
+                ->orderBy('id', 'ASC')
+                ->findAll();
+            foreach ($filas as $flujo) {
+                $activo = (bool) ($flujo->activo ?? false);
+                $flujos[(int) $flujo->id] = ['nombre' => (string) $flujo->nombre, 'activo' => $activo];
+                if ($activo) {
+                    $flujosActivos++;
+                }
+            }
+        } catch (\Throwable) {
+            $flujos = [];
+        }
 
         return [
             'grupos' => $grupos,
@@ -140,6 +187,8 @@ class RepartoUseCase
             'personas' => array_column($this->repositorio->personas($idEmpresa), 'id'),
             'agentes' => $agentes,
             'grupos_turno' => $this->repositorio->gruposTurno($idEmpresa),
+            'flujos' => $flujos,
+            'flujos_activos' => $flujosActivos,
         ];
     }
 

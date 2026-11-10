@@ -11,6 +11,7 @@ use DateTimeImmutable;
  * Resultado:
  *  - tipo «asesor»: id_usuario elegido (motivo: asesor_previo | repartir | persona | respaldo)
  *  - tipo «agente»: id_agente y el nodo del agente (para seguir desde su salida «humano» cuando pase a una persona)
+ *  - tipo «flujo»: el bot de respuestas habla primero; id_usuario es el dueño del chat e id_flujo el automático (opcional)
  *  - tipo «ninguno»: la empresa no tiene a nadie activo
  *  - ruta: ids de nodos recorridos; pasos: "nodo:salida" de cada flecha tomada (para iluminar el camino)
  */
@@ -165,6 +166,20 @@ final class MotorReparto
                 }
 
                 return ['salida' => NodosReparto::SALIDA_HUMANO];
+
+            case NodosReparto::FLUJO_BOT:
+                $persona = (int) ($datos['id_usuario'] ?? 0);
+                $idFlujo = isset($datos['id_flujo']) && (int) $datos['id_flujo'] > 0 ? (int) $datos['id_flujo'] : null;
+                if ($persona > 0 && $directorio->personaActiva($persona)) {
+                    return ['fin' => [
+                        'tipo' => 'flujo',
+                        'id_usuario' => $persona,
+                        'id_flujo' => $idFlujo,
+                        'motivo' => 'flujo_bot',
+                    ]];
+                }
+
+                return ['salida' => NodosReparto::SALIDA_NADIE];
         }
 
         return ['salida' => '__sin_salida__'];

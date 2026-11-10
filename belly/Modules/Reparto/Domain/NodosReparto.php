@@ -31,10 +31,12 @@ final class NodosReparto
     public const PERSONA = 'persona';
     /** Lo atiende un agente de IA hasta que pase a una persona. */
     public const AGENTE_IA = 'agente_ia';
+    /** Primero responde el flujo de respuestas automáticas; el chat queda asignado a una persona. */
+    public const FLUJO_BOT = 'flujo_bot';
 
     public const TODOS = [
         self::INICIO, self::ASESOR_PREVIO, self::HORARIO, self::CLIENTE, self::ORIGEN,
-        self::PALABRAS, self::DIVIDIR, self::TURNOS_GRUPOS, self::REPARTIR, self::PERSONA, self::AGENTE_IA,
+        self::PALABRAS, self::DIVIDIR, self::TURNOS_GRUPOS, self::REPARTIR, self::PERSONA, self::AGENTE_IA, self::FLUJO_BOT,
     ];
 
     public const SALIDA_SIGUIENTE = 'siguiente';
@@ -61,7 +63,7 @@ final class NodosReparto
             self::ORIGEN => ['anuncio', 'directo'],
             self::PALABRAS => ['si', 'no'],
             self::DIVIDIR => ['a', 'b'],
-            self::REPARTIR, self::PERSONA => [self::SALIDA_NADIE],
+            self::REPARTIR, self::PERSONA, self::FLUJO_BOT => [self::SALIDA_NADIE],
             self::AGENTE_IA => [self::SALIDA_HUMANO],
             default => [],
         };

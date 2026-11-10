@@ -92,9 +92,17 @@ class FlujoBotUseCase
 
     /**
      * @param string $respuestaId Id del botón o fila que tocó el cliente (vacío si escribió).
+     * @param bool $forzar El reparto pidió usar respuestas automáticas: ignora audiencia/repetir.
+     * @param int|null $idFlujoForzado Flujo concreto elegido en el reparto (null = el que mejor calce).
      */
-    public function alRecibirMensaje(int $idConversacion, string $texto, string $respuestaId, bool $esPrimerMensaje): void
-    {
+    public function alRecibirMensaje(
+        int $idConversacion,
+        string $texto,
+        string $respuestaId,
+        bool $esPrimerMensaje,
+        bool $forzar = false,
+        ?int $idFlujoForzado = null
+    ): void {
         helper('vip2system');
         $idEmpresa = id_empresa_sesion();
         if ($idEmpresa === null || $idConversacion <= 0) {
@@ -103,21 +111,22 @@ class FlujoBotUseCase
 
         /** @var list<FlujoEntity> $activos */
         $activos = $this->flujos->where('activo', 1)->orderBy('id', 'ASC')->findAll();
-        if ($activos === []) {
+        if ($activos === [] && ! $forzar) {
             return;
         }
 
-        $this->conBloqueo($idConversacion, function () use ($idEmpresa, $idConversacion, $texto, $respuestaId, $esPrimerMensaje, $activos): void {
+        $this->conBloqueo($idConversacion, function () use ($idEmpresa, $idConversacion, $texto, $respuestaId, $esPrimerMensaje, $activos, $forzar, $idFlujoForzado): void {
             $ultima = $this->sesiones->where('id_conversacion', $idConversacion)->orderBy('id', 'DESC')->first();
 
-            if ($ultima instanceof FlujoSesionEntity && in_array($ultima->estado, ['derivada', 'esperando'], true)) {
+            // Si el reparto fuerza el bot en un chat nuevo, no bloqueamos por sesiones viejas (van en otra conversación).
+            if ($ultima instanceof FlujoSesionEntity && in_array($ultima->estado, ['derivada', 'esperando'], true) && ! $forzar) {
                 return; // Lo atiende una persona, o el bot está en una espera programada.
             }
 
             $ahora = $this->ahora();
             $entrada = ['texto' => $texto, 'respuesta_id' => $respuestaId !== '' ? $respuestaId : null];
 
-            if ($ultima instanceof FlujoSesionEntity && $ultima->estado === 'activa') {
+            if ($ultima instanceof FlujoSesionEntity && $ultima->estado === 'activa' && ! $forzar) {
                 $flujo = $this->buscarActivo($activos, (int) $ultima->id_flujo);
                 if ($flujo !== null) {
                     $definicion = CatalogoVivo::refrescar((array) $flujo->definicion, (int) $idEmpresa);
@@ -131,8 +140,10 @@ class FlujoBotUseCase
                 $this->sesiones->update($ultima->id, ['estado' => 'terminada', 'nodo_actual' => null, 'reanudar_at' => null]);
             }
 
-            $contexto = $this->contexto($idConversacion, $esPrimerMensaje, $ultima === null);
-            $flujo = $this->elegirParaIniciar($activos, $texto, $contexto);
+            // sin_bot: no hay bot corriendo ahora (terminada cuenta como libre para volver a empezar).
+            $sinBot = $ultima === null || in_array((string) $ultima->estado, ['terminada'], true) || $forzar;
+            $contexto = $this->contexto($idConversacion, $esPrimerMensaje || $forzar, $sinBot);
+            $flujo = $this->elegirParaIniciar($activos, $texto, $contexto, $forzar, $idFlujoForzado);
             if ($flujo === null) {
                 return;
             }
@@ -269,14 +280,20 @@ class FlujoBotUseCase
         $db = db_connect();
         $cliente = (int) ($db->table('conversacion')->select('id_cliente')->where('id', $idConversacion)->get()->getRow()->id_cliente ?? 0);
 
-        $otras = $db->table('conversacion')->where('id_cliente', $cliente)->where('id !=', $idConversacion)->countAllResults();
+        // Solo cuentan chats abiertos: los finalizados no impiden tratarlo como contacto nuevo para el bot.
+        $otrasAbiertas = $db->table('conversacion')
+            ->where('id_cliente', $cliente)
+            ->where('id !=', $idConversacion)
+            ->whereIn('id_estado', [1, 3])
+            ->where('deleted_at', null)
+            ->countAllResults();
         $mensajes = $db->table('mensaje')->where('id_conversacion', $idConversacion)->where('deleted_at', null)->countAllResults();
 
         $porFlujo = [];
+        // «Una vez» se mide por conversación, no por historial de chats cerrados del cliente.
         $filas = $db->table('flujo_sesion s')
             ->select('s.id_flujo, COUNT(*) AS veces, TIMESTAMPDIFF(SECOND, MAX(s.created_at), NOW()) AS segundos', false)
-            ->join('conversacion cv', 'cv.id = s.id_conversacion')
-            ->where('cv.id_cliente', $cliente)
+            ->where('s.id_conversacion', $idConversacion)
             ->groupBy('s.id_flujo')
             ->get()->getResultArray();
         foreach ($filas as $fila) {
@@ -286,15 +303,35 @@ class FlujoBotUseCase
         return [
             'primer_mensaje' => $esPrimerMensaje,
             'sin_bot' => $sinBot,
-            // Nuevo = nunca habíamos hablado con él: ni en otros chats ni antes en este (solo existe el mensaje que acaba de llegar).
-            'contacto_nuevo' => $otras === 0 && $mensajes <= 1,
+            'contacto_nuevo' => $otrasAbiertas === 0 && $mensajes <= 1,
             'por_flujo' => $porFlujo,
         ];
     }
 
     /** @param list<FlujoEntity> $activos */
-    private function elegirParaIniciar(array $activos, string $texto, array $contexto): ?FlujoEntity
+    private function elegirParaIniciar(array $activos, string $texto, array $contexto, bool $forzar = false, ?int $idFlujoForzado = null): ?FlujoEntity
     {
+        if ($forzar && $idFlujoForzado) {
+            foreach ($activos as $flujo) {
+                if ((int) $flujo->id === $idFlujoForzado) {
+                    return $flujo;
+                }
+            }
+            // El elegido está pausado: intenta cualquier activo.
+        }
+
+        if ($forzar && $activos !== []) {
+            // El reparto mandó usar bot: arranca aunque audiencia/repetir no calcen.
+            if ($idFlujoForzado) {
+                $forzado = $this->flujos->find($idFlujoForzado);
+                if ($forzado instanceof FlujoEntity) {
+                    return $forzado;
+                }
+            }
+
+            return $activos[0];
+        }
+
         $elegido = null;
         $mejor = 0;
         foreach ($activos as $flujo) {

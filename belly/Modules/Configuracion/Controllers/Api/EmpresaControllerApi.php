@@ -82,6 +82,32 @@ class EmpresaControllerApi extends BaseController
         }
     }
 
+    public function accesosAppAsesor()
+    {
+        try {
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => empresa()->accesosAppAsesor(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->responderError($e);
+        }
+    }
+
+    public function guardarAccesoAppAsesor(int $idUsuario)
+    {
+        try {
+            $datos = $this->request->getJSON(true);
+
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => empresa()->guardarAccesoAppAsesor($idUsuario, is_array($datos) ? $datos : []),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->responderError($e);
+        }
+    }
+
     public function subirApkAsesor()
     {
         try {

@@ -95,6 +95,12 @@ class CreateUsuarioTable extends Migration
                 'constraint' => '1',
                 'default'    => 0,
             ],
+            'app_asesor_bloqueada' => [
+                'type'       => 'TINYINT',
+                'constraint' => '1',
+                'default'    => 0,
+                'comment'    => '1 = el admin le quitó el acceso a la app de asesores',
+            ],
             'created_at' => [
                 'type' => 'DATETIME',
                 'default' => new RawSql('CURRENT_TIMESTAMP'),

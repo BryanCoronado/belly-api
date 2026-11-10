@@ -383,10 +383,107 @@ class EmpresaUseCase
         return ['modo_ahorro' => $this->modoAhorro()];
     }
 
-    /** @return array{activa:bool,version:string,apk_disponible:bool,apk_url:string|null,share_url:string|null,apk_tamano:int|null} */
+    /** @return array{activa:bool,conectados:int,version:string,apk_disponible:bool,apk_url:string|null,share_url:string|null,apk_tamano:int|null} */
     public function leerAppAsesor(?int $idEmpresa = null): array
     {
-        return array_merge(['activa' => $this->appAsesorActiva($idEmpresa)], $this->infoApkAsesor());
+        $id = $idEmpresa ?? (int) (id_empresa_sesion() ?? 0);
+        $conectados = 0;
+        if ($id > 0 && db_connect()->tableExists('usuario_dispositivo')) {
+            $limite = date('Y-m-d H:i:s', time() - 300);
+            $filas = db_connect()->table('usuario_dispositivo')
+                ->select('id_usuario')
+                ->where('id_empresa', $id)
+                ->where('activo', 1)
+                ->where('visto_en >=', $limite)
+                ->groupBy('id_usuario')
+                ->get()
+                ->getResultArray();
+            $conectados = count($filas);
+        }
+
+        return array_merge(
+            ['activa' => $this->appAsesorActiva($id), 'conectados' => $conectados],
+            $this->infoApkAsesor()
+        );
+    }
+
+    /** Listado de asesores + quién está conectado a la app (admin). */
+    public function accesosAppAsesor(): array
+    {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador puede ver quién usa la app.');
+
+        $id = (int) (id_empresa_sesion() ?? 0);
+        $usuarios = (new \Belly\Usuarios\UseCases\DispositivoUseCase())->listarAccesosEmpresa($id);
+        $conectados = 0;
+        foreach ($usuarios as $u) {
+            if (! empty($u['conectado']) && empty($u['app_bloqueada'])) {
+                $conectados++;
+            }
+        }
+
+        return array_merge(
+            ['activa' => $this->appAsesorActiva($id), 'conectados' => $conectados, 'usuarios' => $usuarios],
+            $this->infoApkAsesor()
+        );
+    }
+
+    /**
+     * Bloquea o habilita el acceso de un usuario a la app.
+     *
+     * @param array<string, mixed> $datos
+     */
+    public function guardarAccesoAppAsesor(int $idUsuario, array $datos): array
+    {
+        Autorizacion::exigirAdministradorEmpresa('Solo el administrador puede bloquear el acceso a la app.');
+
+        $idEmpresa = (int) (id_empresa_sesion() ?? 0);
+        if ($idEmpresa <= 0 || $idUsuario <= 0) {
+            throw new \DomainException('Usuario no válido.');
+        }
+        if (! db_connect()->fieldExists('app_asesor_bloqueada', 'usuario')) {
+            throw new \DomainException('Falta actualizar la base (columna app_asesor_bloqueada).');
+        }
+
+        $modelo = model('UsuarioModel');
+        $usuario = $modelo->find($idUsuario);
+        if (! $usuario || (int) ($usuario->id_empresa ?? 0) !== $idEmpresa) {
+            throw new \DomainException('El usuario no pertenece a tu empresa.');
+        }
+        if ((int) ($usuario->id ?? 0) === (int) (id_usuario_sesion() ?? 0)) {
+            throw new \DomainException('No puedes bloquearte a ti mismo en la app.');
+        }
+
+        $bloqueada = filter_var($datos['bloqueada'] ?? $datos['app_bloqueada'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $modelo->update($idUsuario, ['app_asesor_bloqueada' => $bloqueada ? 1 : 0]);
+
+        if ($bloqueada) {
+            (new \Belly\Usuarios\UseCases\DispositivoUseCase())->desactivarTodosDeUsuario($idUsuario);
+        }
+
+        return $this->accesosAppAsesor();
+    }
+
+    public function usuarioPuedeUsarAppAsesor(int $idUsuario, ?int $idEmpresa = null): bool
+    {
+        if ($idUsuario <= 0) {
+            return false;
+        }
+        if (! $this->appAsesorActiva($idEmpresa)) {
+            return false;
+        }
+        if (! db_connect()->fieldExists('app_asesor_bloqueada', 'usuario')) {
+            return true;
+        }
+
+        $usuario = model('UsuarioModel')->find($idUsuario);
+        if (! $usuario) {
+            return false;
+        }
+        if ($idEmpresa && (int) ($usuario->id_empresa ?? 0) !== (int) $idEmpresa) {
+            return false;
+        }
+
+        return (int) ($usuario->app_asesor_bloqueada ?? 0) !== 1;
     }
 
     /** @param array<string, mixed> $datos */

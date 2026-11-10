@@ -156,6 +156,122 @@ class DispositivoUseCase
         return array_values(array_unique($tokens));
     }
 
+    /** Desactiva todos los dispositivos del usuario (p. ej. al bloquearle la app). */
+    public function desactivarTodosDeUsuario(int $idUsuario): void
+    {
+        if ($idUsuario <= 0) {
+            return;
+        }
+
+        $filas = $this->dispositivos
+            ->where('id_usuario', $idUsuario)
+            ->where('activo', 1)
+            ->findAll();
+
+        foreach ($filas as $fila) {
+            if (! $fila instanceof UsuarioDispositivoEntity) {
+                continue;
+            }
+            $this->dispositivos->update($fila->id, [
+                'activo' => 0,
+                'id_conversacion_abierta' => null,
+                'visto_en' => null,
+            ]);
+            $this->dispositivos->delete($fila->id);
+        }
+    }
+
+    /**
+     * Usuarios de la empresa con estado de app + dispositivos activos.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listarAccesosEmpresa(int $idEmpresa): array
+    {
+        if ($idEmpresa <= 0) {
+            return [];
+        }
+
+        $db = db_connect();
+        $tieneBloqueo = $db->fieldExists('app_asesor_bloqueada', 'usuario');
+
+        $sql = 'SELECT u.id, u.usuario, u.activo,
+                       ' . ($tieneBloqueo ? 'u.app_asesor_bloqueada' : '0 AS app_asesor_bloqueada') . ',
+                       up.nombres, up.apellidos, up.foto_url
+                FROM usuario u
+                LEFT JOIN usuario_perfil up ON up.id = u.id
+                WHERE u.id_empresa = ?
+                  AND u.es_bot = 0
+                  AND u.deleted_at IS NULL
+                ORDER BY up.nombres ASC, u.usuario ASC';
+
+        $usuarios = $db->query($sql, [$idEmpresa])->getResultArray();
+        if ($usuarios === []) {
+            return [];
+        }
+
+        $ids = array_map(static fn ($u) => (int) $u['id'], $usuarios);
+        $dispositivos = $this->dispositivos
+            ->whereIn('id_usuario', $ids)
+            ->where('id_empresa', $idEmpresa)
+            ->where('activo', 1)
+            ->orderBy('visto_en', 'DESC')
+            ->findAll();
+
+        $porUsuario = [];
+        $ahora = time();
+        foreach ($dispositivos as $fila) {
+            if (! $fila instanceof UsuarioDispositivoEntity) {
+                continue;
+            }
+            $idU = (int) $fila->id_usuario;
+            $visto = $fila->visto_en;
+            $ts = is_object($visto) && method_exists($visto, 'getTimestamp')
+                ? (int) $visto->getTimestamp()
+                : (is_string($visto) && $visto !== '' ? (int) strtotime($visto) : 0);
+            $porUsuario[$idU][] = [
+                'id' => (int) $fila->id,
+                'plataforma' => (string) $fila->plataforma,
+                'nombre' => $fila->nombre,
+                'visto_en' => $ts > 0 ? date('c', $ts) : null,
+                'conectado' => $ts > 0 && ($ahora - $ts) <= 300,
+            ];
+        }
+
+        $salida = [];
+        foreach ($usuarios as $u) {
+            $id = (int) $u['id'];
+            $devs = $porUsuario[$id] ?? [];
+            $conectado = false;
+            $ultimo = null;
+            foreach ($devs as $d) {
+                if ($d['conectado']) {
+                    $conectado = true;
+                }
+                if ($d['visto_en'] && ($ultimo === null || $d['visto_en'] > $ultimo)) {
+                    $ultimo = $d['visto_en'];
+                }
+            }
+            $nombres = trim((string) ($u['nombres'] ?? ''));
+            $apellidos = trim((string) ($u['apellidos'] ?? ''));
+            $salida[] = [
+                'id' => $id,
+                'usuario' => (string) $u['usuario'],
+                'nombres' => $nombres,
+                'apellidos' => $apellidos,
+                'nombre' => trim($nombres . ' ' . $apellidos) ?: (string) $u['usuario'],
+                'foto' => $u['foto_url'] ?? null,
+                'activo' => (int) ($u['activo'] ?? 0) === 1,
+                'app_bloqueada' => (int) ($u['app_asesor_bloqueada'] ?? 0) === 1,
+                'conectado' => $conectado,
+                'ultimo_visto' => $ultimo,
+                'dispositivos' => $devs,
+            ];
+        }
+
+        return $salida;
+    }
+
     /** @return array<string, mixed> */
     private function aArray(?UsuarioDispositivoEntity $fila): array
     {

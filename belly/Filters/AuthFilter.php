@@ -54,6 +54,22 @@ class AuthFilter implements FilterInterface {
                 throw new \Exception(lang('Auth.tokenInvalido'));
             }
 
+            $desdeAppAsesor = strtolower(trim((string) $request->getHeaderLine('X-Belly-Client'))) === 'asesor-app';
+            if ($desdeAppAsesor && $uso === 'sesion') {
+                $usuario = auth()->getUsuario();
+                $idUsuario = (int) ($usuario->id ?? 0);
+                $idEmpresa = (int) (id_empresa_sesion() ?? ($usuario->id_empresa ?? 0));
+                if (! empresa()->usuarioPuedeUsarAppAsesor($idUsuario, $idEmpresa)) {
+                    return service('response')->setJSON([
+                        'status' => ResponseInterface::HTTP_FORBIDDEN,
+                        'error' => 'AuthFilter',
+                        'messages' => [
+                            'error' => 'Tu acceso a la app fue bloqueado o la app está desactivada.',
+                        ],
+                    ])->setStatusCode(ResponseInterface::HTTP_FORBIDDEN);
+                }
+            }
+
             return $request;
         } catch (\Exception $exc) {
             return $this->unAuthorizedResponse($exc->getMessage());

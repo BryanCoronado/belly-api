@@ -175,8 +175,14 @@ class AuthController extends BaseController
         $usuario = auth()->getUsuario();
 
         $desdeAppAsesor = strtolower(trim((string) $this->request->getHeaderLine('X-Belly-Client'))) === 'asesor-app';
-        if ($desdeAppAsesor && ! empresa()->appAsesorActiva((int) ($usuario->id_empresa ?? 0))) {
-            return $this->failForbidden('La app de asesores está desactivada para esta empresa. Actívala en Integraciones del CRM.', 'Auth');
+        if ($desdeAppAsesor) {
+            $idEmpresa = (int) ($usuario->id_empresa ?? 0);
+            if (! empresa()->appAsesorActiva($idEmpresa)) {
+                return $this->failForbidden('La app de asesores está desactivada para esta empresa. Actívala en Integraciones del CRM.', 'Auth');
+            }
+            if (! empresa()->usuarioPuedeUsarAppAsesor((int) $usuario->id, $idEmpresa)) {
+                return $this->failForbidden('Tu acceso a la app fue bloqueado por el administrador.', 'Auth');
+            }
         }
 
         $usuarioModel = model('UsuarioModel');

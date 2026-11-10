@@ -29,7 +29,8 @@ class UsuarioModel extends Model
         'es_bot',
         'id_estado_usuario',
         'sudo',
-        'forzar_cambio_pw', 
+        'forzar_cambio_pw',
+        'app_asesor_bloqueada',
     ];
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -46,6 +47,7 @@ class UsuarioModel extends Model
         'sudo' => 'int',
         'operador' => 'int',
         'forzar_cambio_pw' => 'int',
+        'app_asesor_bloqueada' => 'int',
         'created_at' => 'datetime',
         'updated_at' => '?datetime',
         'deleted_at' => '?datetime',

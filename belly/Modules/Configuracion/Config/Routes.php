@@ -23,6 +23,8 @@ $routes->group('v1', ['filter' => ['authFilter', 'rolFilter:admin']], static fun
     $routes->group('empresa', ['namespace' => 'Belly\Configuracion\Controllers\Api'], static function ($routes) {
         $routes->put('modo', 'EmpresaControllerApi::guardarModo', ['as' => 'apiv1_empresa_modo_guardar']);
         $routes->put('app-asesor', 'EmpresaControllerApi::guardarAppAsesor', ['as' => 'apiv1_empresa_app_asesor_guardar']);
+        $routes->get('app-asesor/accesos', 'EmpresaControllerApi::accesosAppAsesor', ['as' => 'apiv1_empresa_app_asesor_accesos']);
+        $routes->put('app-asesor/usuarios/(:num)/acceso', 'EmpresaControllerApi::guardarAccesoAppAsesor/$1', ['as' => 'apiv1_empresa_app_asesor_acceso']);
         $routes->post('app-asesor/apk', 'EmpresaControllerApi::subirApkAsesor', ['as' => 'apiv1_empresa_app_asesor_apk']);
         $routes->get('pagos', 'PagoControllerApi::mios', ['as' => 'apiv1_empresa_pagos']);
     });

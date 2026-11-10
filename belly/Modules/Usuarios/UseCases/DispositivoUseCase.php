@@ -122,6 +122,10 @@ class DispositivoUseCase
         if ($idUsuario <= 0) {
             return [];
         }
+        // Sin la tabla (SQL pendiente en prod) no debe tumbar webhooks ni transacciones de chat.
+        if (! db_connect()->tableExists('usuario_dispositivo')) {
+            return [];
+        }
 
         $filas = $this->dispositivos
             ->where('id_usuario', $idUsuario)
@@ -193,6 +197,7 @@ class DispositivoUseCase
         }
 
         $db = db_connect();
+        $tieneDispositivos = $db->tableExists('usuario_dispositivo');
         $tieneBloqueo = $db->fieldExists('app_asesor_bloqueada', 'usuario');
 
         $sql = 'SELECT u.id, u.usuario, u.activo,
@@ -211,31 +216,33 @@ class DispositivoUseCase
         }
 
         $ids = array_map(static fn ($u) => (int) $u['id'], $usuarios);
-        $dispositivos = $this->dispositivos
-            ->whereIn('id_usuario', $ids)
-            ->where('id_empresa', $idEmpresa)
-            ->where('activo', 1)
-            ->orderBy('visto_en', 'DESC')
-            ->findAll();
-
         $porUsuario = [];
         $ahora = time();
-        foreach ($dispositivos as $fila) {
-            if (! $fila instanceof UsuarioDispositivoEntity) {
-                continue;
+        if ($tieneDispositivos && $ids !== []) {
+            $dispositivos = $this->dispositivos
+                ->whereIn('id_usuario', $ids)
+                ->where('id_empresa', $idEmpresa)
+                ->where('activo', 1)
+                ->orderBy('visto_en', 'DESC')
+                ->findAll();
+
+            foreach ($dispositivos as $fila) {
+                if (! $fila instanceof UsuarioDispositivoEntity) {
+                    continue;
+                }
+                $idU = (int) $fila->id_usuario;
+                $visto = $fila->visto_en;
+                $ts = is_object($visto) && method_exists($visto, 'getTimestamp')
+                    ? (int) $visto->getTimestamp()
+                    : (is_string($visto) && $visto !== '' ? (int) strtotime($visto) : 0);
+                $porUsuario[$idU][] = [
+                    'id' => (int) $fila->id,
+                    'plataforma' => (string) $fila->plataforma,
+                    'nombre' => $fila->nombre,
+                    'visto_en' => $ts > 0 ? date('c', $ts) : null,
+                    'conectado' => $ts > 0 && ($ahora - $ts) <= 300,
+                ];
             }
-            $idU = (int) $fila->id_usuario;
-            $visto = $fila->visto_en;
-            $ts = is_object($visto) && method_exists($visto, 'getTimestamp')
-                ? (int) $visto->getTimestamp()
-                : (is_string($visto) && $visto !== '' ? (int) strtotime($visto) : 0);
-            $porUsuario[$idU][] = [
-                'id' => (int) $fila->id,
-                'plataforma' => (string) $fila->plataforma,
-                'nombre' => $fila->nombre,
-                'visto_en' => $ts > 0 ? date('c', $ts) : null,
-                'conectado' => $ts > 0 && ($ahora - $ts) <= 300,
-            ];
         }
 
         $salida = [];

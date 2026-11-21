@@ -49,6 +49,7 @@ writable/uploads/app/*.apk
 # Disco real: writable/uploads. En el servidor public/uploads es symlink a eso.
 # Si se versiona, git pull pisa el enlace y aborta el merge.
 public/uploads
+public/downloads
 
 # APK de Belly Asesor (se sube al servidor, no al repo)
 public/app/*.apk

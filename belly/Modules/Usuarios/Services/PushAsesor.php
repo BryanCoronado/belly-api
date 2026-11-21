@@ -79,6 +79,9 @@ class PushAsesor
                 'sound' => 'default',
                 'priority' => 'high',
                 'channelId' => 'chat',
+                'ttl' => 86400,
+                'expiration' => time() + 86400,
+                '_displayInForeground' => false,
                 'data' => $datos,
             ];
         }

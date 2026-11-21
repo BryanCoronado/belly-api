@@ -149,7 +149,8 @@ class ConversacionUseCase {
                 "SELECT m.id_conversacion,
                         m.mensaje AS texto_ultimo_mensaje,
                         m.created_at AS ultimo_mensaje_fecha,
-                        m.contesta AS ultimo_mensaje_contesta
+                        m.contesta AS ultimo_mensaje_contesta,
+                        m.id_estado AS ultimo_mensaje_id_estado
                  FROM mensaje m
                  INNER JOIN (
                     SELECT id_conversacion, MAX(id) AS max_id
@@ -176,6 +177,9 @@ class ConversacionUseCase {
             $row->texto_ultimo_mensaje = $ultimo->texto_ultimo_mensaje ?? null;
             $row->ultimo_mensaje_fecha = $ultimo->ultimo_mensaje_fecha ?? ($row->updated_at ?? null);
             $row->ultimo_mensaje_contesta = $ultimo->ultimo_mensaje_contesta ?? null;
+            $row->ultimo_mensaje_id_estado = isset($ultimo->ultimo_mensaje_id_estado)
+                ? (int) $ultimo->ultimo_mensaje_id_estado
+                : null;
         }
 
         return $rows;

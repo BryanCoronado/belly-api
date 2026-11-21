@@ -32,8 +32,14 @@ class SocketHelper
 
     public static function emitirEstadoMensaje($mensajeId, $nuevoEstado, $datosMensaje = null): bool
     {
-        $datos = self::avisoDeConversacion((int) ($datosMensaje['id_conversacion'] ?? 0), $datosMensaje);
+        $extra = is_array($datosMensaje) ? $datosMensaje : [];
+        $datos = self::avisoDeConversacion((int) ($extra['id_conversacion'] ?? 0), $extra);
         $datos['motivo'] = 'estado';
+        $datos['id_mensaje'] = (int) $mensajeId;
+        $datos['id_estado'] = (int) $nuevoEstado;
+        if (isset($extra['contesta'])) {
+            $datos['contesta'] = $extra['contesta'];
+        }
 
         return self::emitir('mensaje', $datos);
     }

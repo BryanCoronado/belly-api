@@ -1373,20 +1373,34 @@ class MensajeUseCase {
             return null;
         }
 
-        $destino = preg_replace('/\.[^.]+$/', '-wa.ogg', $origen) ?: ($origen . '-wa.ogg');
-        $cmd = escapeshellarg($ffmpeg)
-            . ' -y -i ' . escapeshellarg($origen)
-            . ' -vn -c:a libopus -b:a 48k -ac 1 '
-            . escapeshellarg($destino)
-            . ' 2>&1';
-        exec($cmd, $salida, $codigo);
-        if ($codigo === 0 && is_file($destino) && filesize($destino) > 0) {
-            return $destino;
-        }
+        $base = preg_replace('/\.[^.]+$/', '', $origen) ?: $origen;
+        $intentos = [
+            ['destino' => $base . '-wa.ogg', 'args' => ' -vn -ac 1 -ar 48000 -c:a libopus -b:a 32k -application voip '],
+            ['destino' => $base . '-wa-16k.ogg', 'args' => ' -vn -ac 1 -ar 16000 -c:a libopus -b:a 24k -application voip '],
+            ['destino' => $base . '-wa.m4a', 'args' => ' -vn -ac 1 -c:a aac -b:a 64k -movflags +faststart '],
+        ];
 
-        log_message('error', '[WhatsApp] ffmpeg audio: ' . implode("\n", $salida));
-        if (is_file($destino)) {
-            @unlink($destino);
+        foreach ($intentos as $intento) {
+            $destino = $intento['destino'];
+            $cmd = escapeshellarg($ffmpeg)
+                . ' -y -i ' . escapeshellarg($origen)
+                . $intento['args']
+                . escapeshellarg($destino)
+                . ' 2>&1';
+            $salida = [];
+            $codigo = 1;
+            exec($cmd, $salida, $codigo);
+            if ($codigo === 0 && is_file($destino) && filesize($destino) > 200) {
+                log_message('info', '[WhatsApp] Audio convertido para Meta: ' . basename($destino)
+                    . ' bytes=' . filesize($destino)
+                    . ' mime=' . $this->mimeArchivoLocal($destino));
+
+                return $destino;
+            }
+            log_message('error', '[WhatsApp] ffmpeg audio intento fallido (' . basename($destino) . '): ' . implode("\n", $salida));
+            if (is_file($destino)) {
+                @unlink($destino);
+            }
         }
 
         return null;
@@ -1605,6 +1619,11 @@ class MensajeUseCase {
         }
 
         $mime_type = $this->mimeSubidaWhatsappMeta($filePath, $tipoMensaje);
+        $peso = filesize($filePath) ?: 0;
+        log_message('debug', '[WhatsApp] Subiendo media a Meta tipo=' . ($tipoMensaje ?: '?')
+            . ' mime=' . $mime_type
+            . ' bytes=' . $peso
+            . ' archivo=' . basename($filePath));
 
         $endpoint = "https://graph.facebook.com/v19.0/{$phone_number_id}/media";
         $cfile = new \CURLFile($filePath, $mime_type, basename($filePath));

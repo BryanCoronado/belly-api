@@ -271,6 +271,13 @@ class MensajeUseCase {
                 $this->prepararMediaIdWhatsapp($datos, $phone_number_id, $access_token);
             }
 
+            if ($tipo === 'audio' && empty($datos['whatsapp_media_id'])) {
+                throw new \Exception(
+                    'No se pudo subir el audio a WhatsApp. Instala ffmpeg en el servidor (apt install ffmpeg) '
+                    . 'y vuelve a grabar la nota de voz.'
+                );
+            }
+
             $payload = procesarMensajeWhatsappSaliente($datos, $destino);
 
             $datos['mensaje'] = $payload['mensaje_bd'] ?? '[Sin texto]';
@@ -1321,29 +1328,40 @@ class MensajeUseCase {
         $referencia = (string) ($datos['media_path'] ?? $datos['media_url'] ?? '');
         $rel = media()->rutaMediaDesdeAlmacenado($referencia);
         if ($rel === null) {
-            return;
+            throw new \Exception('No se encontró el archivo de audio en el servidor.');
         }
 
         $disco = media()->rutaDiscoUploads($rel);
         if (! is_file($disco)) {
-            return;
+            throw new \Exception('El archivo de audio no existe en disco.');
         }
 
         $mime = $this->mimeArchivoLocal($disco);
-        if (in_array($mime, ['audio/ogg', 'audio/opus', 'application/ogg', 'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/aac', 'audio/amr'], true)) {
+        if ($this->mimeAudioListoParaWhatsapp($mime)) {
             return;
         }
 
         $ogg = $this->convertirAudioOggWhatsapp($disco);
         if ($ogg === null) {
             log_message('error', '[WhatsApp] No se pudo convertir audio a OGG: ' . $disco . ' mime=' . $mime);
-
-            return;
+            throw new \Exception(
+                'El navegador envía notas de voz en WebM; el servidor debe convertirlas con ffmpeg. '
+                . 'En el VPS ejecuta: apt install -y ffmpeg. Formato detectado: ' . $mime
+            );
         }
 
         $this->actualizarRutaMediaLocal($datos, $ogg);
         $datos['media_type'] = 'audio';
         unset($datos['whatsapp_media_id']);
+    }
+
+    private function mimeAudioListoParaWhatsapp(string $mime): bool
+    {
+        return in_array(
+            $mime,
+            ['audio/ogg', 'audio/opus', 'application/ogg', 'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/aac', 'audio/amr'],
+            true,
+        );
     }
 
     private function convertirAudioOggWhatsapp(string $origen): ?string
@@ -1504,7 +1522,7 @@ class MensajeUseCase {
         }
 
         try {
-            $mediaId = $this->subirMediaAWhatsapp($filePath, $phone_number_id, $access_token);
+            $mediaId = $this->subirMediaAWhatsapp($filePath, $phone_number_id, $access_token, $tipo);
             if ($mediaId) {
                 $datos['whatsapp_media_id'] = $mediaId;
                 log_message('info', '[WhatsApp] ' . $tipo . ' subido a Meta. media_id=' . $mediaId);
@@ -1579,17 +1597,14 @@ class MensajeUseCase {
      * Sube un archivo directamente a WhatsApp Business Media API
      * Devuelve el media attachment ID válido para usar en plantillas
      */
-    private function subirMediaAWhatsapp($filePath, $phone_number_id, $access_token)
+    private function subirMediaAWhatsapp($filePath, $phone_number_id, $access_token, string $tipoMensaje = '')
     {
         if (!file_exists($filePath)) {
             log_message('error', "El archivo no existe: {$filePath}");
             return null;
         }
 
-        // Detectar tipo MIME
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime_type = finfo_file($finfo, $filePath) ?: 'image/jpeg';
-        finfo_close($finfo);
+        $mime_type = $this->mimeSubidaWhatsappMeta($filePath, $tipoMensaje);
 
         $endpoint = "https://graph.facebook.com/v19.0/{$phone_number_id}/media";
         $cfile = new \CURLFile($filePath, $mime_type, basename($filePath));
@@ -1633,6 +1648,39 @@ class MensajeUseCase {
         }
 
         return $responseData['id'];
+    }
+
+    /**
+     * Meta valida el MIME al subir. Las notas WebM no pueden ir como video/webm en un mensaje type=audio.
+     */
+    private function mimeSubidaWhatsappMeta(string $ruta, string $tipoMensaje): string
+    {
+        $mime = $this->mimeArchivoLocal($ruta);
+        $ext = strtolower((string) pathinfo($ruta, PATHINFO_EXTENSION));
+
+        if ($tipoMensaje === 'audio') {
+            if ($ext === 'ogg' || in_array($mime, ['audio/ogg', 'application/ogg'], true)) {
+                return 'audio/ogg';
+            }
+            if ($ext === 'mp3' || $mime === 'audio/mpeg') {
+                return 'audio/mpeg';
+            }
+            if (in_array($ext, ['m4a', 'mp4'], true) || $mime === 'audio/mp4') {
+                return 'audio/mp4';
+            }
+            if ($ext === 'aac' || $mime === 'audio/aac') {
+                return 'audio/aac';
+            }
+            if ($ext === 'amr' || $mime === 'audio/amr') {
+                return 'audio/amr';
+            }
+        }
+
+        if ($mime !== '') {
+            return $mime;
+        }
+
+        return $tipoMensaje === 'audio' ? 'audio/ogg' : 'image/jpeg';
     }
 
     /**

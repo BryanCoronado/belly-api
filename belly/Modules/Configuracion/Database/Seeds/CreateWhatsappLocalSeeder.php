@@ -97,12 +97,14 @@ class CreateWhatsappLocalSeeder extends Seeder
             ->get(1)
             ->getRowArray();
 
+        // IDs únicos por empresa (índice único en phone_number_id).
+        $sufijo = str_pad((string) $idEmpresa, 3, '0', STR_PAD_LEFT);
         $datos = [
             'id_portafolio' => $idPortafolio,
             'nombre' => 'WhatsApp local (demo)',
-            'telefono' => '+51999990000',
-            'phone_number_id' => '100000000000001',
-            'whatsapp_business_account_id' => '200000000000001',
+            'telefono' => '+5199999' . $sufijo,
+            'phone_number_id' => '100000000000' . $sufijo,
+            'whatsapp_business_account_id' => '200000000000' . $sufijo,
             'estado' => 1,
             'access_token' => $token,
             'verificado_at' => $ahora,

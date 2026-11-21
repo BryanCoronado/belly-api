@@ -145,7 +145,7 @@ class CreateProductoTable extends Migration
         $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_producto_empresa');
         $this->forge->addForeignKey('id_familia', 'familia_producto', 'id', 'SET NULL', 'CASCADE', 'fk_producto_familia');
 
-        $this->forge->createTable('producto');
+        $this->forge->createTable('producto', true);
     }
 
     public function down()

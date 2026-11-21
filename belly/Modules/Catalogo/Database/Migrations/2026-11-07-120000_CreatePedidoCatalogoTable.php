@@ -84,7 +84,7 @@ class CreatePedidoCatalogoTable extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey(['id_empresa', 'estado', 'created_at'], false, false, 'idx_pedido_catalogo_empresa');
         $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_pedido_catalogo_empresa');
-        $this->forge->createTable('pedido_catalogo');
+        $this->forge->createTable('pedido_catalogo', true);
     }
 
     public function down()

@@ -84,7 +84,7 @@ class CreateVitrinaTable extends Migration
         $this->forge->addUniqueKey('id_empresa', 'uk_vitrina_empresa');
         $this->forge->addUniqueKey('slug', 'uk_vitrina_slug');
         $this->forge->addForeignKey('id_empresa', 'empresa', 'id', 'CASCADE', 'CASCADE', 'fk_vitrina_empresa');
-        $this->forge->createTable('vitrina');
+        $this->forge->createTable('vitrina', true);
     }
 
     public function down()

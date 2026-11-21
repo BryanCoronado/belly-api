@@ -503,9 +503,19 @@ if (!function_exists('procesarMensajeWhatsappSaliente')) {
                     ? trim((string) $datos['mensaje'])
                     : '[Audio]';
                 $payload['type'] = 'audio';
-                $payload['audio'] = ! empty($datos['whatsapp_media_id'])
+                $audioPayload = ! empty($datos['whatsapp_media_id'])
                     ? ['id' => $datos['whatsapp_media_id']]
                     : ['link' => $datos['media_url']];
+                // Notas de voz del CRM (archivo sin caption): Meta exige voice=true para PTT.
+                $esNotaVoz = ! empty($datos['audio_voice'])
+                    || (
+                        trim((string) ($datos['mensaje'] ?? '')) === ''
+                        || (string) ($datos['mensaje'] ?? '') === '[Audio]'
+                    );
+                if ($esNotaVoz) {
+                    $audioPayload['voice'] = true;
+                }
+                $payload['audio'] = $audioPayload;
                 $addContext($payload, $datos);
                 break;
 

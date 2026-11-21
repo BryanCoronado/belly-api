@@ -259,6 +259,7 @@ class MensajeUseCase {
                 $tipo = $datos['media_type'] ?? $tipo;
             }
             if ($tipo === 'audio') {
+                $datos['audio_voice'] = $datos['audio_voice'] ?? true;
                 $this->asegurarAudioCompatibleWhatsapp($datos);
                 $tipo = $datos['media_type'] ?? $tipo;
             }
@@ -1375,6 +1376,7 @@ class MensajeUseCase {
 
         $base = preg_replace('/\.[^.]+$/', '', $origen) ?: $origen;
         $intentos = [
+            ['destino' => $base . '-wa.mp3', 'args' => ' -vn -ac 1 -ar 44100 -c:a libmp3lame -b:a 64k '],
             ['destino' => $base . '-wa.ogg', 'args' => ' -vn -ac 1 -ar 48000 -c:a libopus -b:a 32k -application voip '],
             ['destino' => $base . '-wa-16k.ogg', 'args' => ' -vn -ac 1 -ar 16000 -c:a libopus -b:a 24k -application voip '],
             ['destino' => $base . '-wa.m4a', 'args' => ' -vn -ac 1 -c:a aac -b:a 64k -movflags +faststart '],
@@ -1391,13 +1393,13 @@ class MensajeUseCase {
             $codigo = 1;
             exec($cmd, $salida, $codigo);
             if ($codigo === 0 && is_file($destino) && filesize($destino) > 200) {
-                log_message('info', '[WhatsApp] Audio convertido para Meta: ' . basename($destino)
+                log_message('error', '[WhatsApp] audio listo para Meta: ' . basename($destino)
                     . ' bytes=' . filesize($destino)
                     . ' mime=' . $this->mimeArchivoLocal($destino));
 
                 return $destino;
             }
-            log_message('error', '[WhatsApp] ffmpeg audio intento fallido (' . basename($destino) . '): ' . implode("\n", $salida));
+            log_message('error', '[WhatsApp] ffmpeg audio intento fallido (' . basename($destino) . '): ' . implode("\n", array_slice($salida, -8)));
             if (is_file($destino)) {
                 @unlink($destino);
             }
@@ -1539,7 +1541,7 @@ class MensajeUseCase {
             $mediaId = $this->subirMediaAWhatsapp($filePath, $phone_number_id, $access_token, $tipo);
             if ($mediaId) {
                 $datos['whatsapp_media_id'] = $mediaId;
-                log_message('info', '[WhatsApp] ' . $tipo . ' subido a Meta. media_id=' . $mediaId);
+                log_message('error', '[WhatsApp] ' . $tipo . ' subido a Meta. media_id=' . $mediaId);
             }
         } catch (\Throwable $e) {
             log_message('error', '[WhatsApp] Error al subir ' . $tipo . ' a Meta: ' . $e->getMessage());

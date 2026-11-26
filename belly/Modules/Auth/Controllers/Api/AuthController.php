@@ -66,21 +66,25 @@ class AuthController extends BaseController
                 $usuario = $this->usuarioDesdeCorreo($limpios['correo']);
             }
 
-            $identidad = $limpios['identidad'];
+            $identidad = $limpios['identidad'] ?? null;
+            $admin = [
+                'usuario' => $usuario,
+                'password' => $limpios['password'],
+                'nombres' => $limpios['nombres'],
+                'apellidos' => $limpios['apellidos'],
+                'correo' => $limpios['correo'],
+                'celular' => $limpios['celular'],
+            ];
+            if (! empty($limpios['nro_documento'])) {
+                $admin['nro_documento'] = $limpios['nro_documento'];
+                $admin['id_tipo_documento'] = $limpios['id_tipo_documento'] ?? null;
+            }
+
             $creada = empresa()->registrar([
                 'nombre' => $limpios['nombre'],
                 'slug' => '',
                 'identidad' => $identidad,
-                'admin' => [
-                    'usuario' => $usuario,
-                    'password' => $limpios['password'],
-                    'nombres' => $limpios['nombres'],
-                    'apellidos' => $limpios['apellidos'],
-                    'correo' => $limpios['correo'],
-                    'celular' => $limpios['celular'],
-                    'nro_documento' => $limpios['nro_documento'],
-                    'id_tipo_documento' => $limpios['id_tipo_documento'] ?? 1,
-                ],
+                'admin' => $admin,
             ]);
 
             $validador->marcarAlta();

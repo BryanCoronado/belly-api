@@ -20,10 +20,11 @@ class RegistroValidador
             throw new \RuntimeException('No se pudo crear la cuenta.');
         }
 
-        $identidad = $this->exigirDocumento($datos);
+        $internacional = $this->esInternacional($datos);
+        $identidad = $internacional ? null : $this->exigirDocumento($datos);
 
         $nombre = trim((string) ($datos['nombre'] ?? ''));
-        if ($nombre === '' && $identidad['tipo'] === 'ruc') {
+        if ($nombre === '' && is_array($identidad) && ($identidad['tipo'] ?? '') === 'ruc') {
             $nombre = (string) $identidad['nombre'];
         }
         if (mb_strlen($nombre) < 3) {
@@ -41,10 +42,10 @@ class RegistroValidador
 
         $nombres = trim((string) ($datos['nombres'] ?? ''));
         $apellidos = trim((string) ($datos['apellidos'] ?? ''));
-        if ($nombres === '' && $identidad['tipo'] === 'dni') {
+        if ($nombres === '' && is_array($identidad) && ($identidad['tipo'] ?? '') === 'dni') {
             $nombres = (string) $identidad['nombres'];
         }
-        if ($apellidos === '' && $identidad['tipo'] === 'dni') {
+        if ($apellidos === '' && is_array($identidad) && ($identidad['tipo'] ?? '') === 'dni') {
             $apellidos = (string) $identidad['apellidos'];
         }
         if (mb_strlen($nombres) < 2) {
@@ -86,10 +87,19 @@ class RegistroValidador
             'password' => $clave,
             'celular' => $celular,
             'codigo_pais' => preg_replace('/\D/', '', (string) ($datos['codigo_pais'] ?? '')) ?? '',
+            'modo' => $internacional ? 'internacional' : 'peru',
             'identidad' => $identidad,
-            'nro_documento' => (string) $identidad['numero'],
-            'id_tipo_documento' => $identidad['tipo'] === 'dni' ? 1 : null,
+            'nro_documento' => is_array($identidad) ? (string) $identidad['numero'] : null,
+            'id_tipo_documento' => is_array($identidad) && ($identidad['tipo'] ?? '') === 'dni' ? 1 : null,
         ];
+    }
+
+    /** @param array<string, mixed> $datos */
+    public function esInternacional(array $datos): bool
+    {
+        $modo = strtolower(trim((string) ($datos['modo'] ?? '')));
+
+        return in_array($modo, ['internacional', 'international', 'global'], true);
     }
 
     /** @param array<string, mixed> $datos @return array<string, mixed> */
@@ -97,7 +107,7 @@ class RegistroValidador
     {
         $numero = preg_replace('/\D+/', '', (string) ($datos['documento'] ?? $datos['nro_documento'] ?? $datos['dni'] ?? $datos['ruc'] ?? '')) ?? '';
         if ($numero === '') {
-            throw new \RuntimeException('El DNI o RUC es obligatorio.');
+            throw new \RuntimeException('El DNI o RUC es obligatorio para cuentas en Perú.');
         }
 
         $this->exigirDocumentoLibre($numero);

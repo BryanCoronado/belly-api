@@ -55,6 +55,11 @@ class CreateConversacionTable extends Migration
                 'constraint' => 11,
                 'unsigned'   => true,
             ],
+            'archivado' => [
+                'type'       => 'TINYINT',
+                'constraint' => 1,
+                'default'    => 0,
+            ],
             'origen' => [
                 'type'       => 'VARCHAR',
                 'constraint' => 100,

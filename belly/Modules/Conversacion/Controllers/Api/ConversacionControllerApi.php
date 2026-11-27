@@ -148,6 +148,36 @@ class ConversacionControllerApi extends BaseController
         }
     }
 
+    public function listarArchivadas()
+    {
+        $usuario = auth()->getUsuario();
+        $page = max(1, (int) ($this->request->getGet('page') ?? 1));
+        $filtros = array_merge([
+            'origen_canal' => $this->request->getGet('origen_canal'),
+            'search' => $this->request->getGet('search'),
+        ], $this->filtrosClienteCrm());
+        $result = conversaciones()->listarConversacionArchivada($usuario->id, $page, $filtros);
+
+        return $this->respond([
+            'success' => true,
+            'data' => $result['data'],
+            'pagination' => $result['pagination'],
+        ]);
+    }
+
+    public function archivar(int $id)
+    {
+        try {
+            $datos = $this->request->getJSON(true);
+            $archivado = ! is_array($datos) || (int) ($datos['archivado'] ?? 1) === 1;
+            conversaciones()->fijarArchivado($id, $archivado);
+
+            return $this->respond(['success' => true]);
+        } catch (\Throwable $e) {
+            return $this->respond(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+    }
+
     public function listarFinalizadas()
     {
         $usuario = auth()->getUsuario();

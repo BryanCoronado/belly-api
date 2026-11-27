@@ -141,6 +141,7 @@ class WebhookUseCase
             if ($conversacion) {
                 $idConversacion = (int) $conversacion->id;
                 $idUsuario = (int) $conversacion->id_usuario;
+                conversaciones()->desarchivar($idConversacion);
             } else {
                 $decision = $this->resolverAsignacion($idEmpresa, $idApp, $idCliente, $message);
                 $idUsuario = in_array($decision['tipo'], ['asesor', 'flujo'], true) ? $decision['id_usuario'] : null;

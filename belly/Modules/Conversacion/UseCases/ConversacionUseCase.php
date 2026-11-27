@@ -711,6 +711,7 @@ class ConversacionUseCase {
                  WHERE c.id_usuario = ?
                    AND c.deleted_at IS NULL
                    AND c.id_estado IN (1, 3)
+                   AND IFNULL(c.archivado, 0) = 0
                    AND m.deleted_at IS NULL
                    AND m.contesta = 'cliente'
                    AND m.id_estado = 3",
@@ -728,6 +729,7 @@ class ConversacionUseCase {
                  WHERE c.id_usuario = ?
                    AND c.deleted_at IS NULL
                    AND c.id_estado IN (1, 3)
+                   AND IFNULL(c.archivado, 0) = 0
                    AND (
                      SELECT m.contesta
                      FROM mensaje m
@@ -770,6 +772,7 @@ class ConversacionUseCase {
             $conversacion_model->where('conversacion.id_estado', (int) $filtros['id_estado']);
         } else {
             $conversacion_model->whereIn('conversacion.id_estado', [1, 3]);
+            $this->excluirArchivadas($conversacion_model);
         }
 
         if (!empty($filtros['search'])) {
@@ -826,7 +829,9 @@ class ConversacionUseCase {
             ->join('usuario', 'usuario.id = conversacion.id_usuario', 'left')
             ->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left')
             ->where('conversacion.id_usuario', $id_usuario)
-            ->where(
+            ->whereIn('conversacion.id_estado', [1, 3]);
+        $this->excluirArchivadas($conversacion_model);
+        $conversacion_model->where(
                 "EXISTS (
                     SELECT 1 FROM mensaje m
                     WHERE m.id_conversacion = conversacion.id
@@ -893,8 +898,9 @@ class ConversacionUseCase {
             ->join('usuario', 'usuario.id = conversacion.id_usuario', 'left')
             ->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left')
             ->where('conversacion.id_usuario', $id_usuario)
-            ->whereIn('conversacion.id_estado', [1, 3])
-            ->where("{$ultimoContestaSql} = 'cliente'", null, false);
+            ->whereIn('conversacion.id_estado', [1, 3]);
+        $this->excluirArchivadas($conversacion_model);
+        $conversacion_model->where("{$ultimoContestaSql} = 'cliente'", null, false);
         $this->unirDatosCrmCliente($conversacion_model);
 
         if (! empty($filtros['search'])) {
@@ -927,6 +933,69 @@ class ConversacionUseCase {
         $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
         $this->aplicarFiltrosClienteCrm($conversacion_model, $filtros);
 
+        $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
+
+        return $this->ejecutarListadoPaginadoSidebarChat($conversacion_model, $page);
+    }
+
+    public function fijarArchivado(int $id, bool $archivado): void
+    {
+        $this->exigirAcceso($id);
+        if (! db_connect()->fieldExists('archivado', 'conversacion')) {
+            throw new \RuntimeException('Falta la columna archivado. Ejecuta las migraciones.');
+        }
+        $this->getConversacionProvider()->update($id, ['archivado' => $archivado ? 1 : 0]);
+    }
+
+    /** Un mensaje nuevo vuelve a dejar el chat en la bandeja principal. */
+    public function desarchivar(int $id): void
+    {
+        if ($id <= 0 || ! db_connect()->fieldExists('archivado', 'conversacion')) {
+            return;
+        }
+        $this->getConversacionProvider()->update($id, ['archivado' => 0]);
+    }
+
+    /** @param object $modelo */
+    private function excluirArchivadas($modelo): void
+    {
+        if (! db_connect()->fieldExists('archivado', 'conversacion')) {
+            return;
+        }
+        $modelo->groupStart()
+            ->where('conversacion.archivado', 0)
+            ->orWhere('conversacion.archivado', null)
+            ->groupEnd();
+    }
+
+    public function listarConversacionArchivada($id_usuario, int $page = 1, array $filtros = [])
+    {
+        $conversacion_model = $this->getConversacionProvider();
+
+        $conversacion_model
+            ->select($this->selectListadoSidebarChatBaseSql())
+            ->join('cliente', 'cliente.id = conversacion.id_cliente')
+            ->join('cliente_perfil', 'cliente_perfil.id_cliente = cliente.id', 'left')
+            ->join('app', 'app.id = conversacion.id_app', 'left')
+            ->join('usuario', 'usuario.id = conversacion.id_usuario', 'left')
+            ->join('etiqueta', 'etiqueta.id = conversacion.id_etiqueta AND etiqueta.deleted_at IS NULL', 'left')
+            ->where('conversacion.id_usuario', $id_usuario)
+            ->where('conversacion.archivado', 1)
+            ->whereIn('conversacion.id_estado', [1, 3]);
+        $this->unirDatosCrmCliente($conversacion_model);
+
+        if (! empty($filtros['search'])) {
+            $search = trim((string) $filtros['search']);
+            $conversacion_model->groupStart();
+            $conversacion_model->like('cliente.telefono', $search);
+            $conversacion_model->orLike('cliente_perfil.nombre', $search);
+            $conversacion_model->orLike('cliente_perfil.apellido', $search);
+            $conversacion_model->orLike('cliente_perfil.nombre_completo', $search);
+            $conversacion_model->groupEnd();
+        }
+
+        $this->aplicarFiltroOrigenCanal($conversacion_model, $filtros);
+        $this->aplicarFiltrosClienteCrm($conversacion_model, $filtros);
         $this->aplicarOrdenUltimoMensajeReciente($conversacion_model);
 
         return $this->ejecutarListadoPaginadoSidebarChat($conversacion_model, $page);
@@ -1333,6 +1402,7 @@ class ConversacionUseCase {
             'id_estado' => 2,
             'id_motivo' => $datos['id_motivo'],
         ]);
+        $this->desarchivar($id);
 
         return [
             'message' => 'Conversación finalizada correctamente',
@@ -1833,6 +1903,7 @@ class ConversacionUseCase {
             $modelo->where('conversacion.id_estado', 2);
         } else {
             $modelo->whereIn('conversacion.id_estado', [1, 3]);
+            $this->excluirArchivadas($modelo);
             if ($estado === 'sin_responder') {
                 $modelo->where($this->sqlUltimoMensajeContestaEnConversacion() . " = 'cliente'", null, false);
             }

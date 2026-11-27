@@ -22,6 +22,7 @@ class ConversacionModel extends Model {
         'id_usuario',
         'id_app',
         'id_estado',
+        'archivado',
         'id_motivo',
         'id_etiqueta',
         'origen',
